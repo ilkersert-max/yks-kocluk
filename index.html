@@ -67,18 +67,22 @@
             </div>
 
             <div class="row">
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <h6 class="text-secondary fw-bold">📢 Genel Duyuru Yayınla</h6>
                     <form id="admin-duyuru-form">
                         <div class="input-group mb-2">
-                            <input type="text" id="admin-duyuru-input" class="form-control" placeholder="Tüm kullanıcılara duyuru yazın..." required>
+                            <input type="text" id="admin-duyuru-input" class="form-control" placeholder="Duyuru yazın..." required>
                             <button type="submit" class="btn btn-primary">Yayınla</button>
                         </div>
                     </form>
                 </div>
-                <div class="col-md-6 mb-3">
+                <div class="col-md-4 mb-3">
                     <h6 class="text-secondary fw-bold">📥 Raporları Dışa Aktar</h6>
-                    <button class="btn btn-outline-success w-100" onclick="exportToCSV()">Tüm Test Verilerini CSV (Excel) Olarak İndir</button>
+                    <button class="btn btn-outline-success w-100" onclick="exportToCSV()">Test Verilerini CSV İndir</button>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <h6 class="text-danger fw-bold">⚠️ Test Verilerini Sıfırla</h6>
+                    <button class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#resetConfirmModal">Tüm Test ve Denemeleri Sil</button>
                 </div>
             </div>
 
@@ -294,7 +298,7 @@
             <div id="konu-matris-container" class="row"></div>
         </div>
 
-        <!-- KOÇUMA NOTLAR / ÇÖZEMEDİĞİM SORULAR (Öğrenciye Input, Öğretmene/Admine Takip Listesi) -->
+        <!-- KOÇUMA NOTLAR / ÇÖZEMEDİĞİM SORULAR -->
         <div class="card p-4 shadow-sm mb-4">
             <h5 class="text-danger border-bottom pb-2 mb-3">❓ Koçuma Notlar & Çözülemeyen Sorular Defteri</h5>
             <div id="student-soru-box" class="d-none mb-3">
@@ -347,6 +351,27 @@
             </div>
         </div>
 
+    </div>
+
+    <!-- SİLME ONAY MODALI (GÜVENLİK DOĞRULAMALI) -->
+    <div class="modal fade" id="resetConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title">⚠️ Kritik İşlem: Tüm Verileri Sıfırla</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">Bu işlem tüm test geçmişini, deneme karnelerini ve çalışma sürelerini kalıcı olarak silecektir!</p>
+                    <p class="small text-muted mb-3">Devam etmek için aşağıdaki kutuya <strong class="text-dark">SIL</strong> yazın:</p>
+                    <input type="text" id="confirm-input" class="form-control text-center fw-bold" placeholder="Buraya SIL yazın" oninput="checkConfirmInput()">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" id="confirm-delete-btn" class="btn btn-danger" disabled onclick="tumTestVerileriniSil()">Kalıcı Olarak Temizle</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- ŞİFRE DEĞİŞTİRME MODALI -->
@@ -458,7 +483,7 @@
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- Scriptler -->
+    <!-- Küçük Arayüz Fonksiyonları -->
     <script>
         const konuListeleri = {
             "Matematik": ["Temel Kavramlar", "Sayı Basamakları", "Bölünebilme", "Denklem Çözme", "Üslü-Köklü Sayılar", "Çarpanlara Ayırma", "Fonksiyonlar", "Polinomlar", "İkinci Dereceden Denklemler", "Trigonometri", "Limit", "Türev", "İntegral", "Diğer (Manuel Gir)"],
@@ -506,7 +531,20 @@
             const net = d - (y / 4);
             document.getElementById('modal-net-preview').innerText = net.toFixed(2);
         }
+
+        // Güvenlik Doğrulama Kutusu Kontrolü
+        function checkConfirmInput() {
+            const val = document.getElementById('confirm-input').value.trim();
+            const btn = document.getElementById('confirm-delete-btn');
+            if (val === "SIL") {
+                btn.removeAttribute('disabled');
+            } else {
+                btn.setAttribute('disabled', 'true');
+            }
+        }
     </script>
+
+    <!-- Harici app.js Dosyası Bağlantısı -->
     <script type="module" src="app.js"></script>
 </body>
 </html>

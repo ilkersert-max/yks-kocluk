@@ -69,35 +69,26 @@ onAuthStateChanged(auth, async (user) => {
 
         if (docSnap.exists()) {
             const userData = docSnap.data();
-            welcomeText.innerText = "Hoş Geldin, " + userData.AdSoyad + "!";
-            roleText.innerText = userData.Rol;
+            welcomeText.innerText = "Hoş Geldin, " + (userData.AdSoyad || 'Kullanıcı') + "!";
+            
+            const rol = (userData.Rol || "").trim();
+            roleText.innerText = rol;
 
-            const rol = userData.Rol;
+            studentPanel.classList.add('d-none');
+            teacherAssignPanel.classList.add('d-none');
+            adminPanel.classList.add('d-none');
+            studentKocNotuCard.classList.add('d-none');
+            studentSoruBox.classList.add('d-none');
 
-            if (rol === "Öğrenci" || rol === "Ogrenci") {
+            if (rol === "Admin") {
+                adminPanel.classList.remove('d-none');
+                loadAdminKpi();
+            } else if (rol === "Öğretmen" || rol === "Ogretmen") {
+                teacherAssignPanel.classList.remove('d-none');
+            } else if (rol === "Öğrenci" || rol === "Ogrenci") {
                 studentPanel.classList.remove('d-none');
-                teacherAssignPanel.classList.add('d-none');
-                adminPanel.classList.add('d-none');
                 studentKocNotuCard.classList.remove('d-none');
                 studentSoruBox.classList.remove('d-none');
-            } else if (rol === "Öğretmen" || rol === "Ogretmen") {
-                studentPanel.classList.add('d-none');
-                teacherAssignPanel.classList.remove('d-none');
-                adminPanel.classList.add('d-none');
-                studentKocNotuCard.classList.add('d-none');
-                studentSoruBox.classList.add('d-none');
-            } else if (rol === "Admin") {
-                studentPanel.classList.add('d-none');
-                teacherAssignPanel.classList.add('d-none');
-                adminPanel.classList.remove('d-none');
-                studentKocNotuCard.classList.add('d-none');
-                studentSoruBox.classList.add('d-none');
-            } else {
-                studentPanel.classList.add('d-none');
-                teacherAssignPanel.classList.add('d-none');
-                adminPanel.classList.add('d-none');
-                studentKocNotuCard.classList.add('d-none');
-                studentSoruBox.classList.add('d-none');
             }
             
             loadStudentTests();
@@ -108,7 +99,6 @@ onAuthStateChanged(auth, async (user) => {
             loadKonuMatrisi();
             loadDuyuru();
             hesaplaYksSayac();
-            loadAdminKpi();
         }
     } else {
         loginScreen.classList.remove('d-none');
@@ -242,29 +232,31 @@ window.exportToCSV = async function() {
     } catch(e) { alert("Rapor indirilemedi!"); }
 }
 
-// --- ADMIN: ONAYSIZ / DİREKT TEST VE DENEME VERİLERİNİ SİLME ---
+// --- ADMIN: GÜVENLİK DOĞRULAMALI TEST VE DENEME VERİLERİNİ SİLME ---
 window.tumTestVerileriniSil = async function() {
     try {
-        // Test Entries sil
         const testSnap = await getDocs(collection(db, "TestEntries"));
         for (const d of testSnap.docs) {
             await deleteDoc(doc(db, "TestEntries", d.id));
         }
 
-        // Denemeler sil
         const denemeSnap = await getDocs(collection(db, "Denemeler"));
         for (const d of denemeSnap.docs) {
             await deleteDoc(doc(db, "Denemeler", d.id));
         }
 
-        // Study Times sil
         const studySnap = await getDocs(collection(db, "StudyTimes"));
         for (const d of studySnap.docs) {
             await deleteDoc(doc(db, "StudyTimes", d.id));
         }
 
+        // Modalı kapat ve sayfayı yenile
+        const modalEl = document.getElementById('resetConfirmModal');
+        const modal = bootstrap.Modal.getInstance(modalEl);
+        if(modal) modal.hide();
+
         alert("✅ Tüm test ve deneme verileri başarıyla temizlendi!");
-        location.reload(); // Sayfayı yenile
+        location.reload();
     } catch (error) {
         alert("Veriler silinirken hata oluştu!");
     }
