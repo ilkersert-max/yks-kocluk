@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, updatePassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M",
@@ -74,19 +74,18 @@ onAuthStateChanged(auth, async (user) => {
 
             const rol = userData.Rol;
 
-            // Rol bazlı paneller ve soru kutusu görünürlüğü
             if (rol === "Öğrenci" || rol === "Ogrenci") {
                 studentPanel.classList.remove('d-none');
                 teacherAssignPanel.classList.add('d-none');
                 adminPanel.classList.add('d-none');
                 studentKocNotuCard.classList.remove('d-none');
-                studentSoruBox.classList.remove('d-none'); // Öğrenci soru gönderebilir
+                studentSoruBox.classList.remove('d-none');
             } else if (rol === "Öğretmen" || rol === "Ogretmen") {
                 studentPanel.classList.add('d-none');
                 teacherAssignPanel.classList.remove('d-none');
                 adminPanel.classList.add('d-none');
                 studentKocNotuCard.classList.add('d-none');
-                studentSoruBox.classList.add('d-none'); // Öğretmen soru gönderme kutusunu görmez, sadece listeyi takip eder
+                studentSoruBox.classList.add('d-none');
             } else if (rol === "Admin") {
                 studentPanel.classList.add('d-none');
                 teacherAssignPanel.classList.add('d-none');
@@ -241,6 +240,34 @@ window.exportToCSV = async function() {
         link.click();
         document.body.removeChild(link);
     } catch(e) { alert("Rapor indirilemedi!"); }
+}
+
+// --- ADMIN: ONAYSIZ / DİREKT TEST VE DENEME VERİLERİNİ SİLME ---
+window.tumTestVerileriniSil = async function() {
+    try {
+        // Test Entries sil
+        const testSnap = await getDocs(collection(db, "TestEntries"));
+        for (const d of testSnap.docs) {
+            await deleteDoc(doc(db, "TestEntries", d.id));
+        }
+
+        // Denemeler sil
+        const denemeSnap = await getDocs(collection(db, "Denemeler"));
+        for (const d of denemeSnap.docs) {
+            await deleteDoc(doc(db, "Denemeler", d.id));
+        }
+
+        // Study Times sil
+        const studySnap = await getDocs(collection(db, "StudyTimes"));
+        for (const d of studySnap.docs) {
+            await deleteDoc(doc(db, "StudyTimes", d.id));
+        }
+
+        alert("✅ Tüm test ve deneme verileri başarıyla temizlendi!");
+        location.reload(); // Sayfayı yenile
+    } catch (error) {
+        alert("Veriler silinirken hata oluştu!");
+    }
 }
 
 // --- ÇALIŞMA SAATİ GİRİŞİ ---
