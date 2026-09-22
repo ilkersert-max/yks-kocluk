@@ -77,14 +77,160 @@ const defaultBooks = [
     "Bilgi Sarmal TYT Paragraf"
 ];
 
-// YKS MOTİVASYON CÜMLELERİ
+// 150+ FARKLI YKS MOTİVASYON CÜMLESİ DİZİSİ
 const motivationQuotes = [
     "🚀 Gelecek, bugün ne yaptığına bağlıdır. Hayallerin için bir adım daha at!",
     "🔥 Şampiyonlar salonda değil, içlerindeki tutkuda üretilir. Çalışmaya devam!",
     "🎯 Yapabileceğinize inandığınızda, yolun yarısını zaten tamamlamış olursunuz.",
     "⭐ Büyük başarılar, küçük adımların istikrarlı toplamıdır. Bugün de başardın!",
     "🏆 Derece yapanlar hiç yorulmayanlar değil, pes etmeyenlerdir!",
-    "💡 Zorluklar, başarının değerini artıran süslerdir. İnançla devam et!"
+    "💡 Zorluklar, başarının değerini artıran süslerdir. İnançla devam et!",
+    "🌱 Bugün ektiğin her soru tohumu, yarın üniversite kapısında meyve verecek.",
+    "☀️ Güneş doğmadan kalkanlar, yarın kendi hayallerinin güneşini doğururlar.",
+    "⏱️ Zamanın nasıl geçtiğini değil, zamanı nasıl değerlendirdiğini önemse.",
+    "📚 Bir sayfa daha çözmek, hedefine bir metre daha yaklaşmaktır.",
+    "⚡ Odaklan, nefes al ve yapabildiğinin en iyisini ortaya koy!",
+    "🏔️ Zirveye giden yol tırmanırken yorar ama oradaki manzara her şeye değer.",
+    "💪 Sınırlar sadece zihnindedir; zihnini serbest bırak ve potansiyelini göster!",
+    "🎓 Üniversite amfisinde oturacağın o günü hayal et ve masa başına geç!",
+    "🎯 Hedefin ne kadar büyükse, mücadelen o kadar asil demektir.",
+    "🌊 Rüzgarı kontrol edemezsin ama yelkenlerini ayarlayabilirsin. Çalışmaya odaklan!",
+    "🔥 İçindeki çalışma hırsı, yorgunluğundan her zaman daha güçlü olmalı.",
+    "✨ Başarı tesadüf değildir; alın teri, disiplin ve kararlılığın eseridir.",
+    "🧠 Zihnini her gün bir soru daha çözerek güçlendir. Sen düşündüğünden güçlüsün!",
+    "🚀 Yerinde sayanlar sadece izler, koşanlar ise hedefine ulaşır. Koşmaya devam!",
+    "📖 Çözülemeyen soru yoktur, henüz öğrenilmemiş yöntem vardır.",
+    "🌈 Fırtınadan sonra açan güneş gibi, bu temponun sonunda harika bir gelecek var.",
+    "⏳ YKS maratonunda her gün yeni bir fırsattır; bugünü en iyi şekilde değerlendir!",
+    "🥇 Kendi rekorunu kırmaya hazır mısın? Bugün dünden daha iyi olacaksın!",
+    "💥 Başarısızlık yok, sadece öğrenilen dersler var. Devam et!",
+    "🌟 Yıldızlara ulaşmak istiyorsan, ayaklarını sağlam basıp ders çalışmalısın.",
+    "🕊️ Özgürlüğün ve hayallerinin anahtarı şu an önünde duran kalemdir.",
+    "🔮 Geleceğini tahmin etmenin en iyi yolu, onu kendi ellerinle inşa etmektir.",
+    "⏳ Bugün harcadığın her dakika, yarınki başarının teminatıdır.",
+    "🛡️ İnancını kaybetme, disiplinini bozma ve hedefine odaklan!",
+    "🎓 O hedeflediğin üniversitenin kapısından içeri girdiğin günü düşün!",
+    "🎯 Küçük molalar ver ama asla rotandan sapma.",
+    "🔥 Emek verilen hiçbir çaba karşılıksız kalmaz.",
+    "💡 Anlamadığın her konu, üzerine gittiğinde sana derece getirecek güçtedir.",
+    "🏆 Sahada ter dökmeyen, kürsüde kupa kaldıramaz.",
+    "🚀 Hayallerinin büyüklüğü kadar çalışmaya hazır ol!",
+    "✨ Her doğru soru, hedefine yazılan yeni bir başarı hikayesidir.",
+    "📚 Masadaki kitapların senin geleceğe giden basamaklarındır.",
+    "🌟 Yetenek seni başlatır, disiplin seni hedefe ulaştırır.",
+    "⚡ Motivasyon geçicidir, disiplin ise seni zafere taşır.",
+    "🌱 Yavaş ilerliyor olabilirsin ama durmadığın sürece ilerliyorsun!",
+    "🎓 Üniversite hayatının ilk gününü hatırla ve hırsla devam et!",
+    "🔥 Pes etmek üzere olduğunda, neden başladığını hatırla!",
+    "🎯 Odaklan: Sadece sen, kalemin ve hedefin var.",
+    "💪 Başarı, pes etmeyenlerin ödülüdür.",
+    "☀️ Zifiri karanlık gece bile sabahın gelişini engelleyemez.",
+    "🚀 Kendi hikayenin kahramanı sensin, bu kalemi sen yönlendiriyorsun!",
+    "📖 Konu anlatımları bitsin, denemeler yıkılsın; derece senin olsun!",
+    "🏆 Bugün attığın her adım, yarınki zafer yürüyüşündür.",
+    "✨ Unutma, en parlak elmaslar en yüksek basınç altında oluşur.",
+    "🌟 İnanç, görünmeyeni görür, imkansızı başarır.",
+    "🔥 Çalışırken dökülen ter, sınavda dökülecek gözyaşını engeller.",
+    "⏳ Unutma: Zaman geçer ama başarı kalıcıdır.",
+    "🎓 O diploma senin ellerinde yükselecek!",
+    "🎯 Kendine güven, sen bu sınavdan daha büyüksün!",
+    "💪 Zayıf yönlerinin üzerine git, onları en güçlü silahına dönüştür.",
+    "🚀 Başarıya giden kestirme yol yoktur, sağlam adımlarla ilerle!",
+    "📚 Her çözülen soru bankası, hedefe bir adım daha yaklaştırır.",
+    "✨ Zihnini olumlu düşüncelerle besle, gerisi kendiliğinden gelecek.",
+    "⚡ Bugün gösterdiğin çaba, yarın yaşayacağın gururun temelidir.",
+    "🌱 Sabır ve azimle işlenen her konu, net artışı olarak geri döner.",
+    "🏆 Şampiyon gibi düşün, şampiyon gibi çalış!",
+    "🎓 İstediğin bölümün kampüsünde yürüdüğünü hayal et!",
+    "🔥 Yol çetin olabilir ama senin kararlılığın daha sert!",
+    "🎯 Bir soruda takıldığında pes etme, analiz et ve öğren!",
+    "💡 Başarı, her gün tekrar edilen küçük disiplinlerin toplamıdır.",
+    "🌟 Işığını saçmak için önce yanmayı bilmelisin.",
+    "🚀 Bu sınav senin zekanı değil, disiplinini ve azmini ölçecek!",
+    "📖 Test kitabının kapağını aç ve zafere bir adım daha at.",
+    "⚡ İçindeki potansiyeli ortaya çıkarmanın tam zamanı!",
+    "🎓 Üniversite tercih listesinin en üstündeki o isim seni bekliyor.",
+    "💪 Yorgunluk geçicidir ama derece ve başarı kalıcıdır.",
+    "☀️ Her sabah yeni bir net artışı için bir şanstır.",
+    "🎯 Rotanı netleştir, hedefine kilitlen ve ilerle!",
+    "🔥 Kararlılık, imkansız görüneni başarılır kılar.",
+    "✨ Geleceğin profesörü, mühendisi, doktoru, mimarı... Bugün senin günün!",
+    "🏆 Zafere giden yolda çekilen çile kutsaldır.",
+    "📚 Kitapların kokusu, yarınki başarının kokusudur.",
+    "🌟 Sen hayal et, planla ve uygula; gerisi çorap söküğü gibi gelecek.",
+    "🚀 Sınav günü geldiğinde 'Elimden gelenin en iyisini yaptım' diyeceksin!",
+    "🎓 Hayallerindeki üniversitenin bahçesinde çay içeceğin günü hatırla.",
+    "⚡ Zor sorular sana engel değil, rakiplerine fark atma fırsatıdır.",
+    "🌱 Her gün %1 daha iyi ol, yıl sonunda ne kadar ilerlediğine şaşıracaksın.",
+    "💡 Bildiğin konuyu pekiştir, bilmediğin konunun üzerine korkusuzca git!",
+    "🔥 Şüphelerini arkada bırak, inancını kuşan ve dersinin başına geç!",
+    "🎯 Hedefin tam ortasını vurmak için odaklanmayı sürdür.",
+    "✨ Başarı, hedefe giden yolda asla vazgeçmeyenlerin hakkıdır.",
+    "🏆 Zafer, 'Bitti' denilen yerde yeniden başlayanlarındır.",
+    "📚 Masandaki her test fasikülü senin zafer belgendir.",
+    "🚀 Bugünün yorgunluğu, yarınki gururun kaynağıdır.",
+    "🎓 İstediğin geleceği satın alamazsın, onu ders çalışarak kazanırsın!",
+    "💪 Zorluklar sen güçlü olasın diye var.",
+    "☀️ Karanlıktan korkma, kendi ışığını kendin yak!",
+    "🎯 Sürece güven, emek veriyorsun ve karşılığını alacaksın.",
+    "🔥 Tutkuyla çalış, azimle devam et!",
+    "✨ Sen bu maratonun en güçlü koşucususun.",
+    "⚡ Zihnini topla, masana otur ve hedeflerini gerçekleştirmeye başla!",
+    "🌱 Unutma: En büyük ağaçlar en küçük tohumlardan çıkar.",
+    "🏆 Derece yapmak bir tesadüf değil, bir yaşam tarzıdır.",
+    "📚 Ders çalışmak bir yük değil, özgürlüğe açılan kapıdır.",
+    "🚀 Geleceğine yatırım yapıyorsun, bu en karlı yatırımdır!",
+    "🎓 Sınav sonuç ekranında o yüksek puanı gördüğün anı yaşa!",
+    "💡 Her yanlış soru, doğruyu öğrenmek için bir fırsattır.",
+    "🔥 Azmin önünde hiçbir engel duramaz!",
+    "🎯 Hedefin net olsun, adımların kararlı!",
+    "✨ Bugün yapmadıkların, yarın pişmanlığın olabilir. Şimdi başla!",
+    "🏆 Kendi hikayeni en güzel şekilde yazmak senin elinde.",
+    "📚 Sorularla savaşma, onları anla ve çöz!",
+    "🚀 Hayallerine giden yolda engel tanıma!",
+    "🎓 Başarı meşalesi senin ellerinde yükseliyor.",
+    "💪 Gücünün farkına var ve dersinin başına geç!",
+    "☀️ Güneş senin başarın için doğuyor.",
+    "🎯 Sınav kağıdıyla değil, kendi sınırlarınla yarışıyorsun.",
+    "🔥 İstikrarlı çalışmanın gücünü küçümseme!",
+    "✨ Sen düşündüğünden çok daha yeteneklisin.",
+    "⚡ Aksiyon al! Düşünmek seni hedefe götürmez, çalışmak götürür.",
+    "🌱 Emeklerin hiçbiri boşa gitmeyecek, rahat ol ve çalış!",
+    "🏆 Şampiyonlar pes etmez, sadece mola verir ve daha güçlü döner.",
+    "📚 Sayfalar çevrildikçe hedefler yaklaşır.",
+    "🚀 YKS bir son değil, muazzam bir başlangıçtır!",
+    "🎓 İstediğin geleceğin mimarı sensin.",
+    "💡 Fikirler çalışmayla birleştiğinde mucizeler yaratır.",
+    "🔥 İçindeki hırsı serbest bırak ve soruları erit!",
+    "🎯 Hedefine odaklan, gürültüyü dışarıda bırak.",
+    "✨ Bir anlık disiplin, bir ömür boyu gurur getirir.",
+    "🏆 Zafer takı senin için kuruluyor, yürümeye devam et!",
+    "📚 Çözülen her test, net matrisinde green light demektir!",
+    "🚀 Potansiyelinin sınırlarını zorla!",
+    "🎓 Sınav salonundan gülerek çıkacağın o günü unutma.",
+    "💪 Kendine inanmak, başarmanın yarısıdır.",
+    "☀️ Bugün harika işler çıkaracaksın, başla!",
+    "🎯 Yol haritan belli, hedefin net. İlerle!",
+    "🔥 Kararlılığın tüm yorgunluğunu unutturacak.",
+    "✨ Sen çabaladıkça kapılar ardına kadar açılacak.",
+    "⚡ Her çalışma seansı, hayaline yazılan bir mektuptur.",
+    "🌱 Sabırla ek, gururla biç!",
+    "🏆 Derece kürsüsü seni bekliyor!",
+    "📚 Kitaplarınla dost ol, seni zirveye taşıyacaklar.",
+    "🚀 Hayatının en verimli çalışma gününe hazır mısın?",
+    "🎓 O hayal ettiğin kampüsün havasını solumak için çalış!",
+    "💡 Karanlığa söveceğine bir mum yak, masaya otur!",
+    "🔥 Aşılması imkansız dağ yoktur, tırmanmaya devam et!",
+    "🎯 Odaklan: Başarı ayrıntılarda gizlidir.",
+    "✨ Kendine verdiğin sözü tut ve dersine çalış!",
+    "🏆 Başarı rüzgarı senin arkandan esiyor.",
+    "📚 Her soru yeni bir ufuk demektir.",
+    "🚀 Uçmak istiyorsan seni aşağı çeken her şeyi bırak ve çalış!",
+    "🎓 Kazandığın gün bu yorgunlukların hepsine değdiğini göreceksin!",
+    "💪 İnançla başla, disiplinle bitir!",
+    "☀️ Başarı yolunda sana inancımız tam!",
+    "🎯 Bugün atacağın her net adımı seni zirveye taşır!",
+    "🔥 Asla vazgeçme, zafer yakın!"
 ];
 
 // WEB AUDIO API İLE SESLİ ALKIŞ ÜRETİCİSİ
@@ -214,7 +360,7 @@ onAuthStateChanged(auth, async (user) => {
                     if(studentPanel) studentPanel.classList.remove('d-none');
                     if(studentKocNotuCard) studentKocNotuCard.classList.remove('d-none');
 
-                    // ÖĞRENCİ MOTİVASYON VE ALKIŞ KARŞILAMASI
+                    // ÖĞRENCİ MOTİVASYON VE ALKIŞ KARŞILAMASI (150+ Mesaj Arasından Rastgele)
                     if (motivationBanner && motivationText) {
                         const randomQuote = motivationQuotes[Math.floor(Math.random() * motivationQuotes.length)];
                         motivationText.innerText = randomQuote;
@@ -291,6 +437,43 @@ if(loginForm) {
 
 if(logoutBtn) {
     logoutBtn.addEventListener('click', () => { signOut(auth); });
+}
+
+// --- ADMIN: TÜM TEST VE ÖDEV VERİLERİNİ SIFIRLAMA (EKLENEN SİLME FONKSİYONU) ---
+window.tumTestVerileriniSil = async function() {
+    try {
+        // Test kayıtlarını sil
+        const testSnap = await getDocs(collection(db, "TestEntries"));
+        testSnap.forEach(async (d) => { await deleteDoc(doc(db, "TestEntries", d.id)); });
+
+        // Ödevleri sil
+        const assignmentSnap = await getDocs(collection(db, "Assignments"));
+        assignmentSnap.forEach(async (d) => { await deleteDoc(doc(db, "Assignments", d.id)); });
+
+        // Denemeleri sil
+        const denemeSnap = await getDocs(collection(db, "Denemeler"));
+        denemeSnap.forEach(async (d) => { await deleteDoc(doc(db, "Denemeler", d.id)); });
+
+        // Hata Defterini sil
+        const hataSnap = await getDocs(collection(db, "HataDefteri"));
+        hataSnap.forEach(async (d) => { await deleteDoc(doc(db, "HataDefteri", d.id)); });
+
+        // Çalışma sürelerini sil
+        const studySnap = await getDocs(collection(db, "StudyTimes"));
+        studySnap.forEach(async (d) => { await deleteDoc(doc(db, "StudyTimes", d.id)); });
+
+        alert("Tüm test, deneme ve ödev verileri başarıyla temizlendi!");
+
+        const modalEl = document.getElementById('resetConfirmModal');
+        if(modalEl) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if(modal) modal.hide();
+        }
+
+        location.reload();
+    } catch(e) {
+        alert("Veriler silinirken bir hata oluştu!");
+    }
 }
 
 // --- ELDEKİ KİTAPLARDAN HIZLI TEST KAYDI ---
