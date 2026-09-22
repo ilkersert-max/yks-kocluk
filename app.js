@@ -232,22 +232,37 @@ window.exportToCSV = async function() {
     } catch(e) { alert("Rapor indirilemedi!"); }
 }
 
-// --- ADMIN: GÜVENLİK DOĞRULAMALI TEST VE DENEME VERİLERİNİ SİLME ---
+// --- ADMIN: GÜVENLİK DOĞRULAMALI TÜM SİSTEM VERİLERİNİ SİLME ---
 window.tumTestVerileriniSil = async function() {
     try {
+        // 1. Test Geçmişini Sil
         const testSnap = await getDocs(collection(db, "TestEntries"));
         for (const d of testSnap.docs) {
             await deleteDoc(doc(db, "TestEntries", d.id));
         }
 
+        // 2. Deneme Karnelerini Sil
         const denemeSnap = await getDocs(collection(db, "Denemeler"));
         for (const d of denemeSnap.docs) {
             await deleteDoc(doc(db, "Denemeler", d.id));
         }
 
+        // 3. Çalışma Sürelerini Sil
         const studySnap = await getDocs(collection(db, "StudyTimes"));
         for (const d of studySnap.docs) {
             await deleteDoc(doc(db, "StudyTimes", d.id));
+        }
+
+        // 4. Verilen Ödevleri Sil
+        const odevSnap = await getDocs(collection(db, "Assignments"));
+        for (const d of odevSnap.docs) {
+            await deleteDoc(doc(db, "Assignments", d.id));
+        }
+
+        // 5. Koçuma Notlar / Çözülemeyen Soruları Sil
+        const soruSnap = await getDocs(collection(db, "SoruNotlari"));
+        for (const d of soruSnap.docs) {
+            await deleteDoc(doc(db, "SoruNotlari", d.id));
         }
 
         // Modalı kapat ve sayfayı yenile
@@ -255,7 +270,7 @@ window.tumTestVerileriniSil = async function() {
         const modal = bootstrap.Modal.getInstance(modalEl);
         if(modal) modal.hide();
 
-        alert("✅ Tüm test ve deneme verileri başarıyla temizlendi!");
+        alert("✅ Tüm sistem verileri (testler, denemeler, süreler, ödevler ve soru notları) başarıyla temizlendi!");
         location.reload();
     } catch (error) {
         alert("Veriler silinirken hata oluştu!");
