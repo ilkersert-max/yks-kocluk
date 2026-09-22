@@ -31,24 +31,23 @@ const adminPanel = document.getElementById('admin-panel');
 const testEntryForm = document.getElementById('test-entry-form');
 const saveSuccess = document.getElementById('save-success');
 const assignmentForm = document.getElementById('assignment-form');
-const assignmentSuccess = document.getElementById('assignment-success');
 
 const studyTimeForm = document.getElementById('study-time-form');
 const kocNotuForm = document.getElementById('koc-notu-form');
 const kocNotuInput = document.getElementById('koc-notu-input');
-const kocNotuSuccess = document.getElementById('koc-notu-success');
 const studentKocNotuCard = document.getElementById('student-koc-notu-card');
 const studentKocNotuText = document.getElementById('student-koc-notu-text');
 
 const denemeForm = document.getElementById('deneme-form');
-const sifreDegisForm = document.getElementById('sifre-degis-form');
-const yeniSifreInput = document.getElementById('yeni-sifre');
-const sifreSuccess = document.getElementById('sifre-success');
-
 const adminDuyuruForm = document.getElementById('admin-duyuru-form');
 const adminDuyuruInput = document.getElementById('admin-duyuru-input');
 const duyuruBanner = document.getElementById('duyuru-banner');
 const duyuruText = document.getElementById('duyuru-text');
+
+const konuMatrisiCard = document.getElementById('konu-matrisi-card');
+const matrisSwitch = document.getElementById('matris-switch');
+const motivationBanner = document.getElementById('motivation-banner');
+const motivationText = document.getElementById('motivation-text');
 
 let myChart = null;
 let activeAssignmentDocId = null;
@@ -56,6 +55,110 @@ let currentUserRole = "";
 
 let soruDurumlari = {};
 let mevcutToplamSoru = 20;
+let showStudentMatris = false;
+
+// ÜÇDÖRTBEŞ & ALLSTAR VARSAYILAN KİTAP LİSTESİ
+const defaultBooks = [
+    "ÜçDörtBeş TYT Türkçe Soru Bankası",
+    "ÜçDörtBeş TYT Matematik Soru Bankası",
+    "ÜçDörtBeş AYT Matematik Soru Bankası",
+    "ÜçDörtBeş TYT Fizik Soru Bankası",
+    "ÜçDörtBeş AYT Fizik Soru Bankası",
+    "ÜçDörtBeş TYT Kimya Soru Bankası",
+    "ÜçDörtBeş AYT Kimya Soru Bankası",
+    "ÜçDörtBeş TYT Biyoloji Soru Bankası",
+    "ÜçDörtBeş AYT Biyoloji Soru Bankası",
+    "AllStar TYT Matematik Soru Bankası",
+    "AllStar AYT Matematik Soru Bankası",
+    "AllStar TYT Fizik Soru Bankası",
+    "AllStar AYT Fizik Soru Bankası",
+    "3D TYT Geometri Soru Bankası",
+    "3D AYT Geometri Soru Bankası",
+    "Bilgi Sarmal TYT Paragraf"
+];
+
+// YKS MOTİVASYON CÜMLELERİ
+const motivationQuotes = [
+    "🚀 Gelecek, bugün ne yaptığına bağlıdır. Hayallerin için bir adım daha at!",
+    "🔥 Şampiyonlar salonda değil, içlerindeki tutkuda üretilir. Çalışmaya devam!",
+    "🎯 Yapabileceğinize inandığınızda, yolun yarısını zaten tamamlamış olursunuz.",
+    "⭐ Büyük başarılar, küçük adımların istikrarlı toplamıdır. Bugün de başardın!",
+    "🏆 Derece yapanlar hiç yorulmayanlar değil, pes etmeyenlerdir!",
+    "💡 Zorluklar, başarının değerini artıran süslerdir. İnançla devam et!"
+];
+
+// WEB AUDIO API İLE SESLİ ALKIŞ ÜRETİCİSİ
+window.playClapSound = function() {
+    try {
+        const AudioContext = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContext) return;
+        const ctx = new AudioContext();
+
+        for (let i = 0; i < 12; i++) {
+            setTimeout(() => {
+                const bufferSize = ctx.sampleRate * 0.08;
+                const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+
+                for (let j = 0; j < bufferSize; j++) {
+                    data[j] = Math.random() * 2 - 1;
+                }
+
+                const noise = ctx.createBufferSource();
+                noise.buffer = buffer;
+
+                const filter = ctx.createBiquadFilter();
+                filter.type = 'bandpass';
+                filter.frequency.value = 1000 + Math.random() * 800;
+
+                const gain = ctx.createGain();
+                gain.gain.setValueAtTime(0.3, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.08);
+
+                noise.connect(filter);
+                filter.connect(gain);
+                gain.connect(ctx.destination);
+
+                noise.start();
+            }, i * (60 + Math.random() * 40));
+        }
+    } catch(e) {}
+}
+
+// DİNAMİK KİTAP LİSTESİNİ FİREBASE'DEN YÜKLE
+async function loadBookList() {
+    const selectStudent = document.getElementById('kaynak-kitap-select');
+    const selectTeacher = document.getElementById('assignment-kitap-select');
+    if (!selectStudent && !selectTeacher) return;
+
+    try {
+        let books = [...defaultBooks];
+        const snap = await getDocs(collection(db, "BookList"));
+        snap.forEach(d => {
+            const bName = d.data().name;
+            if (bName && !books.includes(bName)) books.push(bName);
+        });
+
+        let optionsHTML = `<option value="">Kitap Seçiniz...</option>`;
+        books.forEach(b => {
+            optionsHTML += `<option value="${b}">${b}</option>`;
+        });
+        optionsHTML += `<option value="__YENI_KITAP__">➕ Listede Yok (Yeni Kitap Ekle)</option>`;
+
+        if (selectStudent) selectStudent.innerHTML = optionsHTML;
+        if (selectTeacher) selectTeacher.innerHTML = optionsHTML;
+    } catch(e) {}
+}
+
+async function addNewBookIfNotExist(bookName) {
+    if (!bookName || bookName === "__YENI_KITAP__") return;
+    try {
+        if (!defaultBooks.includes(bookName)) {
+            await addDoc(collection(db, "BookList"), { name: bookName });
+            loadBookList();
+        }
+    } catch(e) {}
+}
 
 // --- DERS VE METİN TEMİZLEME YARDIMCILARI ---
 function dersIsminiTemizle(ders) {
@@ -97,6 +200,10 @@ onAuthStateChanged(auth, async (user) => {
                 if(teacherAssignPanel) teacherAssignPanel.classList.add('d-none');
                 if(adminPanel) adminPanel.classList.add('d-none');
                 if(studentKocNotuCard) studentKocNotuCard.classList.add('d-none');
+                if(motivationBanner) motivationBanner.classList.add('d-none');
+
+                await loadMatrisSettings();
+                await loadBookList();
 
                 if (currentUserRole === "Admin") {
                     if(adminPanel) adminPanel.classList.remove('d-none');
@@ -106,6 +213,24 @@ onAuthStateChanged(auth, async (user) => {
                 } else if (currentUserRole === "Öğrenci" || currentUserRole === "Ogrenci") {
                     if(studentPanel) studentPanel.classList.remove('d-none');
                     if(studentKocNotuCard) studentKocNotuCard.classList.remove('d-none');
+
+                    // ÖĞRENCİ MOTİVASYON VE ALKIŞ KARŞILAMASI
+                    if (motivationBanner && motivationText) {
+                        const randomQuote = motivationQuotes[Math.floor(Math.random() * motivationQuotes.length)];
+                        motivationText.innerText = randomQuote;
+                        motivationBanner.classList.remove('d-none');
+                        setTimeout(() => { playClapSound(); }, 600);
+                    }
+                }
+
+                // MATRİS GÖRÜNÜRLÜK MANTIĞI
+                if (konuMatrisiCard) {
+                    if (currentUserRole === "Öğrenci" || currentUserRole === "Ogrenci") {
+                        if (showStudentMatris) konuMatrisiCard.classList.remove('d-none');
+                        else konuMatrisiCard.classList.add('d-none');
+                    } else {
+                        konuMatrisiCard.classList.remove('d-none');
+                    }
                 }
 
                 loadStudentTests();
@@ -126,6 +251,32 @@ onAuthStateChanged(auth, async (user) => {
     }
 });
 
+// PARAMETRİK MATRİS AYARINI OKUMA
+async function loadMatrisSettings() {
+    try {
+        const snap = await getDoc(doc(db, "Settings", "MatrisConfig"));
+        if (snap.exists()) {
+            showStudentMatris = snap.data().showToStudent === true;
+        } else {
+            showStudentMatris = false;
+        }
+        
+        if (matrisSwitch) {
+            matrisSwitch.checked = showStudentMatris;
+            matrisSwitch.onchange = async function() {
+                const isChecked = this.checked;
+                try {
+                    await setDoc(doc(db, "Settings", "MatrisConfig"), { showToStudent: isChecked });
+                    showStudentMatris = isChecked;
+                    alert(`Konu İlerleme Haritası öğrenci ekranında ${isChecked ? 'AÇILDI' : 'KAPATILDI'}.`);
+                } catch(e) {
+                    alert("Ayar kaydedilemedi!");
+                }
+            };
+        }
+    } catch(e) {}
+}
+
 // --- GİRİŞ / ÇIKIŞ ---
 if(loginForm) {
     loginForm.addEventListener('submit', (e) => {
@@ -140,6 +291,124 @@ if(loginForm) {
 
 if(logoutBtn) {
     logoutBtn.addEventListener('click', () => { signOut(auth); });
+}
+
+// --- ELDEKİ KİTAPLARDAN HIZLI TEST KAYDI ---
+if(testEntryForm) {
+    testEntryForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const ders = document.getElementById('ders').value;
+        const selectBook = document.getElementById('kaynak-kitap-select').value;
+        const customBook = document.getElementById('kaynak-kitap-custom').value.trim();
+        
+        let kaynakKitap = selectBook === "__YENI_KITAP__" ? customBook : selectBook;
+
+        const konu = document.getElementById('konu').value.trim();
+        const dogru = parseInt(document.getElementById('dogru').value) || 0;
+        const yanlis = parseInt(document.getElementById('yanlis').value) || 0;
+        const bos = parseInt(document.getElementById('bos').value) || 0;
+        const sure = parseInt(document.getElementById('sure').value) || 0;
+        const net = dogru - (yanlis / 4);
+
+        const user = auth.currentUser;
+        if(user && kaynakKitap) {
+            try {
+                await addDoc(collection(db, "TestEntries"), {
+                    userId: user.uid, ders, kaynakKitap, konu, dogru, yanlis, bos, net, sure, tarih: serverTimestamp()
+                });
+                
+                await addNewBookIfNotExist(kaynakKitap);
+
+                testEntryForm.reset();
+                document.getElementById('kaynak-kitap-custom').classList.add('d-none');
+                if(saveSuccess) saveSuccess.classList.remove('d-none');
+                setTimeout(() => { if(saveSuccess) saveSuccess.classList.add('d-none'); }, 3000);
+                loadStudentTests();
+                loadKonuMatrisiAndAnaliz();
+            } catch (error) { alert("Test kaydedilemedi!"); }
+        }
+    });
+}
+
+// --- DİNAMİK ALANLI DENEME KAYDI VE YKS PUAN SIMULASYONU ---
+if(denemeForm) {
+    denemeForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const denemeAdi = document.getElementById('deneme-adi').value;
+        const denemeTuru = document.getElementById('deneme-turu').value;
+
+        const tytTurkce = parseFloat(document.getElementById('d-tyt-turkce').value) || 0;
+        const tytSosyal = parseFloat(document.getElementById('d-tyt-sosyal').value) || 0;
+        const tytMat = parseFloat(document.getElementById('d-tyt-mat').value) || 0;
+        const tytFen = parseFloat(document.getElementById('d-tyt-fen').value) || 0;
+        const tytToplamNet = tytTurkce + tytSosyal + tytMat + tytFen;
+
+        const tytPuan = (tytTurkce * 3.3) + (tytSosyal * 3.4) + (tytMat * 3.3) + (tytFen * 3.4) + 100;
+
+        let alanPuanMetni = `${tytPuan.toFixed(2)} TYT`;
+        let toplamNet = tytToplamNet;
+
+        if (denemeTuru === "AYT_EA") {
+            const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
+            const aytEdebiyat = parseFloat(document.getElementById('d-ayt-edebiyat').value) || 0;
+            toplamNet += (aytMat + aytEdebiyat);
+            const eaPuan = (tytPuan * 0.4) + (aytMat * 3.0) + (aytEdebiyat * 3.0) + 100;
+            alanPuanMetni = `EA: ${eaPuan.toFixed(2)} Puan`;
+        } else if (denemeTuru === "AYT_SAY") {
+            const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
+            const aytFen = parseFloat(document.getElementById('d-ayt-fen').value) || 0;
+            toplamNet += (aytMat + aytFen);
+            const sayPuan = (tytPuan * 0.4) + (aytMat * 3.0) + (aytFen * 2.8) + 100;
+            alanPuanMetni = `SAY: ${sayPuan.toFixed(2)} Puan`;
+        } else if (denemeTuru === "AYT_SOZ") {
+            const aytEdebiyat = parseFloat(document.getElementById('d-ayt-edebiyat').value) || 0;
+            const aytSos2 = parseFloat(document.getElementById('d-ayt-sos2').value) || 0;
+            toplamNet += (aytEdebiyat + aytSos2);
+            const sozPuan = (tytPuan * 0.4) + (aytEdebiyat * 3.0) + (aytSos2 * 2.9) + 100;
+            alanPuanMetni = `SÖZ: ${sozPuan.toFixed(2)} Puan`;
+        } else if (denemeTuru === "YDT") {
+            const ydtDil = parseFloat(document.getElementById('d-ydt-dil').value) || 0;
+            toplamNet += ydtDil;
+            const dilPuan = (tytPuan * 0.4) + (ydtDil * 3.0) + 100;
+            alanPuanMetni = `DİL: ${dilPuan.toFixed(2)} Puan`;
+        }
+
+        try {
+            await addDoc(collection(db, "Denemeler"), {
+                denemeAdi, denemeTuru, toplamNet: toplamNet.toFixed(2), alanPuanMetni, tarih: serverTimestamp()
+            });
+            denemeForm.reset();
+            const modalEl = document.getElementById('denemeModal');
+            if(modalEl) {
+                const modal = bootstrap.Modal.getInstance(modalEl);
+                if(modal) modal.hide();
+            }
+            loadDenemeler();
+        } catch(error) { alert("Deneme kaydedilemedi!"); }
+    });
+}
+
+async function loadDenemeler() {
+    const tbody = document.getElementById('deneme-list-table');
+    if(!tbody) return;
+    try {
+        const querySnapshot = await getDocs(collection(db, "Denemeler"));
+        tbody.innerHTML = "";
+        if(querySnapshot.empty) {
+            tbody.innerHTML = "<tr><td colspan='4' class='text-center text-muted'>Henüz girilmiş deneme sınavı yok.</td></tr>";
+            return;
+        }
+        querySnapshot.forEach(docSnap => {
+            const d = docSnap.data();
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold text-start ps-3">${d.denemeAdi}</td>
+                    <td><span class="badge bg-secondary">${d.denemeTuru || 'TYT'}</span></td>
+                    <td><span class="badge bg-primary fs-6">${d.toplamNet} Net</span></td>
+                    <td><span class="badge bg-success fs-6">${d.alanPuanMetni || '-'}</span></td>
+                </tr>`;
+        });
+    } catch(e) {}
 }
 
 // --- ÖĞRENCİ DOSTU HIZLI ÖDEV TAMAMLAMA MODALI ---
@@ -277,90 +546,6 @@ window.kaydetVeTamamla = async function() {
     } catch (error) { 
         alert("Ödev tamamlanırken hata oluştu!"); 
     }
-}
-
-// --- ELDEKİ KİTAPLARDAN HIZLI TEST KAYDI ---
-if(testEntryForm) {
-    testEntryForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const ders = document.getElementById('ders').value;
-        const kaynakKitap = document.getElementById('kaynak-kitap').value.trim();
-        const konu = document.getElementById('konu').value.trim();
-        const dogru = parseInt(document.getElementById('dogru').value) || 0;
-        const yanlis = parseInt(document.getElementById('yanlis').value) || 0;
-        const bos = parseInt(document.getElementById('bos').value) || 0;
-        const sure = parseInt(document.getElementById('sure').value) || 0;
-        const net = dogru - (yanlis / 4);
-
-        const user = auth.currentUser;
-        if(user) {
-            try {
-                await addDoc(collection(db, "TestEntries"), {
-                    userId: user.uid, ders, kaynakKitap, konu, dogru, yanlis, bos, net, sure, tarih: serverTimestamp()
-                });
-                testEntryForm.reset();
-                if(saveSuccess) saveSuccess.classList.remove('d-none');
-                setTimeout(() => { if(saveSuccess) saveSuccess.classList.add('d-none'); }, 3000);
-                loadStudentTests();
-                loadKonuMatrisiAndAnaliz();
-            } catch (error) { alert("Test kaydedilemedi!"); }
-        }
-    });
-}
-
-// --- DENEME VE PUAN HESAPLAMA ---
-if(denemeForm) {
-    denemeForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const denemeAdi = document.getElementById('deneme-adi').value;
-        const turkce = parseFloat(document.getElementById('d-turkce').value) || 0;
-        const sosyal = parseFloat(document.getElementById('d-sosyal').value) || 0;
-        const mat = parseFloat(document.getElementById('d-mat').value) || 0;
-        const fen = parseFloat(document.getElementById('d-fen').value) || 0;
-        const toplamNet = turkce + sosyal + mat + fen;
-
-        // ÖSYM Standart TYT Puanı Simülasyonu
-        const tytPuan = (turkce * 3.3) + (sosyal * 3.4) + (mat * 3.3) + (fen * 3.4) + 100;
-
-        try {
-            await addDoc(collection(db, "Denemeler"), {
-                denemeAdi, turkce, sosyal, mat, fen, toplamNet, tytPuan: tytPuan.toFixed(2), tarih: serverTimestamp()
-            });
-            denemeForm.reset();
-            const modalEl = document.getElementById('denemeModal');
-            if(modalEl) {
-                const modal = bootstrap.Modal.getInstance(modalEl);
-                if(modal) modal.hide();
-            }
-            loadDenemeler();
-        } catch(error) { alert("Deneme kaydedilemedi!"); }
-    });
-}
-
-async function loadDenemeler() {
-    const tbody = document.getElementById('deneme-list-table');
-    if(!tbody) return;
-    try {
-        const querySnapshot = await getDocs(collection(db, "Denemeler"));
-        tbody.innerHTML = "";
-        if(querySnapshot.empty) {
-            tbody.innerHTML = "<tr><td colspan='7' class='text-center text-muted'>Henüz girilmiş deneme sınavı yok.</td></tr>";
-            return;
-        }
-        querySnapshot.forEach(docSnap => {
-            const d = docSnap.data();
-            tbody.innerHTML += `
-                <tr>
-                    <td class="fw-bold">${d.denemeAdi}</td>
-                    <td>${d.turkce}</td>
-                    <td>${d.sosyal}</td>
-                    <td>${d.mat}</td>
-                    <td>${d.fen}</td>
-                    <td><span class="badge bg-primary fs-6">${d.toplamNet.toFixed(2)}</span></td>
-                    <td><span class="badge bg-success fs-6">${d.tytPuan || '-'} Puan</span></td>
-                </tr>`;
-        });
-    } catch(e) {}
 }
 
 // --- MÜFREDAT VE ANALİZLER ---
