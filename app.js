@@ -86,7 +86,7 @@ const motivationQuotes = [
     "🏆 Derece yapanlar hiç yorulmayanlar değil, pes etmeyenlerdir!",
     "💡 Zorluklar, başarının değerini artıran süslerdir. İnançla devam et!",
     "🌱 Bugün ektiğin her soru tohumu, yarın üniversite kapısında meyve verecek.",
-    "☀️ Güneş doğmadan kalkanlar, yarın kendi hayallerinin güneşini doğururlar.",
+    "☀️ Güneş doğmadan kalkanlar, yarın kendi hayallerinin güneşini doğurırlar.",
     "⏱️ Zamanın nasıl geçtiğini değil, zamanı nasıl değerlendirdiğini önemse.",
     "📚 Bir sayfa daha çözmek, hedefine bir metre daha yaklaşmaktır.",
     "⚡ Odaklan, nefes al ve yapabildiğinin en iyisini ortaya koy!",
@@ -106,7 +106,7 @@ const motivationQuotes = [
     "💥 Başarısızlık yok, sadece öğrenilen dersler var. Devam et!",
     "🌟 Yıldızlara ulaşmak istiyorsan, ayaklarını sağlam basıp ders çalışmalısın.",
     "🕊️ Özgürlüğün ve hayallerinin anahtarı şu an önünde duran kalemdir.",
-    "🔮 Geleceğini tahmin etmenin en iyi yolu, onu kendi ellerinle inşa etmektir.",
+    "🔮 Geleceğini tahmin etmenin en iyi yolu, onu kendi handsinle inşa etmektir.",
     "⏳ Bugün harcadığın her dakika, yarınki başarının teminatıdır.",
     "🛡️ İnancını kaybetme, disiplinini bozma ve hedefine odaklan!",
     "🎓 O hedeflediğin üniversitenin kapısından içeri girdiğin günü düşün!",
@@ -188,7 +188,7 @@ const motivationQuotes = [
     "🏆 Kendi hikayeni en güzel şekilde yazmak senin elinde.",
     "📚 Sorularla savaşma, onları anla ve çöz!",
     "🚀 Hayallerine giden yolda engel tanıma!",
-    "🎓 Başarı meşalesi senin ellerinde yükseliyor.",
+    "🎓 Başarı meşalesi senin handsinde yükseliyor.",
     "💪 Gücünün farkına var ve dersinin başına geç!",
     "☀️ Güneş senin başarın için doğuyor.",
     "🎯 Sınav kağıdıyla değil, kendi sınırlarınla yarışıyorsun.",
@@ -269,6 +269,42 @@ window.playClapSound = function() {
             }, i * (60 + Math.random() * 40));
         }
     } catch(e) {}
+}
+
+// --- DÜZELTİLEN TAM VE KESİNTİSİZ SİLME FONKSİYONU ---
+window.tumTestVerileriniSil = async function() {
+    const confirmBtn = document.getElementById('confirm-delete-btn');
+    if (confirmBtn) {
+        confirmBtn.innerText = "Siliniyor...";
+        confirmBtn.disabled = true;
+    }
+
+    try {
+        const collectionsToClear = ["TestEntries", "Assignments", "Denemeler", "HataDefteri", "StudyTimes"];
+
+        for (const colName of collectionsToClear) {
+            const snap = await getDocs(collection(db, colName));
+            const deletePromises = snap.docs.map(docSnap => deleteDoc(doc(db, colName, docSnap.id)));
+            await Promise.all(deletePromises);
+        }
+
+        alert("Tüm test, deneme, ödev ve çalışma verileri başarıyla temizlendi!");
+
+        const modalEl = document.getElementById('resetConfirmModal');
+        if(modalEl) {
+            const modal = bootstrap.Modal.getInstance(modalEl);
+            if(modal) modal.hide();
+        }
+
+        window.location.reload();
+    } catch(e) {
+        console.error("Silme hatası:", e);
+        alert("Veriler silinirken bir hata oluştu!");
+        if (confirmBtn) {
+            confirmBtn.innerText = "Kalıcı Olarak Temizle";
+            confirmBtn.disabled = false;
+        }
+    }
 }
 
 // DİNAMİK KİTAP LİSTESİNİ FİREBASE'DEN YÜKLE
@@ -437,43 +473,6 @@ if(loginForm) {
 
 if(logoutBtn) {
     logoutBtn.addEventListener('click', () => { signOut(auth); });
-}
-
-// --- ADMIN: TÜM TEST VE ÖDEV VERİLERİNİ SIFIRLAMA (EKLENEN SİLME FONKSİYONU) ---
-window.tumTestVerileriniSil = async function() {
-    try {
-        // Test kayıtlarını sil
-        const testSnap = await getDocs(collection(db, "TestEntries"));
-        testSnap.forEach(async (d) => { await deleteDoc(doc(db, "TestEntries", d.id)); });
-
-        // Ödevleri sil
-        const assignmentSnap = await getDocs(collection(db, "Assignments"));
-        assignmentSnap.forEach(async (d) => { await deleteDoc(doc(db, "Assignments", d.id)); });
-
-        // Denemeleri sil
-        const denemeSnap = await getDocs(collection(db, "Denemeler"));
-        denemeSnap.forEach(async (d) => { await deleteDoc(doc(db, "Denemeler", d.id)); });
-
-        // Hata Defterini sil
-        const hataSnap = await getDocs(collection(db, "HataDefteri"));
-        hataSnap.forEach(async (d) => { await deleteDoc(doc(db, "HataDefteri", d.id)); });
-
-        // Çalışma sürelerini sil
-        const studySnap = await getDocs(collection(db, "StudyTimes"));
-        studySnap.forEach(async (d) => { await deleteDoc(doc(db, "StudyTimes", d.id)); });
-
-        alert("Tüm test, deneme ve ödev verileri başarıyla temizlendi!");
-
-        const modalEl = document.getElementById('resetConfirmModal');
-        if(modalEl) {
-            const modal = bootstrap.Modal.getInstance(modalEl);
-            if(modal) modal.hide();
-        }
-
-        location.reload();
-    } catch(e) {
-        alert("Veriler silinirken bir hata oluştu!");
-    }
 }
 
 // --- ELDEKİ KİTAPLARDAN HIZLI TEST KAYDI ---
