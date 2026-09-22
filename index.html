@@ -4,11 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YKS Koçluk Takip & İletişim Portalı</title>
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <style>
+        /* Modalların CSS yüklenene kadar ham şekilde ekranda görünmesini engelleme */
+        .modal:not(.show) {
+            display: none !important;
+        }
+
         @media (max-width: 768px) {
             body { font-size: 14px; }
             .card { padding: 15px !important; }
@@ -53,7 +61,7 @@
             </div>
         </div>
 
-        <!-- ÖĞRENCİ MOTİVASYON VE ALKIŞ KARŞILAMA BANNERI -->
+        <!-- ÖĞRENCİ MOTİVASYON BANNERI -->
         <div id="motivation-banner" class="alert alert-success p-3 mb-4 d-none shadow-sm border-success">
             <div class="d-flex align-items-center justify-content-between">
                 <div>
@@ -132,21 +140,19 @@
             </div>
         </div>
 
-        <!-- YENİLENEN VELİ & KOÇ ÖZET PANELİ -->
+        <!-- VELİ & KOÇ ÖZET PANELİ -->
         <div id="analiz-panel" class="card p-4 shadow-sm mb-4 border-info">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <h5 class="text-info fw-bold mb-0">📈 Öğrenci Genel İlerleme & Veli Özet Paneli</h5>
                 <span class="badge bg-info text-dark">Veli & Koç Görünümü</span>
             </div>
 
-            <!-- SON 3 DENEME NET & PUAN DURUMU -->
             <h6 class="fw-bold text-secondary mb-2">🎯 Son Deneme Sınavları Durumu (Net & Puan)</h6>
             <div id="son-deneme-cards-container" class="row text-center mb-4">
                 <div class="col-12 text-muted small py-2 bg-light rounded border">⚠️ Henüz deneme verisi girilmedi.</div>
             </div>
 
             <div class="row">
-                <!-- ALAN BAZLI SORU ÇÖZÜM DAĞILIMI -->
                 <div class="col-md-7 mb-3">
                     <h6 class="fw-bold text-secondary">📊 Alan Bazlı Soru Çözümü & Başarı Oranları</h6>
                     <div id="alan-basari-barlari" class="p-3 border rounded bg-white">
@@ -154,7 +160,6 @@
                     </div>
                 </div>
 
-                <!-- ZAYIF KONULAR LİSTESİ -->
                 <div class="col-md-5 mb-3">
                     <h6 id="zayif-konu-baslik" class="fw-bold text-secondary">📋 Zayıf Konu Analizi (<%65 Başarı)</h6>
                     <ul id="zayif-konular-listesi" class="list-group list-group-flush border rounded bg-white" style="max-height: 220px; overflow-y: auto;">
@@ -164,7 +169,7 @@
             </div>
         </div>
 
-        <!-- ÖĞRENCİ PANELİ: HIZLI TEST & ÇALIŞMA GİRİŞİ -->
+        <!-- ÖĞRENCİ PANELİ -->
         <div id="student-panel" class="card p-4 shadow-sm d-none mb-4 border-success">
             <h5 class="text-success border-bottom pb-2 mb-3">📚 Kitaplarımdan Test / Soru Girişi</h5>
             
@@ -187,7 +192,7 @@
                         </select>
                     </div>
                     <div class="col-md-5 mb-3">
-                        <label class="form-label fw-bold">Eldeki Kitap / Yayın (Seçiniz)</label>
+                        <label class="form-label fw-bold">Eldeki Kitap / Yayın</label>
                         <select id="kaynak-kitap-select" class="form-select" onchange="checkNewBookInput(this)" required>
                             <option value="">Kitap Seçiniz...</option>
                         </select>
@@ -269,7 +274,7 @@
             </form>
         </div>
 
-        <!-- GENEL DENEME KARNESİ VE PUAN SIMÜLASYONU -->
+        <!-- DENEME KARNESİ -->
         <div class="card p-4 shadow-sm mb-4">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
@@ -295,7 +300,7 @@
             </div>
         </div>
 
-        <!-- CANLI YKS KONU TAKİP MATRİSİ -->
+        <!-- KONU MATRİSİ -->
         <div id="konu-matrisi-card" class="card p-4 shadow-sm mb-4">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <h5 class="text-dark mb-0">📚 Canlı YKS Konu İlerleme Haritası</h5>
@@ -305,7 +310,7 @@
             </div>
         </div>
 
-        <!-- GRAFİK VE ÖDEV LİSTESİ -->
+        <!-- GRAFİK -->
         <div class="card p-4 shadow-sm mb-4">
             <h5 class="text-primary border-bottom pb-2 mb-3">Net Gelişim Grafiği</h5>
             <div style="position: relative; height:250px; width:100%">
@@ -316,12 +321,12 @@
     </div>
 
     <!-- SİLME ONAY MODALI -->
-    <div class="modal fade" id="resetConfirmModal" tabindex="-1">
+    <div class="modal fade" id="resetConfirmModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-danger">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title">⚠️ Kritik İşlem: Tüm Verileri Sıfırla</h5>
-                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
                 </div>
                 <div class="modal-body">
                     <p class="text-danger fw-bold">Bu işlem tüm test geçmişini, denemeleri ve ödevleri silecektir!</p>
@@ -335,13 +340,13 @@
         </div>
     </div>
 
-    <!-- DİNAMİK ALANLI DENEME MODALI -->
-    <div class="modal fade" id="denemeModal" tabindex="-1">
+    <!-- DENEME MODALI -->
+    <div class="modal fade" id="denemeModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title">Yeni Genel Deneme Sonucu</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Kapat"></button>
                 </div>
                 <div class="modal-body">
                     <form id="deneme-form">
@@ -386,7 +391,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- JS KÜTÜPHANELERİ -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
     <script>
         function checkConfirmInput() {
