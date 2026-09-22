@@ -45,23 +45,41 @@ let myChart = null;
 let currentUserRole = "";
 let showStudentMatris = false;
 
+// İLİŞKİSEL KİTAP LİSTESİ VERİ TABANI (Sınav Türü + Ders Filtreli)
 const defaultBooks = [
-    "ÜçDörtBeş TYT Türkçe Soru Bankası",
-    "ÜçDörtBeş TYT Matematik Soru Bankası",
-    "ÜçDörtBeş AYT Matematik Soru Bankası",
-    "ÜçDörtBeş TYT Fizik Soru Bankası",
-    "ÜçDörtBeş AYT Fizik Soru Bankası",
-    "ÜçDörtBeş TYT Kimya Soru Bankası",
-    "ÜçDörtBeş AYT Kimya Soru Bankası",
-    "ÜçDörtBeş TYT Biyoloji Soru Bankası",
-    "ÜçDörtBeş AYT Biyoloji Soru Bankası",
-    "AllStar TYT Matematik Soru Bankası",
-    "AllStar AYT Matematik Soru Bankası",
-    "AllStar TYT Fizik Soru Bankası",
-    "AllStar AYT Fizik Soru Bankası",
-    "3D TYT Geometri Soru Bankası",
-    "3D AYT Geometri Soru Bankası",
-    "Bilgi Sarmal TYT Paragraf"
+    { name: "ÜçDörtBeş TYT Türkçe Soru Bankası", sinav: "TYT", ders: "Türkçe" },
+    { name: "Bilgi Sarmal TYT Paragraf", sinav: "TYT", ders: "Türkçe" },
+    { name: "3D TYT Türkçe Soru Bankası", sinav: "TYT", ders: "Türkçe" },
+    
+    { name: "ÜçDörtBeş TYT Matematik Soru Bankası", sinav: "TYT", ders: "Matematik" },
+    { name: "AllStar TYT Matematik Soru Bankası", sinav: "TYT", ders: "Matematik" },
+    { name: "3D TYT Matematik Soru Bankası", sinav: "TYT", ders: "Matematik" },
+    
+    { name: "ÜçDörtBeş AYT Matematik Soru Bankası", sinav: "AYT", ders: "Matematik" },
+    { name: "AllStar AYT Matematik Soru Bankası", sinav: "AYT", ders: "Matematik" },
+    
+    { name: "3D TYT Geometri Soru Bankası", sinav: "TYT", ders: "Geometri" },
+    { name: "3D AYT Geometri Soru Bankası", sinav: "AYT", ders: "Geometri" },
+    
+    { name: "ÜçDörtBeş TYT Fizik Soru Bankası", sinav: "TYT", ders: "Fizik" },
+    { name: "AllStar TYT Fizik Soru Bankası", sinav: "TYT", ders: "Fizik" },
+    { name: "ÜçDörtBeş AYT Fizik Soru Bankası", sinav: "AYT", ders: "Fizik" },
+    { name: "AllStar AYT Fizik Soru Bankası", sinav: "AYT", ders: "Fizik" },
+    
+    { name: "ÜçDörtBeş TYT Kimya Soru Bankası", sinav: "TYT", ders: "Kimya" },
+    { name: "ÜçDörtBeş AYT Kimya Soru Bankası", sinav: "AYT", ders: "Kimya" },
+    
+    { name: "ÜçDörtBeş TYT Biyoloji Soru Bankası", sinav: "TYT", ders: "Biyoloji" },
+    { name: "ÜçDörtBeş AYT Biyoloji Soru Bankası", sinav: "AYT", ders: "Biyoloji" },
+
+    { name: "Apotemi TYT Tarih Soru Bankası", sinav: "TYT", ders: "Tarih" },
+    { name: "3D TYT Tarih Soru Bankası", sinav: "TYT", ders: "Tarih" },
+    { name: "Limit AYT Tarih Soru Bankası", sinav: "AYT", ders: "Tarih" },
+
+    { name: "Bilgi Sarmal TYT Coğrafya", sinav: "TYT", ders: "Coğrafya" },
+    { name: "Limit AYT Coğrafya", sinav: "AYT", ders: "Coğrafya" },
+
+    { name: "Modadil YDT İngilizce Soru Bankası", sinav: "YDT", ders: "İngilizce" }
 ];
 
 const motivationQuotes = [
@@ -110,36 +128,64 @@ window.playClapSound = function() {
     } catch(e) {}
 }
 
-async function loadBookList() {
-    const selectStudent = document.getElementById('kaynak-kitap-select');
-    const selectTeacher = document.getElementById('assignment-kitap-select');
-    if (!selectStudent && !selectTeacher) return;
+// SINAV TÜRÜ VE DERS BAZLI DİNAMİK KİTAP FİLTRELEME
+async function filterBookList(sinavTur, dersAdi, targetSelectId) {
+    const selectEl = document.getElementById(targetSelectId);
+    if (!selectEl) return;
+
+    if (!dersAdi) {
+        selectEl.innerHTML = `<option value="">Önce Ders Seçiniz...</option>`;
+        return;
+    }
 
     try {
-        let books = [...defaultBooks];
+        let allBooks = [...defaultBooks];
         const snap = await getDocs(collection(db, "BookList"));
+        
         snap.forEach(d => {
-            const bName = d.data().name;
-            if (bName && !books.includes(bName)) books.push(bName);
+            const b = d.data();
+            if (b.name) {
+                allBooks.push({
+                    name: b.name,
+                    sinav: b.sinav || "TYT",
+                    ders: b.ders || dersAdi
+                });
+            }
         });
 
-        let optionsHTML = `<option value="">Kitap Seçiniz...</option>`;
-        books.forEach(b => {
-            optionsHTML += `<option value="${b}">${b}</option>`;
+        // Seçilen Ders ve Sınav Türüne Göre Filtrele
+        const filteredBooks = allBooks.filter(b => {
+            const dersMatch = b.ders.toLowerCase() === dersAdi.toLowerCase();
+            const sinavMatch = !sinavTur || b.sinav.toLowerCase() === sinavTur.toLowerCase();
+            return dersMatch && sinavMatch;
         });
-        optionsHTML += `<option value="__YENI_KITAP__">➕ Listede Yok (Yeni Kitap Ekle)</option>`;
 
-        if (selectStudent) selectStudent.innerHTML = optionsHTML;
-        if (selectTeacher) selectTeacher.innerHTML = optionsHTML;
-    } catch(e) {}
+        let optionsHTML = `<option value="">${dersAdi} Kitabı Seçiniz...</option>`;
+        
+        if (filteredBooks.length > 0) {
+            filteredBooks.forEach(b => {
+                optionsHTML += `<option value="${b.name}">${b.name}</option>`;
+            });
+        }
+
+        optionsHTML += `<option value="__YENI_KITAP__">➕ Listede Yok (Yeni ${dersAdi} Kitabı Ekle)</option>`;
+        selectEl.innerHTML = optionsHTML;
+
+    } catch(e) {
+        console.error("Kitap filtreleme hatası:", e);
+    }
 }
 
-async function addNewBookIfNotExist(bookName) {
+async function addNewBookIfNotExist(bookName, sinav, ders) {
     if (!bookName || bookName === "__YENI_KITAP__") return;
     try {
-        if (!defaultBooks.includes(bookName)) {
-            await addDoc(collection(db, "BookList"), { name: bookName });
-            loadBookList();
+        const exists = defaultBooks.some(b => b.name === bookName);
+        if (!exists) {
+            await addDoc(collection(db, "BookList"), { 
+                name: bookName, 
+                sinav: sinav || "TYT", 
+                ders: ders || "Genel" 
+            });
         }
     } catch(e) {}
 }
@@ -160,6 +206,30 @@ function metniTemizle(str) {
         .replace(/Ç/g, "c").replace(/ç/g, "c")
         .toLowerCase()
         .replace(/[^a-z0-9]/g, "");
+}
+
+// FORM ELEMANLARININ DİNAMİK DİNLENMESİ (EVENT LISTENERS)
+function setupDynamicBookFilters() {
+    // Öğrenci Test Giriş Formu Dinleyicisi
+    const studentDers = document.getElementById('ders');
+    if (studentDers) {
+        studentDers.addEventListener('change', (e) => {
+            filterBookList('TYT', e.target.value, 'kaynak-kitap-select');
+        });
+    }
+
+    // Ödev Atama Formu Dinleyicisi (Sınav Türü + Ders)
+    const assignSinav = document.getElementById('assignment-sinav');
+    const assignDers = document.getElementById('assignment-ders');
+
+    const updateAssignBooks = () => {
+        const sTur = assignSinav ? assignSinav.value : 'TYT';
+        const dAdi = assignDers ? assignDers.value : '';
+        filterBookList(sTur, dAdi, 'assignment-kitap-select');
+    };
+
+    if (assignSinav) assignSinav.addEventListener('change', updateAssignBooks);
+    if (assignDers) assignDers.addEventListener('change', updateAssignBooks);
 }
 
 // OTURUM KONTROLÜ
@@ -185,7 +255,7 @@ onAuthStateChanged(auth, async (user) => {
                 if(motivationBanner) motivationBanner.classList.add('d-none');
 
                 await loadMatrisSettings();
-                await loadBookList();
+                setupDynamicBookFilters();
 
                 if (currentUserRole === "Admin") {
                     if(adminPanel) adminPanel.classList.remove('d-none');
@@ -301,7 +371,7 @@ window.tumTestVerileriniSil = async function() {
     }
 }
 
-// --- SON 3 DENEME ANALİZ KARTLARI FONKSİYONU ---
+// SON 3 DENEME ANALİZ KARTLARI FONKSİYONU
 async function loadSonDenemelerAnalizi() {
     const container = document.getElementById('son-deneme-cards-container');
     if(!container) return;
@@ -335,7 +405,7 @@ async function loadSonDenemelerAnalizi() {
     } catch(e) {}
 }
 
-// --- ALAN BAZLI SORU ÇÖZÜM DAĞILIMI VE REVIZE ANALIZ ---
+// ALAN BAZLI ANALİZ
 async function loadKonuMatrisiAndAnaliz() {
     const barlarContainer = document.getElementById('alan-basari-barlari');
     const zayifList = document.getElementById('zayif-konular-listesi');
@@ -465,7 +535,7 @@ if(testEntryForm) {
                     userId: user.uid, ders, kaynakKitap, konu, dogru, yanlis, bos, net, sure, tarih: serverTimestamp()
                 });
                 
-                await addNewBookIfNotExist(kaynakKitap);
+                await addNewBookIfNotExist(kaynakKitap, 'TYT', ders);
 
                 testEntryForm.reset();
                 document.getElementById('kaynak-kitap-custom').classList.add('d-none');
