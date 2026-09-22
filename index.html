@@ -292,10 +292,19 @@
             </div>
         </div>
 
-        <!-- KONU MATRİSİ -->
+        <!-- DİNAMİK CANLI YKS KONU TAKİP MATRİSİ -->
         <div class="card p-4 shadow-sm mb-4">
-            <h5 class="text-dark border-bottom pb-2 mb-3">📚 YKS Konu Takip Matrisi</h5>
-            <div id="konu-matris-container" class="row"></div>
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                <h5 class="text-dark mb-0">📚 Canlı YKS Konu İlerleme Haritası</h5>
+                <div class="small">
+                    <span class="badge bg-secondary me-1">⚪ Başlanmadı</span>
+                    <span class="badge bg-warning text-dark me-1">🟡 Çalışılıyor</span>
+                    <span class="badge bg-success">🟢 Tamamlandı</span>
+                </div>
+            </div>
+            <div id="konu-matris-container" class="row">
+                <div class="col-12 text-center text-muted py-3">Konu ilerlemeleri hesaplanıyor...</div>
+            </div>
         </div>
 
         <!-- KOÇUMA NOTLAR / ÇÖZEMEDİĞİM SORULAR -->
@@ -353,7 +362,7 @@
 
     </div>
 
-    <!-- SİLME ONAY MODALI (GÜVENLİK DOĞRULAMALI) -->
+    <!-- SİLME ONAY MODALI -->
     <div class="modal fade" id="resetConfirmModal" tabindex="-1">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content border-danger">
@@ -362,7 +371,7 @@
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
-                    <p class="text-danger fw-bold">Bu işlem tüm test geçmişini, deneme karnelerini ve çalışma sürelerini kalıcı olarak silecektir!</p>
+                    <p class="text-danger fw-bold">Bu işlem tüm test geçmişini, deneme karnelerini, ödevleri ve soruları kalıcı olarak silecektir!</p>
                     <p class="small text-muted mb-3">Devam etmek için aşağıdaki kutuya <strong class="text-dark">SIL</strong> yazın:</p>
                     <input type="text" id="confirm-input" class="form-control text-center fw-bold" placeholder="Buraya SIL yazın" oninput="checkConfirmInput()">
                 </div>
@@ -532,7 +541,6 @@
             document.getElementById('modal-net-preview').innerText = net.toFixed(2);
         }
 
-        // Güvenlik Doğrulama Kutusu Kontrolü
         function checkConfirmInput() {
             const val = document.getElementById('confirm-input').value.trim();
             const btn = document.getElementById('confirm-delete-btn');

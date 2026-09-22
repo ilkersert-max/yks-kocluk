@@ -235,45 +235,97 @@ window.exportToCSV = async function() {
 // --- ADMIN: GÜVENLİK DOĞRULAMALI TÜM SİSTEM VERİLERİNİ SİLME ---
 window.tumTestVerileriniSil = async function() {
     try {
-        // 1. Test Geçmişini Sil
         const testSnap = await getDocs(collection(db, "TestEntries"));
-        for (const d of testSnap.docs) {
-            await deleteDoc(doc(db, "TestEntries", d.id));
-        }
+        for (const d of testSnap.docs) { await deleteDoc(doc(db, "TestEntries", d.id)); }
 
-        // 2. Deneme Karnelerini Sil
         const denemeSnap = await getDocs(collection(db, "Denemeler"));
-        for (const d of denemeSnap.docs) {
-            await deleteDoc(doc(db, "Denemeler", d.id));
-        }
+        for (const d of denemeSnap.docs) { await deleteDoc(doc(db, "Denemeler", d.id)); }
 
-        // 3. Çalışma Sürelerini Sil
         const studySnap = await getDocs(collection(db, "StudyTimes"));
-        for (const d of studySnap.docs) {
-            await deleteDoc(doc(db, "StudyTimes", d.id));
-        }
+        for (const d of studySnap.docs) { await deleteDoc(doc(db, "StudyTimes", d.id)); }
 
-        // 4. Verilen Ödevleri Sil
         const odevSnap = await getDocs(collection(db, "Assignments"));
-        for (const d of odevSnap.docs) {
-            await deleteDoc(doc(db, "Assignments", d.id));
-        }
+        for (const d of odevSnap.docs) { await deleteDoc(doc(db, "Assignments", d.id)); }
 
-        // 5. Koçuma Notlar / Çözülemeyen Soruları Sil
         const soruSnap = await getDocs(collection(db, "SoruNotlari"));
-        for (const d of soruSnap.docs) {
-            await deleteDoc(doc(db, "SoruNotlari", d.id));
-        }
+        for (const d of soruSnap.docs) { await deleteDoc(doc(db, "SoruNotlari", d.id)); }
 
-        // Modalı kapat ve sayfayı yenile
         const modalEl = document.getElementById('resetConfirmModal');
         const modal = bootstrap.Modal.getInstance(modalEl);
         if(modal) modal.hide();
 
-        alert("✅ Tüm sistem verileri (testler, denemeler, süreler, ödevler ve soru notları) başarıyla temizlendi!");
+        alert("✅ Tüm sistem verileri başarıyla temizlendi!");
         location.reload();
     } catch (error) {
         alert("Veriler silinirken hata oluştu!");
+    }
+}
+
+// --- CANLI YKS KONU İLERLEME MATRİSİ (DİNAMİK) ---
+async function loadKonuMatrisi() {
+    const container = document.getElementById('konu-matris-container');
+    if(!container) return;
+
+    try {
+        // 1. Veritabanındaki testleri ve ödevleri çekip konu bazlı sayaç tutalım
+        const testSnap = await getDocs(collection(db, "TestEntries"));
+        const odevSnap = await getDocs(collection(db, "Assignments"));
+
+        const konuSayaclari = {};
+
+        testSnap.forEach(d => {
+            const k = d.data().konu;
+            if(k) { konuSayaclari[k] = (konuSayaclari[k] || 0) + 1; }
+        });
+
+        odevSnap.forEach(d => {
+            const data = d.data();
+            if(data.konu && data.durum === "Tamamlandı") {
+                konuSayaclari[data.konu] = (konuSayaclari[data.konu] || 0) + 1;
+            }
+        });
+
+        // 2. Ana dersler ve YKS müfredat konuları
+        const mufredat = {
+            "Matematik": ["Temel Kavramlar", "Sayı Basamakları", "Bölünebilme", "Denklem Çözme", "Üslü-Köklü Sayılar", "Çarpanlara Ayırma", "Fonksiyonlar", "Polinomlar", "Trigonometri", "Limit", "Türev", "İntegral"],
+            "Geometri": ["Üçgenler", "Çokgenler", "Dörtgenler ve Yamuk", "Çember ve Daire", "Katı Cisimler", "Analitik Geometri"],
+            "Türkçe": ["Sözcükte Anlam", "Cümlede Anlam", "Paragraf", "Yazım Kuralları", "Noktalama İşaretleri", "Cümlenin Ögeleri"],
+            "Fizik": ["Fizik Bilimine Giriş", "Hareket ve Kuvvet", "İş, Güç ve Enerji", "Isı ve Sıcaklık", "Elektrik ve Manyetizma", "Optik"],
+            "Kimya": ["Kimya Bilimi", "Atom ve Periyodik Sistem", "Maddenin Halleri", "Asitler, Bazlar ve Tuzlar", "Kimyasal Denge"],
+            "Biyoloji": ["Hücre", "Canlılar Dünyası", "Kalıtım", "Ekoloji", "Solunum ve Fotosentez", "İnsan Fizyolojisi"]
+        };
+
+        container.innerHTML = "";
+
+        for (const [ders, konular] of Object.entries(mufredat)) {
+            let konularHTML = "";
+            konular.forEach(konu => {
+                const cozulmeSayisi = konuSayaclari[konu] || 0;
+                let bgClass = "bg-secondary text-white";
+                let durumText = "Başlanmadı";
+
+                if (cozulmeSayisi >= 3) {
+                    bgClass = "bg-success text-white";
+                    durumText = "Tamamlandı";
+                } else if (cozulmeSayisi > 0) {
+                    bgClass = "bg-warning text-dark";
+                    durumText = "Çalışılıyor";
+                }
+
+                konularHTML += `<span class="badge ${bgClass} m-1 p-2" title="${cozulmeSayisi} kez işlendi/çözüldü">${konu} (${durumText})</span>`;
+            });
+
+            container.innerHTML += `
+                <div class="col-md-6 mb-3">
+                    <div class="border p-3 rounded bg-white shadow-sm">
+                        <h6 class="text-primary fw-bold border-bottom pb-2">${ders} Konuları</h6>
+                        <div>${konularHTML}</div>
+                    </div>
+                </div>`;
+        }
+
+    } catch(e) {
+        container.innerHTML = "<div class='col-12 text-center text-danger'>Konu matrisi yüklenemedi.</div>";
     }
 }
 
@@ -374,26 +426,6 @@ async function loadDenemeler() {
     }
 }
 
-// --- KONU MATRİSİ ---
-async function loadKonuMatrisi() {
-    const container = document.getElementById('konu-matris-container');
-    const ornekKonular = {
-        "Matematik": ["Temel Kavramlar", "Fonksiyonlar", "Türev", "İntegral", "Trigonometri"],
-        "Geometri": ["Üçgenler", "Çember", "Analitik Geometri"]
-    };
-    container.innerHTML = "";
-    for (const [ders, konular] of Object.entries(ornekKonular)) {
-        let konularHTML = konular.map(k => `<span class="badge bg-warning text-dark m-1 p-2">${k} (Çalışılıyor)</span>`).join('');
-        container.innerHTML += `
-            <div class="col-md-6 mb-3">
-                <div class="border p-3 rounded bg-white shadow-sm">
-                    <h6 class="text-primary fw-bold">${ders} Konuları</h6>
-                    <div>${konularHTML}</div>
-                </div>
-            </div>`;
-    }
-}
-
 // --- KOÇUMA SORU NOTLARI ---
 if(soruNotuForm) {
     soruNotuForm.addEventListener('submit', async (e) => {
@@ -449,6 +481,7 @@ testEntryForm.addEventListener('submit', async (e) => {
             saveSuccess.classList.remove('d-none');
             setTimeout(() => saveSuccess.classList.add('d-none'), 3000);
             loadStudentTests();
+            loadKonuMatrisi(); // Matrisi anında güncelle
         } catch (error) { alert("Kaydedilirken hata oluştu!"); }
     }
 });
@@ -583,6 +616,7 @@ window.kaydetVeTamamla = async function() {
         const modal = bootstrap.Modal.getInstance(modalEl);
         modal.hide();
         loadAssignments();
+        loadKonuMatrisi(); // Matrisi anında güncelle
     } catch (error) { alert("Ödev durumu değiştirilemedi!"); }
 }
 
