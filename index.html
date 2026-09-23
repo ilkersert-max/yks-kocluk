@@ -12,16 +12,22 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
     <style>
-        /* Modalların CSS yüklenene kadar ham şekilde ekranda görünmesini engelleme */
-        .modal:not(.show) {
-            display: none !important;
+        .modal:not(.show) { display: none !important; }
+        .grid-btn {
+            width: 45px;
+            height: 45px;
+            font-weight: bold;
+            font-size: 14px;
+            margin: 4px;
+            border-radius: 8px;
+            transition: all 0.2s ease;
         }
-
         @media (max-width: 768px) {
             body { font-size: 14px; }
             .card { padding: 15px !important; }
             .btn { padding: 10px 15px; font-size: 15px; }
             input, select, textarea { font-size: 16px !important; }
+            .grid-btn { width: 38px; height: 38px; font-size: 12px; margin: 2px; }
         }
     </style>
 </head>
@@ -85,19 +91,41 @@
                 ⏳ <strong>YKS Sınavına Kalan Süre:</strong> <strong id="yks-sayac" class="fs-5 text-dark">Hesaplanıyor...</strong>
             </div>
 
-            <!-- PARAMETRİK KONU MATRİSİ AÇMA / KAPAMA ANAHTARI -->
+            <!-- PARAMETRİK AYARLAR -->
             <div class="card p-3 mb-4 bg-light border border-primary">
+                <h6 class="fw-bold text-primary mb-3">⚙️ Sistem Parametreleri & Görünürlük Kontrolleri</h6>
+                
+                <div class="form-check form-switch d-flex justify-content-between align-items-center ps-0 mb-3 border-bottom pb-2">
+                    <label class="form-check-label fw-bold text-dark mb-0" for="student-mode-switch">
+                        🌱 Öğrenci Ekranı Detaylı Modu (Grafik ve Analizler Görünsün)
+                    </label>
+                    <input class="form-check-input" type="checkbox" role="switch" id="student-mode-switch" style="width: 3em; height: 1.5em; cursor: pointer;">
+                </div>
+
+                <div class="form-check form-switch d-flex justify-content-between align-items-center ps-0 mb-3 border-bottom pb-2">
+                    <label class="form-check-label fw-bold text-dark mb-0" for="veli-assign-switch">
+                        👨‍👩‍👧‍👦 Veli Rolü de Ödev/Hedef Atayabilsin
+                    </label>
+                    <input class="form-check-input" type="checkbox" role="switch" id="veli-assign-switch" style="width: 3em; height: 1.5em; cursor: pointer;">
+                </div>
+
+                <div class="form-check form-switch d-flex justify-content-between align-items-center ps-0 mb-3 border-bottom pb-2">
+                    <label class="form-check-label fw-bold text-dark mb-0" for="matrix-input-switch">
+                        🔘 Soru Bazlı Tıklamalı İşaretleme Izgarası Aktif Olsun
+                    </label>
+                    <input class="form-check-input" type="checkbox" role="switch" id="matrix-input-switch" style="width: 3em; height: 1.5em; cursor: pointer;">
+                </div>
+
                 <div class="form-check form-switch d-flex justify-content-between align-items-center ps-0">
                     <label class="form-check-label fw-bold text-dark mb-0" for="matris-switch">
                         📚 Öğrenci Ekranında Konu İlerleme Haritası Görünsün
                     </label>
                     <input class="form-check-input" type="checkbox" role="switch" id="matris-switch" style="width: 3em; height: 1.5em; cursor: pointer;">
                 </div>
-                <small class="text-muted mt-2 d-block">Kapalıyken harita sadece Öğretmen, Koç ve Veli ekranlarında görünür.</small>
             </div>
 
             <div class="row">
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 mb-3">
                     <h6 class="text-secondary fw-bold">📢 Genel Duyuru Yayınla</h6>
                     <form id="admin-duyuru-form">
                         <div class="input-group mb-2">
@@ -106,131 +134,19 @@
                         </div>
                     </form>
                 </div>
-                <div class="col-md-4 mb-3">
+                <div class="col-md-6 mb-3">
                     <h6 class="text-danger fw-bold">⚠️ Test Verilerini Sıfırla</h6>
                     <button class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#resetConfirmModal">Tüm Verileri Temizle</button>
                 </div>
             </div>
-
-            <div class="row text-center mt-3">
-                <div class="col-md-3 col-6 mb-2">
-                    <div class="p-3 bg-light rounded border">
-                        <small class="text-muted">Toplam Test</small>
-                        <h4 id="kpi-toplam-test" class="text-primary mb-0">0</h4>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6 mb-2">
-                    <div class="p-3 bg-light rounded border">
-                        <small class="text-muted">Ortalama Net</small>
-                        <h4 id="kpi-ortalama-net" class="text-success mb-0">0.00</h4>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6 mb-2">
-                    <div class="p-3 bg-light rounded border">
-                        <small class="text-muted">Toplam Çalışma</small>
-                        <h4 id="kpi-toplam-sure" class="text-warning mb-0">0 Dk</h4>
-                    </div>
-                </div>
-                <div class="col-md-3 col-6 mb-2">
-                    <div class="p-3 bg-light rounded border">
-                        <small class="text-muted">Tamamlanan Ödev</small>
-                        <h4 id="kpi-tamam-odev" class="text-danger mb-0">0</h4>
-                    </div>
-                </div>
-            </div>
         </div>
 
-        <!-- VELİ & KOÇ ÖZET PANELİ -->
-        <div id="analiz-panel" class="card p-4 shadow-sm mb-4 border-info">
-            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                <h5 class="text-info fw-bold mb-0">📈 Öğrenci Genel İlerleme & Veli Özet Paneli</h5>
-                <span class="badge bg-info text-dark">Veli & Koç Görünümü</span>
-            </div>
-
-            <h6 class="fw-bold text-secondary mb-2">🎯 Son Deneme Sınavları Durumu (Net & Puan)</h6>
-            <div id="son-deneme-cards-container" class="row text-center mb-4">
-                <div class="col-12 text-muted small py-2 bg-light rounded border">⚠️ Henüz deneme verisi girilmedi.</div>
-            </div>
-
-            <div class="row">
-                <div class="col-md-7 mb-3">
-                    <h6 class="fw-bold text-secondary">📊 Alan Bazlı Soru Çözümü & Başarı Oranları</h6>
-                    <div id="alan-basari-barlari" class="p-3 border rounded bg-white">
-                        <small class="text-muted">Veriler hesaplanıyor...</small>
-                    </div>
-                </div>
-
-                <div class="col-md-5 mb-3">
-                    <h6 id="zayif-konu-baslik" class="fw-bold text-secondary">📋 Zayıf Konu Analizi (<%65 Başarı)</h6>
-                    <ul id="zayif-konular-listesi" class="list-group list-group-flush border rounded bg-white" style="max-height: 220px; overflow-y: auto;">
-                        <li class="list-group-item text-muted small py-2">Henüz test verisi girilmedi.</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-
-        <!-- ÖĞRENCİ PANELİ -->
-        <div id="student-panel" class="card p-4 shadow-sm d-none mb-4 border-success">
-            <h5 class="text-success border-bottom pb-2 mb-3">📚 Kitaplarımdan Test / Soru Girişi</h5>
+        <!-- ÖĞRETMEN & VELİ ÖDEV ATAMA VE TAKİP PANELİ -->
+        <div id="teacher-assign-panel" class="card p-4 shadow-sm d-none mb-4 border-primary">
+            <h5 class="text-primary border-bottom pb-2 mb-3">📌 Koçluk & Ödev Yönetim Paneli</h5>
             
-            <form id="test-entry-form">
-                <h6 class="text-success fw-bold">📝 Çözülen Test Sonucu Gir</h6>
-                <div class="row">
-                    <div class="col-md-3 mb-3">
-                        <label class="form-label fw-bold">Ders</label>
-                        <select id="ders" class="form-select" required>
-                            <option value="">Seçiniz...</option>
-                            <option value="Matematik">Matematik</option>
-                            <option value="Geometri">Geometri</option>
-                            <option value="Türkçe">Türkçe</option>
-                            <option value="Fizik">Fizik</option>
-                            <option value="Kimya">Kimya</option>
-                            <option value="Biyoloji">Biyoloji</option>
-                            <option value="Tarih">Tarih</option>
-                            <option value="Coğrafya">Coğrafya</option>
-                            <option value="İngilizce">İngilizce / Dil</option>
-                        </select>
-                    </div>
-                    <div class="col-md-5 mb-3">
-                        <label class="form-label fw-bold">Eldeki Kitap / Yayın</label>
-                        <select id="kaynak-kitap-select" class="form-select" onchange="checkNewBookInput(this)" required>
-                            <option value="">Kitap Seçiniz...</option>
-                        </select>
-                        <input type="text" id="kaynak-kitap-custom" class="form-control mt-2 d-none" placeholder="Yeni Kitap Adını Yazınız...">
-                    </div>
-                    <div class="col-md-4 mb-3">
-                        <label class="form-label fw-bold">Konu / Test Adı</label>
-                        <input type="text" id="konu" class="form-control" placeholder="Örn: Fonksiyonlar Test 2" required>
-                    </div>
-                </div>
-                <div class="row">
-                    <div class="col-md-3 col-6 mb-3">
-                        <label class="form-label text-success fw-bold">Doğru</label>
-                        <input type="number" id="dogru" class="form-control" min="0" value="0" required>
-                    </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <label class="form-label text-danger fw-bold">Yanlış</label>
-                        <input type="number" id="yanlis" class="form-control" min="0" value="0" required>
-                    </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <label class="form-label text-secondary fw-bold">Boş</label>
-                        <input type="number" id="bos" class="form-control" min="0" value="0" required>
-                    </div>
-                    <div class="col-md-3 col-6 mb-3">
-                        <label class="form-label text-primary fw-bold">Süre (Dk)</label>
-                        <input type="number" id="sure" class="form-control" min="0" placeholder="Opsiyonel">
-                    </div>
-                </div>
-                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Test Sonucunu Kaydet</button>
-                <div id="save-success" class="alert alert-success mt-3 d-none">Test sonucu başarıyla kaydedildi!</div>
-            </form>
-        </div>
-
-        <!-- ÖĞRETMEN / KOÇ PANELİ -->
-        <div id="teacher-assign-panel" class="card p-4 shadow-sm d-none mb-4">
-            <h5 class="text-primary border-bottom pb-2 mb-3">Koçluk & Ödev Yönetim Paneli</h5>
-            <form id="assignment-form">
-                <h6 class="text-secondary fw-bold">📌 Ödev / Hedef Ata</h6>
+            <form id="assignment-form" class="mb-4 bg-light p-3 rounded border">
+                <h6 class="text-primary fw-bold mb-3">➕ Yeni Ödev / Hedef Ata</h6>
                 <div class="row">
                     <div class="col-md-2 col-6 mb-3">
                         <label class="form-label fw-bold">Sınav Türü</label>
@@ -258,7 +174,7 @@
                     <div class="col-md-3 mb-3">
                         <label class="form-label fw-bold">📖 Kaynak / Kitap</label>
                         <select id="assignment-kitap-select" class="form-select" required>
-                            <option value="">Kitap Seçiniz...</option>
+                            <option value="">Önce Ders Seçiniz...</option>
                         </select>
                     </div>
                     <div class="col-md-3 mb-3">
@@ -270,12 +186,212 @@
                         <input type="date" id="assignment-date" class="form-control" required>
                     </div>
                 </div>
-                <button type="submit" class="btn btn-primary w-100 py-2">Ödev Ata</button>
+                <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Ödev / Hedef Ata</button>
+            </form>
+
+            <h6 class="text-secondary fw-bold mb-2">📋 Atanan Ödevler ve Tamamlanma Durumları (Hata Detaylı)</h6>
+            <ul id="teacher-assignment-list" class="list-group">
+                <li class="list-group-item text-muted">Ödevler yükleniyor...</li>
+            </ul>
+        </div>
+
+        <!-- ÖĞRENCİ ÖDEV LİSTESİ KARTI -->
+        <div id="student-assignment-card" class="card p-4 shadow-sm mb-4 border-warning d-none">
+            <h5 class="text-warning text-dark border-bottom pb-2 mb-3">📌 Bana Atanan Ödevler / Hedefler</h5>
+            <ul id="student-assignment-list" class="list-group">
+                <li class="list-group-item text-muted">Ödevler yükleniyor...</li>
+            </ul>
+        </div>
+
+        <!-- VELİ & KOÇ ÖZET PANELİ (ANALİZLER VE TEST GEÇMİŞİ) -->
+        <div id="analiz-panel" class="card p-4 shadow-sm mb-4 border-info">
+            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
+                <h5 class="text-info fw-bold mb-0">📈 Genel İlerleme & Koçluk Analiz Paneli</h5>
+                <span class="badge bg-info text-dark">Veli & Koç Görünümü</span>
+            </div>
+
+            <!-- YÖK ATLAS 5 HEDEF SEÇİMİ VE NET KIYASLAMA KARTI -->
+            <div class="card p-3 mb-4 bg-light border-info">
+                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">🏛️ YÖK Atlas Hedef Seçimi & Canlı Net Kıyaslama</h6>
+                
+                <div class="row mb-3">
+                    <div class="col-md-9 mb-2">
+                        <label class="form-label small fw-bold text-secondary">İlgilendiğiniz 5 Hedef Bölümü Seçin (CTRL tuşuyla çoklu seçebilirsiniz)</label>
+                        <select id="yok-atlas-multi-select" class="form-select form-select-sm" multiple style="height: 110px;">
+                        </select>
+                        <small class="text-muted d-block mt-1">CTRL tuşuna basılı tutarak en fazla 5 hedef seçebilirsiniz.</small>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end mb-2">
+                        <button class="btn btn-info btn-sm w-100 text-white fw-bold py-2" onclick="saveTargetUniversities()">🎯 5 Hedefimi Kaydet</button>
+                    </div>
+                </div>
+
+                <div class="border-top pt-3">
+                    <div class="row align-items-center">
+                        <div class="col-md-5 mb-2">
+                            <label class="form-label small fw-bold text-primary mb-1">Kaydedilen Hedeflerinizden Seçip İnceleyin:</label>
+                            <select id="saved-targets-dropdown" class="form-select form-select-sm fw-bold border-primary" onchange="compareSelectedTarget()">
+                                <option value="">Önce Hedef Kaydediniz...</option>
+                            </select>
+                        </div>
+                        <div class="col-md-7 mb-2">
+                            <div id="target-comparison-result" class="p-2 bg-white rounded border small">
+                                <em>Lütfen kıyaslamak için yukarıdan bir hedef seçiniz.</em>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ÖĞRENCİNİN BİREYSEL ÇÖZDÜĞÜ TESTLER VE HATA KARNESİ TABLOSU (YENİ VE EN KRİTİK ALAN) -->
+            <div class="card p-3 mb-4 border-secondary shadow-sm">
+                <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">🔍 Öğrencinin Bireysel Çözdüğü Testler (Hata & Süre Karnesi)</h6>
+                <div class="table-responsive">
+                    <table class="table table-bordered table-sm text-center align-middle bg-white mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th>Tarih</th>
+                                <th>Ders & Konu</th>
+                                <th>Kaynak Kitap</th>
+                                <th>D/Y/B (Net)</th>
+                                <th>Süre</th>
+                                <th class="text-danger">Yanlış Sorular</th>
+                                <th class="text-warning text-dark">Boş Sorular</th>
+                            </tr>
+                        </thead>
+                        <tbody id="teacher-test-history-list">
+                            <tr><td colspan="7" class="text-muted py-3">Veriler yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+                <small class="text-muted mt-2 d-block text-end">Son 15 test gösterilmektedir.</small>
+            </div>
+
+            <h6 class="fw-bold text-secondary mb-2">🎯 Son Deneme Sınavları Durumu (Net & Puan)</h6>
+            <div id="son-deneme-cards-container" class="row text-center mb-4">
+                <div class="col-12 text-muted small py-2 bg-light rounded border">⚠️ Henüz deneme verisi girilmedi.</div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-7 mb-3">
+                    <h6 class="fw-bold text-secondary">📊 Alan Bazlı Soru Çözümü & Başarı Oranları</h6>
+                    <div id="alan-basari-barlari" class="p-3 border rounded bg-white">
+                        <small class="text-muted">Veriler hesaplanıyor...</small>
+                    </div>
+                </div>
+
+                <div class="col-md-5 mb-3">
+                    <h6 id="zayif-konu-baslik" class="fw-bold text-secondary">📋 Zayıf Konu Analizi (<%65 Başarı)</h6>
+                    <ul id="zayif-konular-listesi" class="list-group list-group-flush border rounded bg-white" style="max-height: 220px; overflow-y: auto;">
+                        <li class="list-group-item text-muted small py-2">Henüz test verisi girilmedi.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- ÖĞRENCİ PANELİ: BİREYSEL TEST GİRİŞİ -->
+        <div id="student-panel" class="card p-4 shadow-sm d-none mb-4 border-success">
+            <h5 class="text-success border-bottom pb-2 mb-3">📚 Bireysel Test / Soru Çözüm Girişi</h5>
+            
+            <form id="test-entry-form">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Ders</label>
+                        <select id="ders" class="form-select" required>
+                            <option value="">Seçiniz...</option>
+                            <option value="Matematik">Matematik</option>
+                            <option value="Geometri">Geometri</option>
+                            <option value="Türkçe">Türkçe</option>
+                            <option value="Fizik">Fizik</option>
+                            <option value="Kimya">Kimya</option>
+                            <option value="Biyoloji">Biyoloji</option>
+                            <option value="Tarih">Tarih</option>
+                            <option value="Coğrafya">Coğrafya</option>
+                            <option value="İngilizce">İngilizce / Dil</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5 mb-3">
+                        <label class="form-label fw-bold">Eldeki Kitap / Yayın</label>
+                        <select id="kaynak-kitap-select" class="form-select" onchange="checkNewBookInput(this)" required>
+                            <option value="">Önce Ders Seçiniz...</option>
+                        </select>
+                        <input type="text" id="kaynak-kitap-custom" class="form-control mt-2 d-none" placeholder="Yeni Kitap Adını Yazınız...">
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Konu / Test Adı</label>
+                        <input type="text" id="konu" class="form-control" placeholder="Örn: Fonksiyonlar Test 2" required>
+                    </div>
+                </div>
+
+                <!-- İŞARETLEMELİ SORU IZGARASI BÖLÜMÜ (Öğrenci Kendi Testi İçin) -->
+                <div id="matrix-input-section" class="card p-3 mb-3 bg-light border-success">
+                    <div class="row align-items-center mb-3">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label fw-bold text-success mb-1">Toplam Soru Sayısı</label>
+                            <select id="total-question-count" class="form-select fw-bold border-success" onchange="generateQuestionGrid(this.value)">
+                                <option value="10">10 Soru</option>
+                                <option value="12" selected>12 Soru</option>
+                                <option value="15">15 Soru</option>
+                                <option value="20">20 Soru</option>
+                                <option value="25">25 Soru</option>
+                                <option value="30">30 Soru</option>
+                                <option value="40">40 Soru</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label fw-bold text-primary mb-1">Harcanan Süre (Dakika)</label>
+                            <input type="number" id="sure" class="form-control fw-bold border-primary" min="1" placeholder="Örn: 15" required>
+                        </div>
+                        <div class="col-md-4 mb-2 text-md-end">
+                            <small class="text-muted d-block">Buton Mantığı:</small>
+                            <span class="badge bg-success me-1">Doğru (D)</span>
+                            <span class="badge bg-danger me-1">Yanlış (Y)</span>
+                            <span class="badge bg-warning text-dark">Boş (B)</span>
+                        </div>
+                    </div>
+
+                    <!-- DINAMİK BUTON IZGARASI -->
+                    <label class="form-label small fw-bold text-secondary mb-2">Soru Durumlarını Tıklayarak Değiştirin (1 Tık: Yanlış, 2 Tık: Boş)</label>
+                    <div id="question-grid-container" class="d-flex flex-wrap p-2 bg-white rounded border mb-3">
+                        <!-- JS ile Butonlar basılacak -->
+                    </div>
+
+                    <!-- ANLIK CANLI SİMÜLASYON BARI -->
+                    <div class="d-flex justify-content-between align-items-center p-2 bg-white rounded border small fw-bold">
+                        <span>Doğru: <span id="stat-d" class="text-success">12</span></span>
+                        <span>Yanlış: <span id="stat-y" class="text-danger">0</span></span>
+                        <span>Boş: <span id="stat-b" class="text-warning">0</span></span>
+                        <span>Net: <span id="stat-net" class="text-primary">12.00</span></span>
+                    </div>
+                </div>
+
+                <!-- ESKİ TİP MANUEL GİRİŞ BÖLÜMÜ (Admin kapatırsa bu görünür) -->
+                <div id="manual-input-section" class="row d-none">
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="form-label text-success fw-bold">Doğru</label>
+                        <input type="number" id="dogru" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="form-label text-danger fw-bold">Yanlış</label>
+                        <input type="number" id="yanlis" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="form-label text-secondary fw-bold">Boş</label>
+                        <input type="number" id="bos" class="form-control" min="0" value="0">
+                    </div>
+                    <div class="col-md-3 col-6 mb-3">
+                        <label class="form-label text-primary fw-bold">Süre (Dk)</label>
+                        <input type="number" id="manual-sure" class="form-control" min="0" placeholder="Opsiyonel">
+                    </div>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold fs-6">Test Sonucunu Kaydet</button>
+                <div id="save-success" class="alert alert-success mt-3 d-none">Test sonucu başarıyla kaydedildi!</div>
             </form>
         </div>
 
-        <!-- DENEME KARNESİ -->
-        <div class="card p-4 shadow-sm mb-4">
+        <!-- GENEL DENEME KARNESİ -->
+        <div id="deneme-karnesi-card" class="card p-4 shadow-sm mb-4">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
                     <h5 class="text-primary mb-0">📊 Genel Deneme Karnesi & Tahmini YKS Puanları</h5>
@@ -300,7 +416,7 @@
             </div>
         </div>
 
-        <!-- KONU MATRİSİ -->
+        <!-- CANLI KONU İLERLEME HARİTASI -->
         <div id="konu-matrisi-card" class="card p-4 shadow-sm mb-4">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <h5 class="text-dark mb-0">📚 Canlı YKS Konu İlerleme Haritası</h5>
@@ -310,14 +426,68 @@
             </div>
         </div>
 
-        <!-- GRAFİK -->
-        <div class="card p-4 shadow-sm mb-4">
+        <!-- GRAFİK KARTI -->
+        <div id="grafik-card" class="card p-4 shadow-sm mb-4">
             <h5 class="text-primary border-bottom pb-2 mb-3">Net Gelişim Grafiği</h5>
             <div style="position: relative; height:250px; width:100%">
                 <canvas id="netChart"></canvas>
             </div>
         </div>
 
+    </div>
+
+    <!-- ÖDEV ÇÖZÜM MODALI (ÖĞRENCİ ÖDEVİ TIKLAYIP D/Y/SÜRE GİRDİĞİNDE) -->
+    <div class="modal fade" id="solveAssignmentModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content border-success">
+                <div class="modal-header bg-success text-white">
+                    <h5 class="modal-title">📝 Ödev Sonucunu Gir & Tamamla</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" id="modal-assignment-id">
+                    <div class="alert alert-light border mb-3">
+                        <strong id="modal-assignment-title" class="text-dark d-block">--</strong>
+                        <small id="modal-assignment-sub" class="text-muted">--</small>
+                    </div>
+
+                    <!-- Ödev için sadece Matrix modu geçerlidir -->
+                    <div class="row align-items-center mb-3">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold text-success mb-1">Toplam Soru Sayısı</label>
+                            <select id="modal-question-count" class="form-select fw-bold border-success" onchange="generateModalGrid(this.value)">
+                                <option value="10">10 Soru</option>
+                                <option value="12" selected>12 Soru</option>
+                                <option value="15">15 Soru</option>
+                                <option value="20">20 Soru</option>
+                                <option value="25">25 Soru</option>
+                                <option value="30">30 Soru</option>
+                                <option value="40">40 Soru</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold text-primary mb-1">Harcanan Süre (Dakika)</label>
+                            <input type="number" id="modal-sure" class="form-control fw-bold border-primary" min="1" placeholder="Örn: 15" required>
+                        </div>
+                    </div>
+
+                    <label class="form-label small fw-bold text-secondary mb-2">Soru Durumlarını Tıklayarak Değiştirin (1 Tık: Yanlış, 2 Tık: Boş)</label>
+                    <div id="modal-grid-container" class="d-flex flex-wrap p-2 bg-white rounded border mb-3">
+                    </div>
+
+                    <div class="d-flex justify-content-between align-items-center p-2 bg-light rounded border small fw-bold">
+                        <span>Doğru: <span id="m-stat-d" class="text-success">12</span></span>
+                        <span>Yanlış: <span id="m-stat-y" class="text-danger">0</span></span>
+                        <span>Boş: <span id="m-stat-b" class="text-warning">0</span></span>
+                        <span>Net: <span id="m-stat-net" class="text-primary">12.00</span></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">İptal</button>
+                    <button type="button" class="btn btn-success fw-bold" onclick="submitAssignmentResult()">Ödevi Kaydet ve Tamamla 👏</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- SİLME ONAY MODALI -->
