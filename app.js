@@ -1,12 +1,12 @@
 import {initializeApp} from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js';
 import {getAuth,signInWithEmailAndPassword,onAuthStateChanged,signOut} from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js';
-import {getFirestore,doc,getDoc,setDoc,collection,addDoc,getDocs,query,orderBy,serverTimestamp,onSnapshot,updateDoc} from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
+import {getFirestore,doc,getDoc,setDoc,collection,addDoc,getDocs,query,orderBy,serverTimestamp,onSnapshot,updateDoc,writeBatch} from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
 import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,successIndicator} from './scoring.js';
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true};
+const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:true};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},assignmentFilter='all';
 const staff=()=>['Admin','Öğretmen','Koç','Veli'].includes(role);
 const canAssign=()=>['Admin','Öğretmen','Koç','Veli'].includes(role);
@@ -23,38 +23,21 @@ const MOTIVATION=[
   'İlerlemeni fark et: Başladığın yerde değilsin.'
 ];
 let loginMotivation=MOTIVATION[0];
+let wipeInProgress=false, wipeStatus='';
 function nextMotivation(){
   let n=0;
   try { n=Number(localStorage.getItem('yksMotivationIndex')||0); localStorage.setItem('yksMotivationIndex',String(n+1)); } catch (_) {}
   return MOTIVATION[Math.abs(n)%MOTIVATION.length];
 }
-// Harici ses dosyası olmadan kısa alkış/tezahürat efekti. Yalnızca kullanıcının tıklamasıyla oynatılır.
+// Kullanıcının yüklediği özgün alkış/tezahürat kaydı; sentetik ses motoru kaldırıldı.
+const applauseAudio = new Audio('./alkis.mp3');
+applauseAudio.preload = 'none';
 function playCelebration(){
-  if(settings.studentCelebrationSound===false)return;
-  const Ctx=window.AudioContext||window.webkitAudioContext;
-  if(!Ctx){notify('Tarayıcı ses efektini desteklemiyor.',true);return;}
-  const ctx=new Ctx();
-  ctx.resume().then(()=>{
-    const start=ctx.currentTime;
-    const length=Math.round(ctx.sampleRate*.07);
-    const buffer=ctx.createBuffer(1,length,ctx.sampleRate);
-    const data=buffer.getChannelData(0);
-    for(let i=0;i<length;i++)data[i]=(Math.random()*2-1)*(1-i/length);
-    for(let j=0;j<18;j++){
-      const source=ctx.createBufferSource();source.buffer=buffer;
-      const gain=ctx.createGain();const t=start+.10+j*.092+Math.random()*.025;
-      gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.035,t+.007);gain.gain.exponentialRampToValueAtTime(.0001,t+.073);
-      source.connect(gain);gain.connect(ctx.destination);source.start(t);source.stop(t+.075);
-    }
-    // Kısa tribün tezahüratı: yumuşak, sentetik neşe sesleri.
-    for(let j=0;j<4;j++){
-      const osc=ctx.createOscillator(),gain=ctx.createGain();const t=start+.30+j*.37;
-      osc.type='triangle';osc.frequency.setValueAtTime(280+j*26,t);osc.frequency.linearRampToValueAtTime(405+j*18,t+.14);
-      gain.gain.setValueAtTime(.0001,t);gain.gain.linearRampToValueAtTime(.025,t+.045);gain.gain.exponentialRampToValueAtTime(.0001,t+.23);
-      osc.connect(gain);gain.connect(ctx.destination);osc.start(t);osc.stop(t+.24);
-    }
-    setTimeout(()=>ctx.close().catch(()=>{}),3500);
-  }).catch(()=>notify('Ses başlatılamadı; ses düğmesine yeniden bas.',true));
+  if (settings.studentCelebrationSound === false) return;
+  applauseAudio.pause();
+  applauseAudio.currentTime = 0;
+  const playPromise = applauseAudio.play();
+  if (playPromise?.catch) playPromise.catch(() => notify('Sesi başlatmak için düğmeye tekrar dokun veya cihaz sesini kontrol et.', true));
 }
 const BOOK_OPTIONS=[
   ['345-allstar','ÜçDörtBeş (345) – All Star Serisi'],
@@ -83,7 +66,7 @@ async function boot(u){tearDown();user=u;const us=await getDoc(doc(db,'Users',u.
  draftMode=settings.examEntryMode==='BOTH'?settings.defaultEntryMode:settings.examEntryMode;if(!['NET','DY'].includes(draftMode))draftMode='NET';$('login').hidden=true;$('app').hidden=false;
  for(const[name,cb]of[['Denemeler',data=>exams=data],['Assignments',data=>tasks=data],['TestEntries',data=>tests=data]]){const unsubscribe=onSnapshot(collection(db,name),snap=>{cb(snap.docs.map(x=>({id:x.id,...x.data()})));render()},err=>notify(name+' okunamadı: '+err.message,true));unsubs.push(unsubscribe)}
  view='home';render();}
-onAuthStateChanged(auth,u=>{if(u){boot(u).catch(e=>notify('Giriş sonrası yükleme hatası: '+e.message,true))}else{tearDown();user=null;$('app').hidden=true;$('login').hidden=false}});
+onAuthStateChanged(auth,u=>{if(u){boot(u).catch(e=>notify('Giriş sonrası yükleme hatası: '+e.message,true))}else{applauseAudio.pause();tearDown();user=null;$('app').hidden=true;$('login').hidden=false}});
 $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-error').textContent='';try{await signInWithEmailAndPassword(auth,$('email').value,$('password').value)}catch(e){$('login-error').textContent='Giriş başarısız: '+e.code}});
 $('logout').addEventListener('click',()=>signOut(auth));
 function render(){
@@ -103,7 +86,7 @@ function renderHome(){
  const last=latest[0],completed=tasks.filter(t=>t.status==='completed'||t.status==='reviewed').length;
  const student=role==='Öğrenci';
  $('content').innerHTML=`
- ${student?`<section class="card motivation"><div class="celebrate-icon" aria-hidden="true">👏 🎉</div><h1>Merhaba, bugün de buradasın!</h1><p class="motivation-quote">${esc(loginMotivation)}</p><div class="buttons"><button type="button" id="celebrate-btn" class="primary">👏 Alkış ve tezahürat</button><button type="button" id="next-quote" class="subtle">Başka bir söz</button></div><small>Ses yalnızca düğmeye basınca çalar; cihazın sesini kontrol et.</small></section>`:''}
+ ${student?`<section class="card motivation"><div class="celebrate-icon" aria-hidden="true">👏 🎉</div><h1>Merhaba, bugün de buradasın!</h1><p class="motivation-quote">${esc(loginMotivation)}</p><div class="buttons"><button type="button" id="celebrate-btn" class="primary applause-button">👏 Alkış ve tezahürat</button><button type="button" id="next-quote" class="subtle">Başka bir söz</button></div><small>Ses yalnızca düğmeye basınca çalar; cihazın sesini kontrol et.</small></section>`:''}
  <section class="card"><h1>${student?'Bugün ne yaptın? 👋':'Öğrencinin genel durumu'}</h1><p class="muted">${student?'Kısa bir giriş yeterli; detaylara istediğinde bakarsın.':'Tek öğrencinin okul, kurs ve ev çalışmaları tek yerde.'}</p><div class="stats">${detail('Son deneme',last?`${esc(last.denemeTuru)} · ${format(Number(last.toplamNet))}`:'Henüz yok')}${detail('Deneme sayısı',exams.length)}${detail('Tamamlanan ödev',`${completed}/${tasks.length}`)}${detail('Günlük test',tests.length)}</div></section>
  ${student?`<div class="grid"><section class="card"><h2>📝 Deneme girdim</h2><p>Okul, kurs veya ev denemesi.</p><button class="primary" data-nav="exam">Deneme ekle</button></section><section class="card"><h2>✏️ Soru çözdüm</h2><p>Kitabını seç, sonucunu gir.</p><button class="primary" data-nav="test">Çalışma ekle</button></section><section class="card"><h2>📚 Ödevlerim</h2><p>Bugünkü görevlerini tamamla.</p><button class="primary" data-nav="tasks">Ödevleri aç</button></section></div>`:`<div class="grid"><section class="card"><h2>📊 Deneme takibi</h2><p>Tüm sınavlar, netler ve kaynaklar.</p><button class="primary" data-nav="history">Denemeleri incele</button></section><section class="card"><h2>📚 Ödev yönetimi</h2><p>Ödev ata, sonucu değerlendir.</p><button class="primary" data-nav="tasks">Ödevleri aç</button></section><section class="card"><h2>📈 Detaylı analiz</h2><p>Çalışma ve gelişim sonuçları.</p><button class="primary" data-nav="analysis">Analizleri aç</button></section></div>`}
  ${last?`<section class="card"><h2>Son deneme</h2><p>${esc(last.denemeAdi)} · ${dateString(last.examDate||last.tarih)} · ${esc(last.examSource||'Kaynak belirtilmemiş')}</p><strong>${format(Number(last.toplamNet))} net</strong></section>`:''}`;
@@ -134,3 +117,123 @@ function showTaskReview(card,t){const old=card.querySelector('.review-editor');i
 function renderAnalysis(){const ordered=[...exams].sort((a,b)=>(a.examDate||'').localeCompare(b.examDate||''));const unique=[...new Set(ordered.map(x=>x.denemeTuru||'TYT'))];const totals=ordered.map(e=>Number(e.toplamNet)).filter(Number.isFinite);const avg=totals.length?totals.reduce((a,b)=>a+b,0)/totals.length:null;const topics={};for(const t of tests){const k=(t.ders||'')+' / '+(t.konu||'');const q=Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0)));if(!topics[k])topics[k]={correct:0,total:0,tests:0};topics[k].correct+=Number(t.dogru||0);topics[k].total+=q;topics[k].tests++}const cards=Object.entries(topics).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.tests}</td><td>${v.total?format(100*v.correct/v.total)+'%':'—'}</td></tr>`).join('');const trend=unique.map(type=>{const data=ordered.filter(x=>(x.denemeTuru||'TYT')===type);const vals=data.map(e=>Number(e.toplamNet));const last=vals.at(-1),first=vals[0];return `<tr><td>${esc(type)}</td><td>${data.length}</td><td>${format(last)}</td><td>${format(last-first)}</td></tr>`}).join('');$('content').innerHTML=`<div class="card"><h1>Öğrenci analizi</h1><p class="muted">Tek öğrencinin deneme, test ve ödev kayıtları. Farklı puan türlerinin netleri birbiriyle karıştırılmaz.</p><div class="stats">${detail('Deneme sayısı',exams.length)}${detail('Toplam çözülen günlük soru',tests.reduce((a,t)=>a+Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0))),0))}${detail('Tamamlanan ödev',tasks.filter(t=>['completed','reviewed'].includes(t.status)).length)}${detail('Kaydedilmiş test',tests.length)}</div></div><div class="card"><h2>Puan türüne göre net ilerleme</h2><div class="tablewrap"><table><thead><tr><th>Tür</th><th>Deneme</th><th>Son net</th><th>İlk-son farkı</th></tr></thead><tbody>${trend||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><p class="muted">Farklı zorluktaki denemeler birebir eşdeğer kabul edilmez.</p></div><div class="card"><h2>Günlük çalışma: konu doğru oranı</h2><div class="tablewrap"><table><thead><tr><th>Ders / Konu</th><th>Test sayısı</th><th>Doğru oranı</th></tr></thead><tbody>${cards||'<tr><td colspan="3">Henüz çalışma yok</td></tr>'}</tbody></table></div></div><div class="card"><h2>Ödev sonuçları</h2>${tasks.map(t=>`<div class="task"><strong>${esc(t.ders)} · ${esc(t.konu)}</strong><p class="muted">${esc(t.assignedByRole||'Eski kayıt')} · ${esc(t.status||t.durum||'Bekliyor')}</p>${t.result?`${t.result.correct} doğru · ${t.result.wrong} yanlış · ${format(t.result.net)} net`: 'Sonuç girilmedi'}${t.review?`<p>${esc(t.review)}</p>`:''}</div>`).join('')||'Henüz ödev yok'}</div>`;}
 function renderReports(){const op=obpFromProfile(profile);$('content').innerHTML=`<div class="card"><h1>Öğrenci durum raporu</h1><p class="muted">Tarayıcının Yazdır → PDF olarak kaydet seçeneğiyle bilgisayarda PDF oluşturulabilir.</p><div class="buttons noprint"><button id="print-report" class="primary">Yazdır / PDF</button><button id="export-json" class="secondary">JSON yedeği</button></div><hr><h2>Diploma / OBP</h2><p>${op?`Diploma notu: ${format(op.diploma)} · OBP: ${format(op.obp)} · Katkı: ${format(op.contribution)} ${op.isEstimate?'(tahmini)':''}`:'Diploma notu / OBP henüz bilinmiyor.'}</p><h2>Denemeler</h2><div class="tablewrap"><table><thead><tr><th>Deneme</th><th>Tür</th><th>Tarih</th><th>Net</th></tr></thead><tbody>${sortedExams().map(x=>`<tr><td>${esc(x.denemeAdi)}</td><td>${esc(x.denemeTuru)}</td><td>${dateString(x.examDate||x.tarih)}</td><td>${format(Number(x.toplamNet))}</td></tr>`).join('')||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><h2>Ödevler</h2>${tasks.map(t=>`<p>${esc(t.ders)} – ${esc(t.konu)} · ${esc(t.status||t.durum||'Bekliyor')} ${t.result?'· '+format(t.result.net)+' net':''}</p>`).join('')||'<p>Henüz ödev yok.</p>'}</div>`;$('print-report').onclick=()=>window.print();$('export-json').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),profile,exams,tasks,tests},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='YKS-Ogrenci-Yedek-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};}
 function renderAdmin(){$('content').innerHTML=`<div class="card"><h1>Admin · Giriş parametreleri</h1><p class="muted">Tek öğrencinin deneme giriş yöntemi tüm kullanıcılara uygulanır. Daha önce kaydedilmiş denemeler değişmez.</p><form id="admin-form"><label>Deneme sonuç giriş yöntemi<select id="setting-mode"><option value="BOTH">Her iki yöntem</option><option value="NET">Yalnızca net</option><option value="DY">Yalnızca doğru / yanlış</option></select></label><label>Her iki yöntem açıkken varsayılan<select id="setting-default"><option value="NET">Hızlı net</option><option value="DY">Doğru / yanlış</option></select></label><label><input type="checkbox" id="setting-details" style="width:auto"> Öğrencinin detaylı analiz sekmesini göster</label><label><input type="checkbox" id="setting-sound" style="width:auto"> Öğrencinin alkış/tezahürat ses düğmesini göster</label><button class="primary">Ayarları kaydet</button></form></div>`;$('setting-mode').value=settings.examEntryMode||'BOTH';$('setting-default').value=settings.defaultEntryMode||'NET';$('setting-details').checked=settings.studentDetailedMode===true;$('setting-sound').checked=settings.studentCelebrationSound!==false;$('admin-form').onsubmit=async e=>{e.preventDefault();const patch={examEntryMode:$('setting-mode').value,defaultEntryMode:$('setting-default').value,studentDetailedMode:$('setting-details').checked,studentCelebrationSound:$('setting-sound').checked};try{await setDoc(doc(db,'Settings','SystemConfig'),patch,{merge:true});settings={...settings,...patch};draftMode=patch.examEntryMode==='BOTH'?patch.defaultEntryMode:patch.examEntryMode;draft={};notify('Admin parametreleri güncellendi.');render()}catch(err){notify(err.message,true)}};}
+
+/* ================ TEST VERİLERİ / CANLIYA GEÇİŞ ================
+   Yalnızca çalışma koleksiyonları silinir. Kullanıcılar, öğrenci
+   profili / diploma-OBP, kitaplar ve admin ayarları korunur.
+*/
+const WIPE_COLLECTIONS = ['Denemeler','TestEntries','Assignments'];
+const WIPE_PHRASE = 'GERÇEK KULLANIMA GEÇ';
+
+async function fetchTestSnapshot(){
+  const groups = await Promise.all(WIPE_COLLECTIONS.map(name => getDocs(collection(db,name))));
+  return Object.fromEntries(groups.map((snapshot,index)=>[
+    WIPE_COLLECTIONS[index], snapshot.docs.map(row=>({id:row.id,data:row.data(),ref:row.ref}))
+  ]));
+}
+function backupJSON(snapshot){
+  return JSON.stringify({
+    schema:'yks-tek-ogrenci-test-backup-v1',
+    exportedAt:new Date().toISOString(),
+    projectId:cfg.projectId,
+    collections:Object.fromEntries(WIPE_COLLECTIONS.map(name=>[
+      name,snapshot[name].map(({id,data})=>({id,data}))
+    ]))
+  },null,2);
+}
+function saveBackup(snapshot){
+  const blob=new Blob([backupJSON(snapshot)],{type:'application/json;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;a.download='yks-test-yedek-'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),60000);
+}
+function wipeCounts(){
+  return `Deneme: ${exams.length} · Günlük çalışma: ${tests.length} · Ödev: ${tasks.length}`;
+}
+function installTestCleanup(){
+  if(!canAdmin())return;
+  const content=$('content');
+  const pane=document.createElement('section');
+  pane.className='card cleanup-panel';
+  pane.innerHTML=`
+    <h2>🧹 Test kayıtları ve gerçek kullanıma geçiş</h2>
+    <p class="muted">Bu özellik tek seferlik test temizliği içindir. Kullanıcılar, diploma notu/OBP, kitaplar ve giriş parametreleri <strong>korunur.</strong></p>
+    <p id="wipe-counts" class="summary">${wipeCounts()}</p>
+    <p class="muted">Test kayıtlarını JSON olarak bilgisayarına al. Dosya indirmesini tarayıcında kontrol etmeden silme işlemine geçme.</p>
+    <div class="buttons"><button type="button" id="test-backup" class="secondary">⬇ Test verilerini yedekle</button></div>
+    ${settings.testMode===false?'<div class="summary">✅ Gerçek kullanım modu açık. Toplu silme kapalı.</div>':`
+      <div class="cleanup-warning"><strong>Kalıcı işlem:</strong> Bütün Denemeler, TestEntries ve Assignments kayıtları kaldırılır. Eski tarihli kayıtlar da buna dahildir. Silme, güncel sonuçları da kapsar.</div>
+      <button type="button" id="wipe-open" class="danger-btn">Testi bitir ve gerçek kullanıma geç</button>
+      <div id="wipe-confirm" class="wipe-confirm" hidden>
+        <h3>Son onay</h3>
+        <p id="wipe-confirm-counts"></p>
+        <p>Devam etmek için <strong>${WIPE_PHRASE}</strong> yaz.</p>
+        <input id="wipe-phrase" autocomplete="off" placeholder="Onay ifadesini yaz" aria-label="Silme onayı">
+        <label class="checkline"><input id="wipe-check" type="checkbox"> Seçilen kayıtların kalıcı olarak silineceğini anladım.</label>
+        <div class="buttons"><button id="wipe-final" class="danger-btn" type="button" disabled>Kalıcı silme ve geçişi onayla</button><button id="wipe-cancel" class="subtle" type="button">Vazgeç</button></div>
+      </div>
+    `}
+    <p id="wipe-status" role="status" aria-live="polite">${esc(wipeStatus)}</p>
+  `;
+  content.append(pane);
+  const status=pane.querySelector('#wipe-status');
+  const showStatus=msg=>{wipeStatus=msg;status.textContent=msg;};
+  pane.querySelector('#test-backup').onclick=async()=>{
+    try{
+      showStatus('Yedek hazırlanıyor…');
+      const snapshot=await fetchTestSnapshot();
+      saveBackup(snapshot);
+      showStatus('Yedek tarayıcıya gönderildi. İndirilen JSON dosyasını kontrol et.');
+    }catch(err){showStatus('Yedek oluşturulamadı: '+err.message);}
+  };
+  if(settings.testMode===false)return;
+  const open=pane.querySelector('#wipe-open'),area=pane.querySelector('#wipe-confirm');
+  const phrase=pane.querySelector('#wipe-phrase'),check=pane.querySelector('#wipe-check');
+  const final=pane.querySelector('#wipe-final');
+  const validate=()=>{final.disabled=wipeInProgress||phrase.value.trim()!==WIPE_PHRASE||!check.checked;};
+  phrase.addEventListener('input',validate);check.addEventListener('change',validate);
+  open.onclick=()=>{area.hidden=false;pane.querySelector('#wipe-confirm-counts').textContent=wipeCounts();area.scrollIntoView({behavior:'smooth',block:'nearest'});};
+  pane.querySelector('#wipe-cancel').onclick=()=>{area.hidden=true;phrase.value='';check.checked=false;validate();};
+  final.onclick=async()=>{
+    validate();if(final.disabled)return;
+    const shown=wipeCounts();
+    if(!window.confirm(shown+'\n\nBu kayıtların tümü kalıcı silinecek. Devam edilsin mi?'))return;
+    wipeInProgress=true;final.disabled=true;open.disabled=true;
+    try{
+      showStatus('Firestore kayıtları yeniden sayılıyor…');
+      const snapshot=await fetchTestSnapshot();
+      const counts=WIPE_COLLECTIONS.map(name=>`${name}: ${snapshot[name].length}`).join(' · ');
+      showStatus('Siliniyor: '+counts);
+      for(const name of WIPE_COLLECTIONS){
+        const rows=snapshot[name];
+        for(let i=0;i<rows.length;i+=400){
+          const batch=writeBatch(db);
+          for(const row of rows.slice(i,i+400))batch.delete(row.ref);
+          await batch.commit();
+          showStatus(`${name}: ${Math.min(i+400,rows.length)}/${rows.length} silindi.`);
+        }
+      }
+      // Herhangi bir silme başarısız olursa buraya gelinmez; test modu açık kalır.
+      await setDoc(doc(db,'Settings','SystemConfig'),{testMode:false},{merge:true});
+      settings.testMode=false;
+      showStatus('✅ Test kayıtları temizlendi. Gerçek kullanım modu açıldı.');
+      notify('Gerçek kullanıma geçildi.');
+    }catch(err){
+      showStatus('İşlem tamamlanamadı. Test modu açık kaldı. Kalan kayıtları kontrol et: '+err.message);
+      notify('Silme tamamlanamadı: '+err.message,true);
+    }finally{
+      wipeInProgress=false;
+      render();
+    }
+  };
+}
+
+// Admin ekranının mevcut giriş parametreleriyle birlikte temizleme alanını göster.
+const renderAdminParameters = renderAdmin;
+renderAdmin = function(){
+  if(!canAdmin()){view='home';render();return;}
+  renderAdminParameters();
+  installTestCleanup();
+};

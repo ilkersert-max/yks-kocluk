@@ -1,23 +1,9 @@
-# YKS Tek Öğrenci Portalı
+# YKS Aile Koçluk Portalı – mobil ve test temizleme güncellemesi
 
-## Kurulum
+GitHub Pages / statik HTTP sunucusu için `index.html`, `app.js`, `scoring.js`, `style.css`, `alkis.mp3` dosyalarının **beşini birden** sitenin aynı klasörüne koyun. Eski `index.html`, `scoring.js` işlevleri korunmuştur; `app.js` ve `style.css` güncellenmiştir. Mevcut Firebase projesi kullanılmaya devam eder.
 
-Bu klasördeki `index.html`, `app.js`, `scoring.js`, `style.css` dosyalarını aynı dizine koyun. GitHub Pages için depoya yükleyip Settings → Pages → Deploy from a branch üzerinden yayımlayın. Başka statik HTTP sunucusunda da çalışır; `file://` ile çift tıklayarak açmak yerine HTTP(S) kullanın. Firebase Auth yetkilendirilmiş alan adlarına GitHub Pages alan adınızı ekleyin. Firebase proje ayarları, gönderdiğiniz özgün `app(1).js` dosyasından devralındı. Firebase Auth hesapları ve `Users/<uid>` kayıtlarında `Rol` ve `AdSoyad` alanları mevcut olmalıdır. Bu paket Firebase kullanıcı hesabı oluşturmaz.
+Ses: Öğrencinin Alkış ve tezahürat düğmesi doğrudan sizin yüklediğiniz `alkis.mp3` dosyasını çalar, önceki sentetik ses kaldırılmıştır. Ses mobil tarayıcı kuralı nedeniyle kullanıcı dokunuşuyla başlar.
 
-## Kullanım
+Admin → Test kayıtları ve gerçek kullanıma geçiş: önce JSON yedeği indir, bilgisayarda gerçekten oluştuğunu doğrula, sonra onay ifadesini yaz ve son onayı ver. Yalnızca `Denemeler`, `TestEntries`, `Assignments` Firestore koleksiyonlarının tüm kayıtları temizlenir. `StudentProfile/mainStudent` (diploma/OBP), `Users`, `Settings`, kitap ve Firebase Auth hesapları korunur. Silme başarılı olunca `Settings/SystemConfig.testMode=false` olur ve toplu silme düğmesi kapanır. Kısmi hata olursa test modu açık kalır; geri yükleme aracı bu pakette yoktur. JSON yedeği tarayıcıdan indirilir ve manuel arşivleme içindir.
 
-Admin → Giriş parametreleri: yalnızca NET / yalnızca D-Y / ikisi ve varsayılanı. Deneme girişinde TYT, SAY, EA, SÖZ ve DİL; dört kaynak seçimi; ondalıklı net girişi (`23,75` veya `23.75`); eksik alanlar `null` olarak tutulur. Profil → Diploma notu: bilinmiyor / tahmini / kesin, kırık OBP tercihi. Her deneme kaydında o tarihteki OBP anlık görüntüsü saklanır. Yeni, ayrı bir kullanıcı verisi katmanı gerektirmeden mevcut Firestore `Denemeler`, `Assignments`, `TestEntries`, `Users`, `Settings` koleksiyonlarıyla çalışır; ayrıca `StudentProfile/mainStudent` kullanır.
-
-## Önemli sınırlar
-
-Bu sürüm gerçek ÖSYM puanı **hesaplamaz**. Yalnızca net ve tamamlanmış sınavlar için açıkça etiketlenmiş *net başarı göstergesi* hesaplar. Kurumun açıkladığı puan manuel girilebilir. OBP katkısı ayrı tutulur; gerçek sınav puanı olmadığı için sayısal yerleştirme puanı uydurulmaz. Diploma/OBP güncellenince eski sınav sonuçları değiştirilmez. Eski kayıtlar listelenir fakat önceki sabit katsayılı puanları yeni resmî puan gibi gösterilmez.
-
-Ödevler tek öğrenciye aittir. Öğretmen, veli, koç ve admin ödev verebilir, sonuç girilebilir, değerlendirme yazılabilir. Eski ödevlerde soru sayısı bulunmadığı için geçmiş ödevlerden sahte sonuç üretilmez.
-
-Canlı Firebase hesabı veya Firestore kuralları olmadan gerçek hesapla uçtan uca giriş/yazma testi yapılmadı. GitHub Pages yayımlaması/izinler için kendi Firebase projenizde kontrol edilmelidir.
-
-## Bu sürümde eklenenler
-- Öğrenci girişinde her oturumda değişen kısa motivasyon sözü; sonraki söz düğmesi. Alkış ve tezahürat harici MP3 olmadan tarayıcı içinde üretilir. Tarayıcıların otomatik ses çalmayı kısıtlaması nedeniyle yalnızca **Alkış ve tezahürat** düğmesiyle başlar. Admin panelinden ses düğmesi devre dışı bırakılabilir.
-- Öğrenci ile veli/öğretmen/koç/Admin için farklı menü ve ana ekran. Diğer roller Denemeler bölümünden + Sonuç Ekle yoluyla çocuk adına deneme girebilir.
-- Günlük test ve ödev kaynak seçiminde ÜçDörtBeş (345) All Star, ÜçDörtBeş diğer seriler ve başka yayın seçenekleri; özgül kitap/ders adı için zorunlu kısa ek alan.
-- Dosyalar statiktir; `index.html`, `app.js`, `scoring.js`, `style.css` aynı klasörde GitHub Pages veya HTTP sunucusunda çalışır.
+Bütün kayıtların tek öğrenciye ait olduğu varsayılır. Çevrimiçi Firebase/gerçek hesap testi yapılmadan canlı veride toplu silme denemeyin.
