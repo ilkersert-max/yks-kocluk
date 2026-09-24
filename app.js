@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v11';
+const BUILD_VERSION='v12';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:true,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='all';
@@ -129,6 +129,7 @@ function tearDown(){for(const f of unsubs)f();unsubs=[];exams=[];tasks=[];tests=
 async function boot(u){tearDown();user=u;const us=await getDoc(doc(db,'Users',u.uid));const data=us.exists()?us.data():{};role=normalizedRole((data.Rol||'Öğrenci').trim());if(role==='Öğrenci')loginMotivation=nextMotivation();$('hello').textContent=`${data.AdSoyad||'Kullanıcı'} · ${role}`;
  try{const [s,p]=await Promise.all([getDoc(doc(db,'Settings','SystemConfig')),getDoc(doc(db,'StudentProfile','mainStudent'))]);settings={...defaultSettings,...(s.exists()?s.data():{})};profile={...profile,...(p.exists()?p.data():{})};}catch(err){notify('Ayarlar/profil alınamadı: '+err.message,true)}
  draftMode=settings.examEntryMode==='BOTH'?settings.defaultEntryMode:settings.examEntryMode;if(!['NET','DY'].includes(draftMode))draftMode='NET';$('login').hidden=true;$('app').hidden=false;
+ const settingsUnsub=onSnapshot(doc(db,'Settings','SystemConfig'),snap=>{settings={...defaultSettings,...(snap.exists()?snap.data():{})};render()},err=>notify('Rapor izinleri/ayarlar okunamadı: '+err.message,true));unsubs.push(settingsUnsub);
  for(const[name,cb]of[['Denemeler',data=>exams=data],['Assignments',data=>tasks=data],['TestEntries',data=>tests=data]]){const unsubscribe=onSnapshot(collection(db,name),snap=>{cb(snap.docs.map(x=>({id:x.id,...x.data()})));render()},err=>notify(name+' okunamadı: '+err.message,true));unsubs.push(unsubscribe)}
  view='home';render();}
 onAuthStateChanged(auth,u=>{if(u){boot(u).catch(e=>notify('Giriş sonrası yükleme hatası: '+e.message,true))}else{applauseAudio.pause();tearDown();user=null;$('app').hidden=true;$('login').hidden=false}});
@@ -140,7 +141,7 @@ function render(){
    ? [['home','Ana sayfam'],['exam','Deneme gir'],['test','Soru çözdüm'],['tasks','Ödevlerim'],['history','Denemelerim'],['weekly','Haftalık sorularım']]
    : [['home','Genel durum'],['history','Denemeler'],['test','Günlük çalışmalar'],['tasks','Ödev yönetimi'],['weekly','Haftalık sorular']];
  if(staff()||settings.studentDetailedMode)tabs.push(['analysis',role==='Öğrenci'?'Gelişimim':'Detaylı analiz']);
- if(staff())tabs.push(['reports','Raporlar']);
+ if(canAccessAnyReport())tabs.push(['reports','Raporlar']);
  if(canAdmin())tabs.push(['admin','Admin']);
  tabs.push(['profile','Diploma / OBP']);
  $('nav').replaceChildren(...tabs.map(([id,label])=>{const b=E('button',{className:id===view?'active':''},label);b.onclick=()=>{view=id;render()};return b}));
@@ -408,7 +409,7 @@ renderAdmin = function(){
 };
 
 // Build marker for verifying GitHub Pages/browser caching.
-document.title += ' · v11';
+document.title += ' · v12';
 
 
 /* ================ v11: ADMIN RAPOR MERKEZİ ================
@@ -429,6 +430,21 @@ const ADMIN_REPORT_KINDS=[
  ['exams','Deneme ve sonuç durumu'],
  ['quality','Eksik / çelişkili veri denetimi']
 ];
+const REPORT_SHARE_ROLES=['Öğrenci','Veli','Öğretmen','Koç'];
+// Settings/SystemConfig.reportAccess: {overview:['Veli'], overwork:['Koç','Öğretmen'], ...}
+// Default is private to Admin; no role can grant permissions to itself in the UI.
+function allowedReportKinds(){
+ if(canAdmin())return ADMIN_REPORT_KINDS;
+ const acl=settings.reportAccess;
+ if(!acl||typeof acl!=='object'||Array.isArray(acl))return [];
+ return ADMIN_REPORT_KINDS.filter(([kind])=>Array.isArray(acl[kind])&&acl[kind].includes(role));
+}
+function canAccessAnyReport(){return canAdmin()||allowedReportKinds().length>0;}
+function canAccessReport(kind){return allowedReportKinds().some(([key])=>key===kind);}
+function safeReportAccess(acl){
+ const result={};for(const [kind] of ADMIN_REPORT_KINDS){const roles=Array.isArray(acl?.[kind])?acl[kind]:[];result[kind]=REPORT_SHARE_ROLES.filter(r=>roles.includes(r));}
+ return result;
+}
 const adminReportState={kind:'overview',from:'',to:''};
 const reportDate=x=>weeklyDate(x);
 const reportBetween=(d,from,to)=>Boolean(d)&&(!from||d>=from)&&(!to||d<=to);
@@ -526,16 +542,45 @@ function reportCSV(kind,data){
 function reportDownload(content,name,type){const blob=new Blob([content],{type});const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 const previousRenderReports=renderReports;
 renderReports=function(){
- if(!canAdmin()){previousRenderReports();return;}
- $('content').innerHTML=`<section class="card"><h1>Admin · Rapor merkezi</h1><p class="muted">Tek öğrenci · tarih aralığı ve rapor türüne göre rapor. PDF için yazdır; CSV bilgisayarında Excel ile açılabilir. Kayıtları değiştirmez.</p><div class="grid"><label>Rapor türü<select id="admin-report-kind">${ADMIN_REPORT_KINDS.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label></div><div class="buttons"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-csv">CSV indir</button><button class="secondary" id="admin-report-json">JSON yedeği</button><button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
+ if(!canAccessAnyReport()){view='home';render();return;}
+ const accessible=allowedReportKinds();
+ if(!canAccessReport(adminReportState.kind))adminReportState.kind=accessible[0][0];
+ $('content').innerHTML=`<section class="card"><h1>${canAdmin()?'Admin · Rapor merkezi':'Paylaşılan raporlar'}</h1><p class="muted">Tek öğrenci · tarih aralığı ve rapor türüne göre rapor. PDF için yazdır; CSV bilgisayarında Excel ile açılabilir. Kayıtları değiştirmez.</p><div class="grid"><label>Rapor türü<select id="admin-report-kind">${accessible.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label></div><div class="buttons"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-csv">CSV indir</button>${canAdmin()?'<button class="secondary" id="admin-report-json">JSON yedeği</button>':''}<button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
  const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to');kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;
  const draw=()=>{adminReportState.kind=kind.value;adminReportState.from=from.value;adminReportState.to=to.value;
+  if(!canAccessReport(kind.value)){$('admin-report-output').textContent='Bu rapor için yetkiniz yok.';return false;}
   if(from.value&&to.value&&from.value>to.value){$('admin-report-output').innerHTML='<p class="error">Başlangıç tarihi bitiş tarihinden sonra olamaz.</p>';return false;}
   $('admin-report-output').innerHTML=`<h2>${esc(ADMIN_REPORT_KINDS.find(x=>x[0]===kind.value)?.[1])}</h2><p class="muted">${from.value?dateString(from.value):'Tüm geçmiş'} – ${to.value?dateString(to.value):'Bugün ve sonrası dahil'}</p>`+adminReportBuild(kind.value,reportRows());return true;};
  for(const inp of [kind,from,to])inp.onchange=draw;
  $('admin-report-reset').onclick=()=>{from.value='';to.value='';draw();};
  $('admin-report-pdf').onclick=()=>{if(draw())window.print();};
  $('admin-report-csv').onclick=()=>{if(draw())reportDownload(reportCSV(kind.value,reportRows()),'YKS-Admin-'+kind.value+'-'+new Date().toLocaleDateString('sv-SE')+'.csv','text/csv;charset=utf-8')};
- $('admin-report-json').onclick=()=>reportDownload(JSON.stringify({exportedAt:new Date().toISOString(),exams,tasks,tests,profile},null,2),'YKS-Admin-Yedek-'+new Date().toLocaleDateString('sv-SE')+'.json','application/json;charset=utf-8');
+ if(canAdmin())$('admin-report-json').onclick=()=>reportDownload(JSON.stringify({exportedAt:new Date().toISOString(),exams,tasks,tests,profile},null,2),'YKS-Admin-Yedek-'+new Date().toLocaleDateString('sv-SE')+'.json','application/json;charset=utf-8');
  draw();
+};
+
+
+/* ===== v12: per-report, multi-role visibility; preserves v11 report computation. ===== */
+const renderAdminV11=renderAdmin;
+renderAdmin=function(){
+ if(!canAdmin()){view='home';render();return;}
+ renderAdminV11();
+ const panel=E('section',{className:'card'});
+ panel.innerHTML=`<h2>Rapor bazında görme izinleri</h2>
+  <p class="muted">Bir raporu birden çok role açabilirsin. İşaretli değilse yalnızca Admin görür. Raporları görmek, verileri düzenleme/silme veya tam JSON yedeğini alma yetkisi vermez.</p>
+  <div class="tablewrap"><table><thead><tr><th>Rapor türü</th>${REPORT_SHARE_ROLES.map(r=>`<th>${esc(r)}</th>`).join('')}</tr></thead><tbody>
+  ${ADMIN_REPORT_KINDS.map(([kind,label])=>`<tr><th scope="row">${esc(label)}</th>${REPORT_SHARE_ROLES.map(r=>`<td><label><input style="width:auto" type="checkbox" data-report="${esc(kind)}" data-role="${esc(r)}" aria-label="${esc(label)} / ${esc(r)}" ${Array.isArray(settings.reportAccess?.[kind])&&settings.reportAccess[kind].includes(r)?'checked':''}></label></td>`).join('')}</tr>`).join('')}
+  </tbody></table></div>
+  <div class="buttons"><button type="button" id="report-access-save" class="primary">Rapor izinlerini kaydet</button><button type="button" id="report-access-clear" class="subtle">Paylaşımları kaldır</button></div>
+  <p id="report-access-status" class="muted" role="status"></p>`;
+ $('content').append(panel);
+ const boxes=[...panel.querySelectorAll('input[data-report][data-role]')];
+ panel.querySelector('#report-access-clear').onclick=()=>{for(const checkbox of boxes)checkbox.checked=false;panel.querySelector('#report-access-status').textContent='Paylaşımlar kaldırılmak üzere seçildi; uygulamak için Kaydet’e bas.';};
+ panel.querySelector('#report-access-save').onclick=async()=>{
+  if(!canAdmin())return;
+  const acl={};for(const [kind] of ADMIN_REPORT_KINDS){acl[kind]=REPORT_SHARE_ROLES.filter(r=>boxes.some(b=>b.dataset.report===kind&&b.dataset.role===r&&b.checked));}
+  const patch={reportAccess:safeReportAccess(acl)};
+  try{await setDoc(doc(db,'Settings','SystemConfig'),patch,{merge:true});settings={...settings,...patch};notify('Rapor izinleri kaydedildi.');panel.querySelector('#report-access-status').textContent='İzinler kaydedildi.';}
+  catch(err){notify('Rapor izinleri kaydedilemedi: '+err.message,true);panel.querySelector('#report-access-status').textContent='Kaydedilemedi: '+err.message;}
+ };
 };

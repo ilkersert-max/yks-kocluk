@@ -36,3 +36,11 @@
 - Atanan soru miktarı hedef, gerçekleşen gerçek sonuçtur; çözülmemiş fark boş soruya eklenmez. Kayıtlar değiştirilmez.
 - DİKKAT: Bir ödevin sonuç güncellemesi sadece güncel sonuç tarihine yazılır; geçmiş haftalara ait ayrı denemeler tutulmuyor. Aynı çalışma günlük çalışmaya da eklenmişse çift sayılır. Farklı raporların tarih dayanakları etiketlenmiştir. Veri denetimi her zaman bütün kayıtları kontrol eder.
 - PDF tarayıcı Yazdır > PDF olarak kaydet yöntemiyle oluşturulur. Firebase'de canlı test yapılmadı.
+
+
+## v12 – Rapor türü bazında çoklu rol görme izinleri
+- Admin > Rapor bazında görme izinleri: 11 rapor × Öğrenci/Veli/Öğretmen/Koç matrisi. Bir rapor birden çok role açılabilir. Admin her raporu görür. Varsayılan: hiçbir rapor paylaşılmaz.
+- Settings/SystemConfig.reportAccess olarak yalnızca izinler kaydedilir, ödev/deneme/hesaplama kayıtları değiştirilmez. Ayarlar canlı dinlenir; yetki değişimi menüye yansır.
+- Yetki verilmemiş rapor menüde görünmez; doğrudan render/CSV/PDF de izin kontrolü yapılır. Tam JSON yedeği Admin'e özeldir.
+- ÖNEMLİ: Bu bir rapor-UI görünürlük kontrolüdür; mevcut uygulama tüm kayıtları istemciye getirdiğinden Firestore veri gizliliği / koleksiyon bazında rol izolasyonu sağlamaz. Gerçek veri gizliliği için sunucu taraflı yetkilendirme ve veri erişiminin ayrıştırılması gerekir. Firebase Security Rules ayrıca uygulanmalıdır.
+- v11 rapor hesapları, ödev tamamlanan/toplam sayısı, ödev sil/düzenle, haftalık tablo ve test temizliği korunur. Canlı Firebase/telefon testi yapılmadı.
