@@ -61,25 +61,38 @@ function applyRoleBasedUI(role) {
     const analizPnl = document.getElementById('analiz-panel');
     const yeniDenemeBtn = document.getElementById('yeni-deneme-btn');
 
-    [adminPnl, teachPnl, studPnl, studAssignPnl, analizPnl].forEach(p => p.classList.add('d-none'));
+    // Güvenli sıfırlama (Önce hepsini gizle)
+    if(adminPnl) adminPnl.classList.add('d-none');
+    if(teachPnl) teachPnl.classList.add('d-none');
+    if(studPnl) studPnl.classList.add('d-none');
+    if(studAssignPnl) studAssignPnl.classList.add('d-none');
+    if(analizPnl) analizPnl.classList.add('d-none');
 
+    // Role göre açılacak paneller
     if (role === "Admin") {
-        adminPnl.classList.remove('d-none'); teachPnl.classList.remove('d-none'); analizPnl.classList.remove('d-none');
+        if(adminPnl) adminPnl.classList.remove('d-none');
+        if(teachPnl) teachPnl.classList.remove('d-none');
+        if(analizPnl) analizPnl.classList.remove('d-none');
         if(yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none');
     } 
     else if (role === "Öğretmen" || role === "Koç" || role === "Ogretmen") {
-        teachPnl.classList.remove('d-none'); analizPnl.classList.remove('d-none');
+        if(teachPnl) teachPnl.classList.remove('d-none');
+        if(analizPnl) analizPnl.classList.remove('d-none');
         if(yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none'); 
     } 
     else if (role === "Veli") {
-        analizPnl.classList.remove('d-none'); studAssignPnl.classList.remove('d-none');
+        if(analizPnl) analizPnl.classList.remove('d-none');
+        if(studAssignPnl) studAssignPnl.classList.remove('d-none');
         if(yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none');
     } 
     else {
-        studPnl.classList.remove('d-none'); studAssignPnl.classList.remove('d-none');
+        // Öğrenci
+        if(studPnl) studPnl.classList.remove('d-none');
+        if(studAssignPnl) studAssignPnl.classList.remove('d-none');
         if(yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none');
-        document.getElementById('motivation-banner').classList.remove('d-none');
-        if (isStudentDetailedMode) analizPnl.classList.remove('d-none');
+        const motiv = document.getElementById('motivation-banner');
+        if(motiv) motiv.classList.remove('d-none');
+        if (isStudentDetailedMode && analizPnl) analizPnl.classList.remove('d-none');
         generateQuestionGrid(12);
     }
 }
@@ -163,7 +176,6 @@ document.getElementById('test-entry-form').addEventListener('submit', async (e) 
     } catch(err) { alert("Test kaydedilemedi!"); }
 });
 
-// DENEME KAYIT (Hızlı Net veya Detaylı D/Y Seçimine Göre Çalışır, Küsürat Korunur, OBP Şeffaf Gösterilir)
 document.getElementById('deneme-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const denemeAdi = document.getElementById('deneme-adi').value.trim();
@@ -359,4 +371,4 @@ async function loadDuyuru() {
 document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault(); signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(() => document.getElementById('error-msg').classList.remove('d-none'));
 });
-document.getElementById('logout-btn').addEventListener('click', () => { signOut(auth).then(() => location.reload()); });
+document.getElementById('logout-btn')?.addEventListener('click', () => { signOut(auth).then(() => location.reload()); });
