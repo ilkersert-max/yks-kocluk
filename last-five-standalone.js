@@ -1,7 +1,7 @@
 /* YKS – Son 5 Deneme: mevcut app.js değiştirilmeden eklenir. */
 import { getApps, initializeApp } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js';
 import { getAuth, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js';
-import { getFirestore, collection, onSnapshot, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
+import { getFirestore, collection, onSnapshot, doc, getDoc, updateDoc } from 'https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js';
 
 const TESTS = {
   'tyt-turkce':['TYT Türkçe',40], 'tyt-sosyal':['TYT Sosyal',20],
@@ -44,19 +44,26 @@ function netOf(exam,id) {
   return null;
 }
 
+function reconciled(exam,type){
+ const ids=[...TYT,...TYPES[type]];
+ const all=ids.map(id=>[id,netOf(exam,id)]);
+ if(all.some(([,n])=>n===null))return null;
+ const tytNet=all.filter(([id])=>TYT.includes(id)).reduce((s,[,n])=>s+n,0);
+ const fieldNet=all.filter(([id])=>!TYT.includes(id)).reduce((s,[,n])=>s+n,0);
+ return {tytNet,fieldNet,totalNet:tytNet+fieldNet};
+}
 /* Yalnızca tam kayıtlar, aynı puan türü ve azami son beş. */
 export function analyzeLastFive(exams,type) {
   const ids = [...TYT,...TYPES[type]];
   if (!TYPES[type]) throw Error('Geçersiz sınav türü');
   const matching = exams.filter(e => e.denemeTuru === type);
   const eligible = matching.filter(e => {
-    if (e.complete === false || number(e.toplamNet) === null) return false;
-    if (e.complete === true) return true;
-    return ids.every(id => netOf(e,id) !== null); // eski kayıtta gerçek ders netleri gerekli
+    if (e.complete === false) return false;
+    return reconciled(e,type)!==null;
   });
   eligible.sort((a,b)=>dateKey(a).localeCompare(dateKey(b))||timeKey(a)-timeKey(b)||String(a.id||'').localeCompare(String(b.id||'')));
   const records = eligible.slice(-5);
-  const values = records.map(e => number(e.toplamNet));
+  const values = records.map(e => reconciled(e,type).totalNet);
   const latest = values.length ? values.at(-1) : null;
   const average = values.length ? values.reduce((a,b)=>a+b,0)/values.length : null;
   const highest = values.length ? Math.max(...values) : null;
@@ -103,7 +110,7 @@ function mount() {
   if (home && !content.querySelector('#last5-home')) {
     const card=document.createElement('section');
     card.id='last5-home';card.className='card';
-    card.innerHTML=`<h2>📈 Son 5 Deneme · v4</h2><p>TYT, SAY, EA, SÖZ ve DİL ayrı ayrı izlenir.</p>
+    card.innerHTML=`<h2>📈 Son 5 Deneme · v5</h2><p>TYT, SAY, EA, SÖZ ve DİL ayrı ayrı izlenir.</p>
       <button type="button" class="primary" id="l5-open">Son 5 Deneme Analizini Aç</button>`;
     content.append(card);
     card.querySelector('#l5-open').onclick=()=>{
@@ -119,24 +126,44 @@ function mount() {
     content.prepend(section);
   }
   // Sadece veriler veya puan türü değiştiğinde render; MutationObserver döngüsünü önler.
-  const signature=selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
+  const signature='v5|'+selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
   if (section.dataset.signature===signature) return;
   section.dataset.signature=signature;
   const a=analyzeLastFive(records,selectedType);
   const up=a.subjects.filter(s=>s.change!==null&&s.change>0).sort((x,y)=>y.change-x.change)[0];
   const down=a.subjects.filter(s=>s.change!==null&&s.change<0).sort((x,y)=>x.change-y.change)[0];
   const trend=a.change===null?'Karşılaştırma için en az iki tam deneme gerekiyor.':a.change>0?`İlk ve son deneme arasında ${fmt(a.change)} net artış var.`:a.change<0?`İlk ve son deneme arasında ${fmt(-a.change)} net azalış var.`:'İlk ve son deneme aynı toplam nete sahip.';
-  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v4</h2><p>Aynı puan türündeki son ${a.records.length} tam deneme.</p></div>
+  const fixable=selectedType==='TYT'&&currentRole==='Admin'
+    ?a.records.filter(e=>{const x=reconciled(e,'TYT');return x&&number(e.toplamNet)!==null&&
+      Math.abs(number(e.toplamNet)-2*x.totalNet)<1e-7&&Math.abs(x.totalNet)>1e-7;})
+    :[];
+  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v5</h2><p>Aynı puan türündeki son ${a.records.length} tam deneme.</p></div>
     <label>Deneme türü<select id="l5-type">${Object.entries(TYPE_LABELS).map(([id,label])=>`<option value="${id}" ${id===selectedType?'selected':''}>${label}</option>`).join('')}</select></label></div>
     <div class="l5-stats">${[['Son net',a.latest],['Son 5 ortalaması',a.average],['En yüksek net',a.highest],['İlk–son farkı',a.change]].map(([k,v])=>`<div><small>${k}</small><strong>${k==='İlk–son farkı'?signed(v):fmt(v)}</strong></div>`).join('')}</div>
+    ${fixable.length?`<div class="l5-note"><p>${fixable.length} eski TYT kaydında iki kat toplam tespit edildi. Grafik ve tablolar zaten ders netlerinden doğru hesaplanıyor.</p><button type="button" id="l5-repair" class="secondary">Eski TYT toplamını Firebase'de düzelt (Admin)</button></div>`:''}
     ${graph(a.values)}
     ${a.excluded?`<p class="l5-note">${a.excluded} eksik/kısmi kayıt karşılaştırmaya alınmadı.</p>`:''}
     <p class="l5-note">${esc(trend)} ${up?esc(up.name+': '+signed(up.change)+' net.'):''} ${down?esc(down.name+': '+signed(down.change)+' net.'):''}</p>
     <h3>Denemeler</h3><div class="l5-table"><table><thead><tr><th>#</th><th>Deneme / Tarih</th><th>Kaynak</th><th>TYT</th><th>Alan</th><th>Toplam</th></tr></thead><tbody>
-    ${a.records.map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.denemeAdi||'Deneme')}<br><small>${esc(dateKey(e)||'—')}</small></td><td>${esc(e.examSource||'—')}</td><td>${fmt(number(e.tytNet))}</td><td>${selectedType==='TYT'?'—':fmt(number(e.fieldNet))}</td><td><strong>${fmt(number(e.toplamNet))}</strong></td></tr>`).join('')||'<tr><td colspan="6">Kayıt yok.</td></tr>'}</tbody></table></div>
+    ${a.records.map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.denemeAdi||'Deneme')}<br><small>${esc(dateKey(e)||'—')}</small></td><td>${esc(e.examSource||'—')}</td><td>${fmt(reconciled(e,selectedType)?.tytNet??null)}</td><td>${selectedType==='TYT'?'—':fmt(number(e.fieldNet))}</td><td><strong>${fmt(reconciled(e,selectedType)?.totalNet??null)}</strong></td></tr>`).join('')||'<tr><td colspan="6">Kayıt yok.</td></tr>'}</tbody></table></div>
     <h3>Ders bazında ilk–son değişim</h3><div class="l5-table"><table><thead><tr><th>Ders</th><th>İlk</th><th>Son</th><th>Fark</th></tr></thead><tbody>
     ${a.subjects.map(s=>`<tr><td>${esc(s.name)}</td><td>${fmt(s.first)}</td><td>${fmt(s.last)}</td><td>${signed(s.change)}</td></tr>`).join('')}</tbody></table></div>
     <p class="l5-note">Net farkı tek başına sınavların eşdeğer olduğunu veya değişimin nedenini göstermez. Buradaki değerler ÖSYM puanı değildir.</p>`;
+  const repairButton=section.querySelector('#l5-repair');
+  if(repairButton)repairButton.onclick=async()=>{
+    if(!window.confirm(fixable.length+' TYT test kaydının yalnızca tytNet, fieldNet ve toplamNet değerleri ders netlerine göre düzeltilecek. Devam edilsin mi?'))return;
+    repairButton.disabled=true;
+    try{
+      for(const e of fixable){
+        const x=reconciled(e,'TYT');
+        await updateDoc(doc(db,'Denemeler',e.id),{
+          tytNet:x.tytNet,fieldNet:0,toplamNet:x.totalNet,
+          correctedDoubleTYT:true
+        });
+      }
+      alert('TYT toplamları düzeltildi.');
+    }catch(err){alert('Düzeltme tamamlanamadı: '+err.message);repairButton.disabled=false;}
+  };
   section.querySelector('#l5-type').onchange=e=>{selectedType=e.target.value;section.dataset.signature='';scheduleMount();};
 }
 
