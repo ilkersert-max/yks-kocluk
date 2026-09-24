@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v10.2';
+const BUILD_VERSION='v11';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:true,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='all';
@@ -152,7 +152,7 @@ function renderHome(){
  const student=role==='Öğrenci';
  $('content').innerHTML=`
  ${student?`<section class="card motivation"><div class="celebrate-icon" aria-hidden="true">👏 🎉</div><h1>Merhaba, bugün de buradasın!</h1><p class="motivation-quote">${esc(loginMotivation)}</p><div class="buttons"><button type="button" id="celebrate-btn" class="primary applause-button">👏 Alkış ve tezahürat</button><button type="button" id="next-quote" class="subtle">Başka bir söz</button></div><small>Ses yalnızca düğmeye basınca çalar; cihazın sesini kontrol et.</small></section>`:''}
- <section class="card"><h1>${student?'Bugün ne yaptın? 👋':'Öğrencinin genel durumu'}</h1><p class="muted">${student?'Kısa bir giriş yeterli; detaylara istediğinde bakarsın.':'Tek öğrencinin okul, kurs ve ev çalışmaları tek yerde.'}</p><div class="stats">${detail('Son deneme',last?`${esc(last.denemeTuru)} · ${examNetText(last)}`:'Henüz yok')}${detail('Deneme sayısı',exams.length)}${detail('Tamamlanan ödev',`${completed}/${tasks.length}`)}${detail('Günlük test',tests.length)}</div></section>
+ <section class="card"><h1>${student?'Bugün ne yaptın? 👋':'Öğrencinin genel durumu'}</h1><p class="muted">${student?'Kısa bir giriş yeterli; detaylara istediğinde bakarsın.':'Tek öğrencinin okul, kurs ve ev çalışmaları tek yerde.'}</p><div class="stats">${detail('Son deneme',last?`${esc(last.denemeTuru)} · ${examNetText(last)}`:'Henüz yok')}${detail('Deneme sayısı',exams.length)}${detail('Tamamlanan ödev',`${completed}/${tasks.filter(t=>!assignmentMetrics(t).cancelled).length}`)}${detail('Günlük test',tests.length)}</div></section>
  ${student?`<div class="grid"><section class="card"><h2>📝 Deneme girdim</h2><p>Okul, kurs veya ev denemesi.</p><button class="primary" data-nav="exam">Deneme ekle</button></section><section class="card"><h2>✏️ Soru çözdüm</h2><p>Kitabını seç, sonucunu gir.</p><button class="primary" data-nav="test">Çalışma ekle</button></section><section class="card"><h2>📚 Ödevlerim</h2><p>Bugünkü görevlerini tamamla.</p><button class="primary" data-nav="tasks">Ödevleri aç</button></section></div>`:`<div class="grid"><section class="card"><h2>📊 Deneme takibi</h2><p>Tüm sınavlar, netler ve kaynaklar.</p><button class="primary" data-nav="history">Denemeleri incele</button></section><section class="card"><h2>📚 Ödev yönetimi</h2><p>Ödev ata, sonucu değerlendir.</p><button class="primary" data-nav="tasks">Ödevleri aç</button></section><section class="card"><h2>📈 Detaylı analiz</h2><p>Çalışma ve gelişim sonuçları.</p><button class="primary" data-nav="analysis">Analizleri aç</button></section></div>`}
  ${last?`<section class="card"><h2>Son deneme</h2><p>${esc(last.denemeAdi)} · ${dateString(last.examDate||last.tarih)} · ${esc(last.examSource||'Kaynak belirtilmemiş')}</p><strong>${format(normalizedExamTotals(last)?.totalNet??Number(last.toplamNet))} net</strong></section>`:''}`;
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{view=b.dataset.nav;render()});
@@ -287,7 +287,7 @@ function renderWeeklyStats(date){const bounds=weekBounds(date);if(!bounds)return
 function attachWeeklyStats(){const host=$('weekly-results'),input=$('weekly-date');if(!host||!input)return;input.value=new Date().toLocaleDateString('sv-SE');const update=()=>{host.innerHTML=renderWeeklyStats(input.value)};input.onchange=update;update();}
 
 function renderWeekly(){$('content').innerHTML='<div class="card"><h1>Haftalık ders / branş soru istatistiği</h1><label>Hafta içinden bir gün seç<input id="weekly-date" type="date"></label><div id="weekly-results"></div></div>';attachWeeklyStats();}
-function renderAnalysis(){const ordered=[...exams].sort((a,b)=>(a.examDate||'').localeCompare(b.examDate||''));const unique=[...new Set(ordered.map(x=>x.denemeTuru||'TYT'))];const totals=ordered.map(examNet).filter(v=>v!==null);const avg=totals.length?totals.reduce((a,b)=>a+b,0)/totals.length:null;const topics={};for(const t of tests){const k=(t.ders||'')+' / '+(t.konu||'');const q=Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0)));if(!topics[k])topics[k]={correct:0,total:0,tests:0};topics[k].correct+=Number(t.dogru||0);topics[k].total+=q;topics[k].tests++}const cards=Object.entries(topics).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.tests}</td><td>${v.total?format(100*v.correct/v.total)+'%':'—'}</td></tr>`).join('');const trend=unique.map(type=>{const data=ordered.filter(x=>(x.denemeTuru||'TYT')===type);const vals=data.map(examNet).filter(v=>v!==null);const last=vals.at(-1),first=vals[0];return `<tr><td>${esc(type)}</td><td>${data.length}</td><td>${format(last)}</td><td>${format(vals.length>=2?last-first:null)}</td></tr>`}).join('');$('content').innerHTML=`<div class="card"><h1>Öğrenci analizi</h1><p class="muted">Tek öğrencinin deneme, test ve ödev kayıtları. Farklı puan türlerinin netleri birbiriyle karıştırılmaz.</p><div class="stats">${detail('Deneme sayısı',exams.length)}${detail('Toplam çözülen günlük soru',tests.reduce((a,t)=>a+Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0))),0))}${detail('Tamamlanan ödev',completedAssignmentCount(tasks))}${detail('Kaydedilmiş test',tests.length)}</div></div><div class="card"><h2>Puan türüne göre net ilerleme</h2><div class="tablewrap"><table><thead><tr><th>Tür</th><th>Deneme</th><th>Son net</th><th>İlk-son farkı</th></tr></thead><tbody>${trend||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><p class="muted">Farklı zorluktaki denemeler birebir eşdeğer kabul edilmez.</p></div><div class="card"><h2>Günlük çalışma: konu doğru oranı</h2><div class="tablewrap"><table><thead><tr><th>Ders / Konu</th><th>Test sayısı</th><th>Doğru oranı</th></tr></thead><tbody>${cards||'<tr><td colspan="3">Henüz çalışma yok</td></tr>'}</tbody></table></div></div><div class="card"><h2>Ödev sonuçları</h2>${tasks.map(t=>`<div class="task"><strong>${esc(assignmentSubjectName(t.ders))}${t.konu?' · '+esc(t.konu):''}</strong><p class="muted">${esc(t.assignedByRole||'Eski kayıt')} · ${esc(assignmentStatus(t))}</p>${t.result?`${t.result.correct} doğru · ${t.result.wrong} yanlış · ${format(t.result.net)} net`: 'Sonuç girilmedi'}${t.review?`<p>${esc(t.review)}</p>`:''}</div>`).join('')||'Henüz ödev yok'}</div><div class="card"><h2>Haftalık ders / branş soru istatistiği</h2><label>Hafta içinden bir gün seç<input id="weekly-date" type="date"></label><div id="weekly-results"></div></div>`;attachWeeklyStats();}
+function renderAnalysis(){const ordered=[...exams].sort((a,b)=>(a.examDate||'').localeCompare(b.examDate||''));const unique=[...new Set(ordered.map(x=>x.denemeTuru||'TYT'))];const totals=ordered.map(examNet).filter(v=>v!==null);const avg=totals.length?totals.reduce((a,b)=>a+b,0)/totals.length:null;const topics={};for(const t of tests){const k=(t.ders||'')+' / '+(t.konu||'');const q=Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0)));if(!topics[k])topics[k]={correct:0,total:0,tests:0};topics[k].correct+=Number(t.dogru||0);topics[k].total+=q;topics[k].tests++}const cards=Object.entries(topics).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.tests}</td><td>${v.total?format(100*v.correct/v.total)+'%':'—'}</td></tr>`).join('');const trend=unique.map(type=>{const data=ordered.filter(x=>(x.denemeTuru||'TYT')===type);const vals=data.map(examNet).filter(v=>v!==null);const last=vals.at(-1),first=vals[0];return `<tr><td>${esc(type)}</td><td>${data.length}</td><td>${format(last)}</td><td>${format(vals.length>=2?last-first:null)}</td></tr>`}).join('');$('content').innerHTML=`<div class="card"><h1>Öğrenci analizi</h1><p class="muted">Tek öğrencinin deneme, test ve ödev kayıtları. Farklı puan türlerinin netleri birbiriyle karıştırılmaz.</p><div class="stats">${detail('Deneme sayısı',exams.length)}${detail('Toplam çözülen günlük soru',tests.reduce((a,t)=>a+Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0))),0))}${detail('Tamamlanan ödev',`${completedAssignmentCount(tasks)}/${tasks.filter(t=>!assignmentMetrics(t).cancelled).length}`)}${detail('Kaydedilmiş test',tests.length)}</div></div><div class="card"><h2>Puan türüne göre net ilerleme</h2><div class="tablewrap"><table><thead><tr><th>Tür</th><th>Deneme</th><th>Son net</th><th>İlk-son farkı</th></tr></thead><tbody>${trend||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><p class="muted">Farklı zorluktaki denemeler birebir eşdeğer kabul edilmez.</p></div><div class="card"><h2>Günlük çalışma: konu doğru oranı</h2><div class="tablewrap"><table><thead><tr><th>Ders / Konu</th><th>Test sayısı</th><th>Doğru oranı</th></tr></thead><tbody>${cards||'<tr><td colspan="3">Henüz çalışma yok</td></tr>'}</tbody></table></div></div><div class="card"><h2>Ödev sonuçları</h2>${tasks.map(t=>`<div class="task"><strong>${esc(assignmentSubjectName(t.ders))}${t.konu?' · '+esc(t.konu):''}</strong><p class="muted">${esc(t.assignedByRole||'Eski kayıt')} · ${esc(assignmentStatus(t))}</p>${t.result?`${t.result.correct} doğru · ${t.result.wrong} yanlış · ${format(t.result.net)} net`: 'Sonuç girilmedi'}${t.review?`<p>${esc(t.review)}</p>`:''}</div>`).join('')||'Henüz ödev yok'}</div><div class="card"><h2>Haftalık ders / branş soru istatistiği</h2><label>Hafta içinden bir gün seç<input id="weekly-date" type="date"></label><div id="weekly-results"></div></div>`;attachWeeklyStats();}
 function renderReports(){const op=obpFromProfile(profile);$('content').innerHTML=`<div class="card"><h1>Öğrenci durum raporu</h1><p class="muted">Tarayıcının Yazdır → PDF olarak kaydet seçeneğiyle bilgisayarda PDF oluşturulabilir.</p><div class="buttons noprint"><button id="print-report" class="primary">Yazdır / PDF</button><button id="export-json" class="secondary">JSON yedeği</button></div><hr><h2>Diploma / OBP</h2><p>${op?`Diploma notu: ${format(op.diploma)} · OBP: ${format(op.obp)} · Katkı: ${format(op.contribution)} ${op.isEstimate?'(tahmini)':''}`:'Diploma notu / OBP henüz bilinmiyor.'}</p><h2>Denemeler</h2><div class="tablewrap"><table><thead><tr><th>Deneme</th><th>Tür</th><th>Tarih</th><th>Net</th></tr></thead><tbody>${sortedExams().map(x=>`<tr><td>${esc(x.denemeAdi)}</td><td>${esc(x.denemeTuru)}</td><td>${dateString(x.examDate||x.tarih)}</td><td>${examNetText(x)}</td></tr>`).join('')||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><h2>Ödevler</h2>${tasks.map(t=>`<p>${esc(t.ders)} – ${esc(t.konu)} · ${esc(assignmentStatus(t))} ${t.result?'· '+format(t.result.net)+' net':''}</p>`).join('')||'<p>Henüz ödev yok.</p>'}</div>`;$('print-report').onclick=()=>window.print();$('export-json').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),profile,exams,tasks,tests},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='YKS-Ogrenci-Yedek-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};}
 function renderAdmin(){$('content').innerHTML=`<div class="card"><h1>Admin · Giriş parametreleri</h1><p class="muted">Tek öğrencinin deneme giriş yöntemi tüm kullanıcılara uygulanır. Daha önce kaydedilmiş denemeler değişmez.</p><form id="admin-form"><label>Deneme sonuç giriş yöntemi<select id="setting-mode"><option value="BOTH">Her iki yöntem</option><option value="NET">Yalnızca net</option><option value="DY">Yalnızca doğru / yanlış</option></select></label><label>Her iki yöntem açıkken varsayılan<select id="setting-default"><option value="NET">Hızlı net</option><option value="DY">Doğru / yanlış</option></select></label><label><input type="checkbox" id="setting-details" style="width:auto"> Öğrencinin detaylı analiz sekmesini göster</label><label><input type="checkbox" id="setting-sound" style="width:auto"> Öğrencinin alkış/tezahürat ses düğmesini göster</label><label>Ödev ders görünümü<select id="setting-assignment-subjects"><option value="simple">Sade (10 ders; TYT/AYT ayrımı yok)</option><option value="detailed">Ayrıntılı (TYT/AYT ve 1–2 ayrımı)</option></select></label><button class="primary">Ayarları kaydet</button></form></div>`;$('setting-mode').value=settings.examEntryMode||'BOTH';$('setting-default').value=settings.defaultEntryMode||'NET';$('setting-details').checked=settings.studentDetailedMode===true;$('setting-sound').checked=settings.studentCelebrationSound!==false;$('setting-assignment-subjects').value=settings.assignmentSubjectMode==='detailed'?'detailed':'simple';$('admin-form').onsubmit=async e=>{e.preventDefault();const patch={examEntryMode:$('setting-mode').value,defaultEntryMode:$('setting-default').value,studentDetailedMode:$('setting-details').checked,studentCelebrationSound:$('setting-sound').checked,assignmentSubjectMode:$('setting-assignment-subjects').value};try{await setDoc(doc(db,'Settings','SystemConfig'),patch,{merge:true});settings={...settings,...patch};draftMode=patch.examEntryMode==='BOTH'?patch.defaultEntryMode:patch.examEntryMode;draft={};notify('Admin parametreleri güncellendi.');render()}catch(err){notify(err.message,true)}};}
 
@@ -408,4 +408,134 @@ renderAdmin = function(){
 };
 
 // Build marker for verifying GitHub Pages/browser caching.
-document.title += ' · v10.1';
+document.title += ' · v11';
+
+
+/* ================ v11: ADMIN RAPOR MERKEZİ ================
+   Not: Tek öğrenci; sayılar sadece oturumdaki Firestore snapshot'larından.
+   Atanan işin zamanı ve sonucunun çalışma zamanı ayrı filtrelenir.
+   Verisi doğrulanamayan kayıtlar toplamları şişirmez.
+*/
+const ADMIN_REPORT_KINDS=[
+ ['overview','Genel durum ve ödev gerçekleşmesi'],
+ ['assignments','Ödev envanteri ve durumları'],
+ ['overwork','Fazla / eksik çözülen sorular'],
+ ['subjects','Ders / branş performansı'],
+ ['work','Günlük çalışma ve ödev soru dökümü'],
+ ['weekly','Haftalık çalışma özeti'],
+ ['deadlines','Veriliş, bitiş ve gecikme'],
+ ['targets','Doğru hedefleri ve başarı'],
+ ['assigners','Ödevi atayan role göre dağılım'],
+ ['exams','Deneme ve sonuç durumu'],
+ ['quality','Eksik / çelişkili veri denetimi']
+];
+const adminReportState={kind:'overview',from:'',to:''};
+const reportDate=x=>weeklyDate(x);
+const reportBetween=(d,from,to)=>Boolean(d)&&(!from||d>=from)&&(!to||d<=to);
+const reportNum=n=>Number.isFinite(n)?format(n):'—';
+const reportTotal=(list,key)=>list.reduce((s,r)=>s+(Number(r[key])||0),0);
+function reportResult(t){
+ if(!t.result)return null;
+ const r=t.result;
+ const q=r.attempted===undefined||r.attempted===null||r.attempted===''?Number(r.correct)+Number(r.wrong)+Number(r.blank):Number(r.attempted);
+ const d=Number(r.correct),w=Number(r.wrong),b=r.blank===undefined||r.blank===null?q-d-w:Number(r.blank);
+ if(![q,d,w,b].every(Number.isInteger)||Math.min(q,d,w,b)<0||d+w+b!==q)return null;
+ return {q,d,w,b,net:d-w/4};
+}
+function reportTestResult(t){
+ const d=Number(t.dogru),w=Number(t.yanlis),q=t.questionCount==null?d+w+Number(t.bos||0):Number(t.questionCount),b=t.bos==null?q-d-w:Number(t.bos);
+ if(![q,d,w,b].every(Number.isInteger)||Math.min(q,d,w,b)<0||d+w+b!==q)return null;
+ return {q,d,w,b,net:d-w/4};
+}
+function reportRows(){
+ const from=adminReportState.from,to=adminReportState.to;
+ const assigned=tasks.filter(t=>reportBetween(reportDate(t.assignedDate||t.atanmaTarihi||t.tarih),from,to));
+ const workTasks=tasks.filter(t=>reportBetween(reportDate(t.resultDate||t.resultUpdatedAt),from,to));
+ const daily=tests.filter(t=>reportBetween(reportDate(t.studyDate||t.tarih),from,to));
+ const examRows=exams.filter(t=>reportBetween(reportDate(t.examDate||t.tarih),from,to));
+ return {assigned,workTasks,daily,examRows};
+}
+function reportTable(headers,rows){
+ return `<div class="tablewrap"><table><thead><tr>${headers.map(x=>`<th>${esc(x)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map(x=>`<td>${esc(x)}</td>`).join('')}</tr>`).join('')||`<tr><td colspan="${headers.length}">Bu kapsamda kayıt yok.</td></tr>`}</tbody></table></div>`;
+}
+function reportMetricTotals(rows){return rows.reduce((a,r)=>({q:a.q+r.q,d:a.d+r.d,w:a.w+r.w,b:a.b+r.b,net:a.net+r.net}),{q:0,d:0,w:0,b:0,net:0});}
+function reportWorkItems(data){
+ const out=[];
+ for(const t of data.workTasks){const r=reportResult(t);if(r)out.push({source:'Ödev',id:t.id,subject:assignmentSubjectName(t.ders),date:reportDate(t.resultDate||t.resultUpdatedAt),...r});}
+ for(const t of data.daily){const r=reportTestResult(t);if(r)out.push({source:'Günlük çalışma',id:t.id,subject:assignmentSubjectName(t.ders),date:reportDate(t.studyDate||t.tarih),...r});}
+ return out;
+}
+function reportAssignmentRows(data){
+ return data.assigned.map(t=>{const m=assignmentMetrics(t),r=reportResult(t),q=Number(t.questionCount),validQ=Number.isInteger(q)&&q>0;
+ return {t,m,r,q:validQ?q:null,actual:r?r.q:(m.valid?m.actual:null),date:reportDate(t.assignedDate||t.atanmaTarihi||t.tarih)};});
+}
+function adminReportBuild(kind,data){
+ const ar=reportAssignmentRows(data),items=reportWorkItems(data);
+ const fmt=reportNum,emp=n=>n===null?'—':String(n);
+ const completed=ar.filter(x=>x.m.complete).length,active=ar.filter(x=>!x.m.cancelled),validated=ar.filter(x=>x.q!==null&&x.actual!==null);
+ const over=validated.filter(x=>!x.m.cancelled&&x.actual>x.q),under=validated.filter(x=>!x.m.cancelled&&x.actual<x.q);
+ const sum=reportMetricTotals(items);
+ const assignedQs=ar.filter(x=>x.q!==null).reduce((s,x)=>s+x.q,0);
+ const heading=`<p class="muted">Tarih filtresi: Ödev envanterinde veriliş, çalışma raporunda sonuç/çalışma, denemelerde sınav tarihi esas alınır. Tüm ödevlerin tamamlanma oranı, veriliş tarihine göre seçilen kayıtlar içindir.</p>`;
+ const tableAssignments=(arr)=>reportTable(['Ders','Veriliş','Bitiş','Atanan','Gerçekleşen','Fark','Gerçekleşme','Durum'],arr.map(x=>[assignmentSubjectName(x.t.ders),dateString(x.t.assignedDate||x.t.atanmaTarihi||x.t.tarih),dateString(x.t.dueDate||x.t.tarih),emp(x.q),emp(x.actual),x.q===null||x.actual===null?'—':(x.actual-x.q>0?'+':'')+(x.actual-x.q),x.q&&x.actual!==null?fmt(100*x.actual/x.q)+'%':'—',assignmentStatus(x.t)]));
+ const workTable=(list)=>reportTable(['Tarih','Kaynak','Ders','Toplam','Doğru','Yanlış','Boş','Net'],list.map(x=>[dateString(x.date),x.source,x.subject,x.q,x.d,x.w,x.b,fmt(x.net)]));
+ if(kind==='overview')return heading+`<div class="stats">${detail('Toplam ödev',active.length)}${detail('Tamamlanan ödev',completed+'/'+active.length)}${detail('Eksik ödev',under.length)}${detail('Hedef üstü ödev',over.length)}${detail('Atanan soru',assignedQs)}${detail('Gerçekleşen ödev sorusu',reportTotal(items.filter(x=>x.source==='Ödev'),'q'))}${detail('Tüm çalışma sorusu',sum.q)}${detail('Toplam net',fmt(sum.net))}</div><p class="muted">Tamamlanan ödev sayısı, mevcut kartlar ve öğrenci analizindeki ortak hesaplamayla aynıdır. İptal edilenler paydaya alınmaz. Çalışmalar denemeleri kapsamaz.</p>`+tableAssignments(ar);
+ if(kind==='assignments')return heading+tableAssignments(ar);
+ if(kind==='overwork')return heading+`<div class="stats">${detail('Fazla çözülen soru',over.reduce((s,x)=>s+x.actual-x.q,0))}${detail('Eksik kalan soru',under.reduce((s,x)=>s+x.q-x.actual,0))}${detail('Hedef üstü ödev',over.length)}${detail('Eksik ödev',under.length)}</div><p class="muted">Eksik kalan sorular “Boş” kabul edilmez. Geçerli sonucu olmayan ödevler fark hesabına katılmaz.</p>`+tableAssignments([...over,...under]);
+ if(kind==='subjects'){
+  const groups=new Map();for(const it of items){const row=groups.get(it.subject)||{subject:it.subject,q:0,d:0,w:0,b:0,net:0,records:0};for(const k of ['q','d','w','b','net'])row[k]+=it[k];row.records++;groups.set(it.subject,row);}
+  const rows=[...groups.values()].sort((a,b)=>ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(a.subject)-ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(b.subject));
+  return heading+reportTable(['Ders','Kayıt','Toplam','Doğru','Yanlış','Boş','Net','Doğru oranı'],rows.map(r=>[r.subject,r.records,r.q,r.d,r.w,r.b,fmt(r.net),r.q?fmt(100*r.d/r.q)+'%':'—']).concat(rows.length?[['GENEL TOPLAM',items.length,sum.q,sum.d,sum.w,sum.b,fmt(sum.net),sum.q?fmt(100*sum.d/sum.q)+'%':'—']]:[]));
+ }
+ if(kind==='work')return heading+`<div class="stats">${detail('Toplam soru',sum.q)}${detail('Doğru',sum.d)}${detail('Yanlış',sum.w)}${detail('Boş',sum.b)}${detail('Net',fmt(sum.net))}</div>`+workTable(items);
+ if(kind==='weekly'){
+  const groups=new Map();for(const it of items){const bounds=weekBounds(it.date);if(!bounds)continue;const key=bounds[0],r=groups.get(key)||{start:key,end:bounds[1],q:0,d:0,w:0,b:0,net:0};for(const k of ['q','d','w','b','net'])r[k]+=it[k];groups.set(key,r);}
+  return heading+reportTable(['Hafta','Toplam soru','Doğru','Yanlış','Boş','Net'],[...groups.values()].sort((a,b)=>a.start.localeCompare(b.start)).map(r=>[dateString(r.start)+' – '+dateString(r.end),r.q,r.d,r.w,r.b,fmt(r.net)]));
+ }
+ if(kind==='deadlines'){
+  const today=new Date().toLocaleDateString('sv-SE');const late=ar.filter(x=>!x.m.cancelled&&!x.m.complete&&reportDate(x.t.dueDate||x.t.tarih)&&reportDate(x.t.dueDate||x.t.tarih)<today);
+  return heading+`<div class="stats">${detail('Süresi geçen eksik ödev',late.length)}${detail('Atanmış ödev',active.length)}</div>`+reportTable(['Ders','Veriliş','Bitiş','Gün farkı','Durum'],late.map(x=>[assignmentSubjectName(x.t.ders),dateString(x.t.assignedDate||x.t.tarih),dateString(x.t.dueDate||x.t.tarih),Math.floor((new Date(today+'T12:00:00')-new Date(reportDate(x.t.dueDate||x.t.tarih)+'T12:00:00'))/86400000),assignmentStatus(x.t)]));
+ }
+ if(kind==='targets'){
+  const withTargets=ar.filter(x=>x.t.targetCorrect!==null&&x.t.targetCorrect!==undefined&&x.t.targetCorrect!==''&&Number.isFinite(Number(x.t.targetCorrect)));
+  const known=withTargets.filter(x=>x.r),hit=known.filter(x=>x.r.d>=Number(x.t.targetCorrect));
+  return heading+`<div class="stats">${detail('Hedef tanımlı',withTargets.length)}${detail('Sonuçlu hedef',known.length)}${detail('Hedefe ulaşılan',hit.length)}${detail('Hedefe ulaşılamayan',known.length-hit.length)}</div>`+reportTable(['Ders','Hedef doğru','Gerçek doğru','Fark','Hedef durumu'],withTargets.map(x=>[assignmentSubjectName(x.t.ders),x.t.targetCorrect,x.r?x.r.d:'—',x.r?x.r.d-Number(x.t.targetCorrect):'—',!x.r?'Sonuç yok':x.r.d>=Number(x.t.targetCorrect)?'Ulaşıldı':'Ulaşılamadı']));
+ }
+ if(kind==='assigners'){
+  const groups=new Map();for(const x of ar){const k=x.t.assignedByRole||'Belirtilmemiş';const r=groups.get(k)||{total:0,complete:0,question:0,over:0};r.total++;r.complete+=x.m.complete?1:0;r.question+=x.q||0;r.over+=x.q!==null&&x.actual!==null?Math.max(0,x.actual-x.q):0;groups.set(k,r);}
+  return heading+reportTable(['Atayan rol','Ödev','Tamamlanan','Atanan soru','Fazla çözülen'],[...groups.entries()].map(([k,r])=>[k,r.total,r.complete,r.question,r.over]));
+ }
+ if(kind==='exams'){
+  const pending=data.examRows.filter(x=>x.resultStatus==='pending'||!x.results||!Object.values(x.results).some(r=>r&&r.entered)).length;
+  return heading+`<div class="stats">${detail('Deneme kaydı',data.examRows.length)}${detail('Sonuç bekleyen',pending)}${detail('Sonuçlu',data.examRows.length-pending)}</div>`+reportTable(['Deneme','Tarih','Tür','Kaynak','Net','Sonuç durumu'],data.examRows.map(x=>[x.denemeAdi||'—',dateString(x.examDate||x.tarih),x.denemeTuru||'—',x.examSource||'—',examNetText(x),x.resultStatus==='pending'?'Sonuç bekleniyor':x.complete?'Tam':'Kısmi / eski kayıt']));
+ }
+ if(kind==='quality'){
+  const bad=[];for(const x of reportAssignmentRows({assigned:tasks})){if(x.q===null)bad.push(['Ödev',x.t.id,'Atanan soru sayısı geçersiz veya yok']);if(x.t.result&&!reportResult(x.t))bad.push(['Ödev',x.t.id,'Sonuç D+Y+B toplamı veya sayılar geçersiz']);if(x.t.result&&!reportDate(x.t.resultDate||x.t.resultUpdatedAt))bad.push(['Ödev',x.t.id,'Sonuç tarihi yok; haftalık rapora giremez']);if(!x.date)bad.push(['Ödev',x.t.id,'Veriliş tarihi yok; filtrelenemez']);}
+  for(const t of tests){if(!reportTestResult(t))bad.push(['Günlük çalışma',t.id,'Soru sonuçları tutarsız']);if(!reportDate(t.studyDate||t.tarih))bad.push(['Günlük çalışma',t.id,'Çalışma tarihi yok']);}
+  return `<p class="muted">Veri denetimi tarih filtresinden bağımsızdır; tüm mevcut kayıtları inceler. Eski sonuçsuz ödevlerde sonuç bulunmaması tek başına hata değildir.</p><div class="stats">${detail('Tespit edilen konu',bad.length)}</div>`+reportTable(['Kaynak','Kayıt kimliği','Açıklama'],bad);
+ }
+ return heading;
+}
+function reportCSV(kind,data){
+ const ar=reportAssignmentRows(data),work=reportWorkItems(data);
+ const rows=kind==='work'||kind==='weekly'||kind==='subjects'?
+  [['Tarih','Kaynak','Ders','Toplam','Doğru','Yanlış','Boş','Net'],...work.map(x=>[x.date,x.source,x.subject,x.q,x.d,x.w,x.b,x.net])]:
+  [['Ders','Veriliş','Bitiş','Atanan','Gerçekleşen','Fark','Durum','Doğru','Yanlış','Boş','Net'],...ar.map(x=>[assignmentSubjectName(x.t.ders),x.date,reportDate(x.t.dueDate||x.t.tarih),x.q??'',x.actual??'',x.q===null||x.actual===null?'':x.actual-x.q,assignmentStatus(x.t),x.r?.d??'',x.r?.w??'',x.r?.b??'',x.r?.net??''])];
+ return '\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');
+}
+function reportDownload(content,name,type){const blob=new Blob([content],{type});const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
+const previousRenderReports=renderReports;
+renderReports=function(){
+ if(!canAdmin()){previousRenderReports();return;}
+ $('content').innerHTML=`<section class="card"><h1>Admin · Rapor merkezi</h1><p class="muted">Tek öğrenci · tarih aralığı ve rapor türüne göre rapor. PDF için yazdır; CSV bilgisayarında Excel ile açılabilir. Kayıtları değiştirmez.</p><div class="grid"><label>Rapor türü<select id="admin-report-kind">${ADMIN_REPORT_KINDS.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label></div><div class="buttons"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-csv">CSV indir</button><button class="secondary" id="admin-report-json">JSON yedeği</button><button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
+ const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to');kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;
+ const draw=()=>{adminReportState.kind=kind.value;adminReportState.from=from.value;adminReportState.to=to.value;
+  if(from.value&&to.value&&from.value>to.value){$('admin-report-output').innerHTML='<p class="error">Başlangıç tarihi bitiş tarihinden sonra olamaz.</p>';return false;}
+  $('admin-report-output').innerHTML=`<h2>${esc(ADMIN_REPORT_KINDS.find(x=>x[0]===kind.value)?.[1])}</h2><p class="muted">${from.value?dateString(from.value):'Tüm geçmiş'} – ${to.value?dateString(to.value):'Bugün ve sonrası dahil'}</p>`+adminReportBuild(kind.value,reportRows());return true;};
+ for(const inp of [kind,from,to])inp.onchange=draw;
+ $('admin-report-reset').onclick=()=>{from.value='';to.value='';draw();};
+ $('admin-report-pdf').onclick=()=>{if(draw())window.print();};
+ $('admin-report-csv').onclick=()=>{if(draw())reportDownload(reportCSV(kind.value,reportRows()),'YKS-Admin-'+kind.value+'-'+new Date().toLocaleDateString('sv-SE')+'.csv','text/csv;charset=utf-8')};
+ $('admin-report-json').onclick=()=>reportDownload(JSON.stringify({exportedAt:new Date().toISOString(),exams,tasks,tests,profile},null,2),'YKS-Admin-Yedek-'+new Date().toLocaleDateString('sv-SE')+'.json','application/json;charset=utf-8');
+ draw();
+};

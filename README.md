@@ -28,3 +28,11 @@
 - Kullanıcı çözülen sayısını sonradan D+Y altına indirirse sayısal örnekli açıklama gösterilir; Firebase'e çelişkili sonuç kaydedilmez.
 - Atanan soru ve hedef doğru girişinin hataları ayrıştırıldı. Hedef doğru en fazla atanmış soru adedi olabilir; öğrencinin gerçek doğru sayısı atanmış soru adedini geçebilir.
 - Firestore şeması, hesap göstergeleri ve geçmiş veriler değiştirilmez. Gerçek Firebase üzerinde henüz test yapılmamıştır.
+
+
+## v11 – Admin rapor merkezi ve tamamlanan ödev sayacı
+- Öğrenci analizindeki Tamamlanan ödev göstergesi tekrar `tamamlanan / iptal edilmemiş toplam` olarak gösterilir; ana sayfa ve kart aynı `assignmentMetrics` fonksiyonunu kullanır.
+- Admin Raporlar alanında genel durum, ödev envanteri, eksik/fazla çözüm, ders bazlı sonuç, tüm çalışma dökümü, hafta dökümü, gecikmeler, doğru hedefleri, atayan rol, denemeler ve veri tutarlılığı denetimi bulunur. Tarih filtresi, CSV, PDF/Yazdır ve JSON yedek mevcuttur.
+- Atanan soru miktarı hedef, gerçekleşen gerçek sonuçtur; çözülmemiş fark boş soruya eklenmez. Kayıtlar değiştirilmez.
+- DİKKAT: Bir ödevin sonuç güncellemesi sadece güncel sonuç tarihine yazılır; geçmiş haftalara ait ayrı denemeler tutulmuyor. Aynı çalışma günlük çalışmaya da eklenmişse çift sayılır. Farklı raporların tarih dayanakları etiketlenmiştir. Veri denetimi her zaman bütün kayıtları kontrol eder.
+- PDF tarayıcı Yazdır > PDF olarak kaydet yöntemiyle oluşturulur. Firebase'de canlı test yapılmadı.
