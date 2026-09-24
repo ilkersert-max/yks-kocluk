@@ -308,7 +308,7 @@ window.submitAssignmentResult = async function() {
         loadStudentTests();
         loadKonuMatrisiAndAnaliz();
         loadStudentSelfTestsHistory();
-    } catch(e) { alert("Ödev sonucu kaydedilerken hata oluştu!"); }
+    } catch(e) { alert("Ödev sonucu kaydedilirken hata oluştu!"); }
 }
 
 if (assignmentForm) {
@@ -732,12 +732,12 @@ window.tumTestVerileriniSil = async function() {
 }
 
 // -----------------------------------------------------------
-// DENEME KAYIT VE SÜTUN BAZLI ÖĞRETMEN / VELİ EKRANI LİSTELEME
+// GELİŞMİŞ DETAYLI DENEME KAYIT VE EKRANA BASMA FONKSİYONU
 // -----------------------------------------------------------
 if(denemeForm) {
     denemeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const denemeAdi = document.getElementById('deneme-adi').value;
+        const denemeAdi = document.getElementById('deneme-adi').value.trim();
         const denemeTuru = document.getElementById('deneme-turu').value;
 
         // TYT Netleri
@@ -748,40 +748,58 @@ if(denemeForm) {
         const tytToplamNet = tytTurkce + tytSosyal + tytMat + tytFen;
         const tytPuan = (tytTurkce * 3.3) + (tytSosyal * 3.4) + (tytMat * 3.3) + (tytFen * 3.4) + 100;
 
-        let alanPuanMetni = `${tytPuan.toFixed(2)} TYT`;
+        let alanPuanMetni = `${tytPuan.toFixed(2)} TYT Puan`;
         let toplamNet = tytToplamNet;
 
-        // Bütün alt ders netlerini tutan obje
+        // Alt Ders Netleri Detay Objesi
         let altNetler = {
-            "Türkçe": tytTurkce,
-            "Sosyal": tytSosyal,
-            "Matematik": tytMat,
-            "Fen": tytFen
+            "TYT Türkçe": tytTurkce,
+            "TYT Sosyal": tytSosyal,
+            "TYT Mat": tytMat,
+            "TYT Fen": tytFen
         };
 
-        if (denemeTuru === "AYT_EA") {
+        if (denemeTuru === "AYT_SAY") {
+            const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
+            const aytFizik = parseFloat(document.getElementById('d-ayt-fizik').value) || 0;
+            const aytKimya = parseFloat(document.getElementById('d-ayt-kimya').value) || 0;
+            const aytBiyo = parseFloat(document.getElementById('d-ayt-biyo').value) || 0;
+            
+            toplamNet += (aytMat + aytFizik + aytKimya + aytBiyo);
+            alanPuanMetni = `SAY: ${((tytPuan * 0.4) + (aytMat * 3.0) + (aytFizik * 2.8) + (aytKimya * 2.8) + (aytBiyo * 2.8) + 100).toFixed(2)} Puan`;
+            
+            altNetler["AYT Mat"] = aytMat;
+            altNetler["Fizik"] = aytFizik;
+            altNetler["Kimya"] = aytKimya;
+            altNetler["Biyoloji"] = aytBiyo;
+
+        } else if (denemeTuru === "AYT_EA") {
             const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
             const aytEdebiyat = parseFloat(document.getElementById('d-ayt-edebiyat').value) || 0;
-            toplamNet += (aytMat + aytEdebiyat);
-            alanPuanMetni = `EA: ${((tytPuan * 0.4) + (aytMat * 3.0) + (aytEdebiyat * 3.0) + 100).toFixed(2)} Puan`;
-            altNetler["AYT Mat"] = aytMat;
-            altNetler["AYT Edebiyat"] = aytEdebiyat;
+            const aytTar1 = parseFloat(document.getElementById('d-ayt-tar1').value) || 0;
+            const aytCog1 = parseFloat(document.getElementById('d-ayt-cog1').value) || 0;
 
-        } else if (denemeTuru === "AYT_SAY") {
-            const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
-            const aytFen = parseFloat(document.getElementById('d-ayt-fen').value) || 0;
-            toplamNet += (aytMat + aytFen);
-            alanPuanMetni = `SAY: ${((tytPuan * 0.4) + (aytMat * 3.0) + (aytFen * 2.8) + 100).toFixed(2)} Puan`;
+            toplamNet += (aytMat + aytEdebiyat + aytTar1 + aytCog1);
+            alanPuanMetni = `EA: ${((tytPuan * 0.4) + (aytMat * 3.0) + (aytEdebiyat * 3.0) + (aytTar1 * 2.8) + (aytCog1 * 2.8) + 100).toFixed(2)} Puan`;
+
             altNetler["AYT Mat"] = aytMat;
-            altNetler["AYT Fen"] = aytFen;
+            altNetler["Edebiyat"] = aytEdebiyat;
+            altNetler["Tarih-1"] = aytTar1;
+            altNetler["Coğrafya-1"] = aytCog1;
 
         } else if (denemeTuru === "AYT_SOZ") {
             const aytEdebiyat = parseFloat(document.getElementById('d-ayt-edebiyat').value) || 0;
+            const aytTar1 = parseFloat(document.getElementById('d-ayt-tar1').value) || 0;
+            const aytCog1 = parseFloat(document.getElementById('d-ayt-cog1').value) || 0;
             const aytSos2 = parseFloat(document.getElementById('d-ayt-sos2').value) || 0;
-            toplamNet += (aytEdebiyat + aytSos2);
-            alanPuanMetni = `SÖZ: ${((tytPuan * 0.4) + (aytEdebiyat * 3.0) + (aytSos2 * 2.9) + 100).toFixed(2)} Puan`;
-            altNetler["AYT Edebiyat"] = aytEdebiyat;
-            altNetler["AYT Sos-2"] = aytSos2;
+
+            toplamNet += (aytEdebiyat + aytTar1 + aytCog1 + aytSos2);
+            alanPuanMetni = `SÖZ: ${((tytPuan * 0.4) + (aytEdebiyat * 3.0) + (aytTar1 * 2.8) + (aytCog1 * 2.8) + (aytSos2 * 2.9) + 100).toFixed(2)} Puan`;
+
+            altNetler["Edebiyat"] = aytEdebiyat;
+            altNetler["Tarih-1"] = aytTar1;
+            altNetler["Coğrafya-1"] = aytCog1;
+            altNetler["Sosyal-2"] = aytSos2;
 
         } else if (denemeTuru === "YDT") {
             const ydtDil = parseFloat(document.getElementById('d-ydt-dil').value) || 0;
@@ -804,7 +822,7 @@ if(denemeForm) {
             if(modalEl) { const modal = bootstrap.Modal.getInstance(modalEl); if(modal) modal.hide(); }
             loadDenemeler(); 
             loadSonDenemelerAnalizi();
-        } catch(error) {}
+        } catch(error) { alert("Deneme kaydedilemedi!"); }
     });
 }
 
@@ -821,21 +839,21 @@ async function loadDenemeler() {
         querySnapshot.forEach(docSnap => {
             const d = docSnap.data();
             
-            // Öğretmen & Veli Ekranı İçin Net Rozetleri
+            // Alt Ders Rozetlerinin Oluşturulması
             let netRozetleri = "";
             if (d.altNetler && Object.keys(d.altNetler).length > 0) {
                 for (const [ders, netVal] of Object.entries(d.altNetler)) {
-                    netRozetleri += `<span class="badge bg-light text-dark border p-1 me-1 mb-1" style="font-size:0.85rem;">${ders}: <strong class="text-primary">${netVal}</strong></span> `;
+                    netRozetleri += `<span class="badge bg-light text-dark border deneme-badge">${ders}: <strong class="text-primary">${netVal}</strong></span> `;
                 }
             } else {
-                netRozetleri = `<span class="text-muted small">Eski kayıt (Net detayı yok)</span>`;
+                netRozetleri = `<span class="text-muted small">Eski kayıt (Net detayı bulunmuyor)</span>`;
             }
 
             tbody.innerHTML += `
                 <tr>
                     <td class="fw-bold text-start ps-3 align-middle">${d.denemeAdi}</td>
                     <td class="align-middle"><span class="badge bg-secondary">${d.denemeTuru || 'TYT'}</span></td>
-                    <td class="align-middle text-start px-3">${netRozetleri}</td>
+                    <td class="align-middle text-start px-3 py-2">${netRozetleri}</td>
                     <td class="align-middle"><span class="badge bg-primary fs-6">${d.toplamNet} Net</span></td>
                     <td class="align-middle"><span class="badge bg-success fs-6">${d.alanPuanMetni || '-'}</span></td>
                 </tr>`;
@@ -869,7 +887,7 @@ async function loadSonDenemelerAnalizi() {
                     <div class="p-3 bg-light rounded border border-primary shadow-sm text-start">
                         <small class="text-muted fw-bold d-block">${idx + 1}. Son Deneme</small>
                         <strong class="text-dark d-block text-truncate mb-1">${d.denemeAdi}</strong>
-                        <div class="mb-2">${miniNetler}</div>
+                        <div class="mb-2" style="max-height: 60px; overflow-y: auto;">${miniNetler}</div>
                         <div>
                             <span class="badge bg-primary fs-6">${d.toplamNet} Net</span>
                             <span class="badge bg-success fs-6 ms-1">${d.alanPuanMetni || '-'}</span>
@@ -907,7 +925,7 @@ async function loadKonuMatrisiAndAnaliz() {
                 if (["Matematik", "Geometri", "Fizik", "Kimya", "Biyoloji"].includes(ders)) {
                     alanlar["Sayısal (Mat, Geo, Fiz, Kim, Biyo)"].dogru += d.dogru || 0;
                     alanlar["Sayısal (Mat, Geo, Fiz, Kim, Biyo)"].toplam += toplamSoru;
-                } else if (["Türkçe", "Tarih", "Coğrafya", "Edebiyat"].includes(ders)) {
+                } else if (["Türkçe", "Tarih", "Coğrafya", "Edebiyat", "Felsefe"].includes(ders)) {
                     alanlar["Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)"].dogru += d.dogru || 0;
                     alanlar["Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)"].toplam += toplamSoru;
                 } else if (["İngilizce", "Dil", "YDT"].includes(ders)) {
