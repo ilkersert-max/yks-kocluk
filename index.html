@@ -36,7 +36,7 @@
     <!-- ANA EKRAN -->
     <div id="main-screen" class="container mt-3 mb-5 d-none">
         
-        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded shadow-sm">
+        <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded shadow-sm border-bottom border-primary border-3">
             <div>
                 <h4 id="welcome-text" class="mb-1 text-primary">Hoş Geldin!</h4>
                 <small class="text-muted">Sistem Rolünüz: <span id="role-text" class="badge bg-secondary">Yükleniyor...</span></small>
@@ -46,12 +46,25 @@
             </div>
         </div>
 
-        <!-- YÖK ATLAS NET SİHİRBAZI & HEDEF KARŞILAŞTIRMA -->
+        <!-- ADMIN PANELİ (SADECE ADMIN GÖRÜR) -->
+        <div id="admin-panel" class="card p-4 shadow-sm mb-4 border-danger d-none">
+            <h5 class="text-danger border-bottom pb-2 mb-3">👑 Admin & Ayarlar Paneli</h5>
+            <div class="alert alert-warning py-2 mb-0">Sistemdeki test verilerini sıfırlama ve duyuru yönetimi buraya eklenecek.</div>
+        </div>
+
+        <!-- ÖĞRETMEN / KOÇ ÖDEV ATAMA PANELİ -->
+        <div id="teacher-assign-panel" class="card p-4 shadow-sm mb-4 border-success d-none">
+            <h5 class="text-success border-bottom pb-2 mb-3">📌 Koçluk & Ödev/Hedef Yönetimi</h5>
+            <p class="text-muted small">Öğrencinin YÖK Atlas analizlerine bakarak bu alandan eksik konuları için ödev atayabilirsiniz.</p>
+            <button class="btn btn-outline-success w-100">Yeni Ödev/Hedef Ata (Geliştirilecek)</button>
+        </div>
+
+        <!-- YÖK ATLAS NET SİHİRBAZI & HEDEF KARŞILAŞTIRMA (HERKES GÖRÜR) -->
         <div class="card p-4 shadow-sm mb-4 border-info">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
                     <h5 class="text-info text-dark mb-0">🎯 YÖK Atlas Net Sihirbazı & Hedef Karşılaştırma</h5>
-                    <small class="text-muted">Son yerleşen aday netleri ile kendi son deneme sonucunuzu karşılaştırın.</small>
+                    <small class="text-muted">Son yerleşen aday netleri ile öğrencinin son deneme sonucunu karşılaştırın.</small>
                 </div>
             </div>
             
@@ -115,14 +128,14 @@
             </div>
         </div>
 
-        <!-- DENEME KARNESİ (ÖĞRENCİ PERFORMANSI) -->
+        <!-- DENEME KARNESİ (HERKES GÖRÜR, SADECE ÖĞRENCİ/ADMIN DENEME EKLER) -->
         <div id="deneme-karnesi-card" class="card p-4 shadow-sm mb-4 border-primary">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
                     <h5 class="text-primary mb-0">📊 Genel Deneme Karnesi & YKS Puan Simülasyonu</h5>
                     <small class="text-muted">Öğrencinin hesaplanan sınav ve OBP yerleştirme puanları</small>
                 </div>
-                <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#denemeModal">+ Yeni Deneme Sınavı Ekle</button>
+                <button id="yeni-deneme-btn" class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#denemeModal">+ Yeni Deneme Sonucu Ekle</button>
             </div>
 
             <div class="table-responsive">
@@ -239,7 +252,6 @@
                                     <span id="net-ayt-biyo" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
 
-                                <!-- ŞARTNAMEYE UYGUN GÜNCEL ETİKETLER -->
                                 <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tde">
                                     <div class="small fw-bold text-muted mb-1">AYT Türk Dili ve Edebiyatı (24)</div>
                                     <input type="number" id="dy-ayt-tde-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tde', 24)">
@@ -303,6 +315,7 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
     <script>
+        // İlgili derse ait max soru sayısını kontrol eder ve neti hesaplar[cite: 5]
         function calcNet(subject, maxQs) {
             const dVal = parseInt(document.getElementById('dy-' + subject + '-d').value) || 0;
             const yVal = parseInt(document.getElementById('dy-' + subject + '-y').value) || 0;
@@ -320,6 +333,7 @@
             return net;
         }
 
+        // Puan türüne göre formdaki ilgili dersleri gösterir/gizler[cite: 5]
         function denemeTuruDegisti() {
             const tur = document.getElementById('deneme-turu').value;
             const aytCard = document.getElementById('deneme-fields-ayt');

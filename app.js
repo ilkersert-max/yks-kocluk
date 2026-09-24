@@ -15,7 +15,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// YÖK Atlas Referans Veritabanı (Şartnameye Uygun Doğru İsimlendirmelerle)
+// YÖK Atlas Referans Veritabanı[cite: 5]
 const yokAtlasReferanslari = {
     "boun-ceng": { 
         yil: 2025, puanTuru: "SAY", katsayi: "0.12 (Normal)", obp: 485.50,
@@ -36,15 +36,64 @@ const yokAtlasReferanslari = {
 };
 
 let sonDenemeVerisi = null;
+let currentUserRole = "";
 
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         document.getElementById('login-screen').classList.add('d-none');
         document.getElementById('main-screen').classList.remove('d-none');
-        document.getElementById('role-text').innerText = "Öğrenci";
-        loadDenemeler();
+        
+        try {
+            // Kullanıcı Rolünü Firebase'den Çek
+            const docRef = doc(db, "Users", user.uid);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists()) {
+                const userData = docSnap.data();
+                currentUserRole = (userData.Rol || "Öğrenci").trim();
+                
+                document.getElementById('welcome-text').innerText = "Hoş Geldin, " + (userData.AdSoyad || 'Kullanıcı') + "!";
+                document.getElementById('role-text').innerText = currentUserRole;
+
+                applyRoleBasedUI(currentUserRole);
+                loadDenemeler();
+            } else {
+                currentUserRole = "Öğrenci";
+                document.getElementById('role-text').innerText = currentUserRole;
+                applyRoleBasedUI(currentUserRole);
+                loadDenemeler();
+            }
+        } catch (error) {
+            console.error("Rol bilgisi alınamadı:", error);
+        }
+    } else {
+        document.getElementById('login-screen').classList.remove('d-none');
+        document.getElementById('main-screen').classList.add('d-none');
     }
 });
+
+// ROLLERİN ARAYÜZE ETKİSİ
+function applyRoleBasedUI(role) {
+    const adminPanel = document.getElementById('admin-panel');
+    const teacherPanel = document.getElementById('teacher-assign-panel');
+    const yeniDenemeBtn = document.getElementById('yeni-deneme-btn');
+
+    if (adminPanel) adminPanel.classList.add('d-none');
+    if (teacherPanel) teacherPanel.classList.add('d-none');
+    if (yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none'); 
+
+    if (role === "Admin") {
+        if (adminPanel) adminPanel.classList.remove('d-none');
+        if (teacherPanel) teacherPanel.classList.remove('d-none');
+    } 
+    else if (role === "Öğretmen" || role === "Koç" || role === "Ogretmen") {
+        if (teacherPanel) teacherPanel.classList.remove('d-none');
+        if (yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none'); 
+    } 
+    else if (role === "Veli") {
+        if (yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none'); 
+    } 
+}
 
 document.getElementById('login-form').addEventListener('submit', (e) => {
     e.preventDefault();
@@ -54,18 +103,17 @@ document.getElementById('login-form').addEventListener('submit', (e) => {
 
 document.getElementById('logout-btn').addEventListener('click', () => { signOut(auth).then(() => location.reload()); });
 
-// ÖĞRENCİ DENEME GİRİŞİ VE OBP HESAPLAMASI
+// ÖĞRENCİ DENEME GİRİŞİ VE OBP HESAPLAMASI[cite: 5]
 document.getElementById('deneme-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const denemeAdi = document.getElementById('deneme-adi').value.trim();
     const denemeTuru = document.getElementById('deneme-turu').value;
     
-    // OBP Girişi ve Dönüşümü
     let ogrenciObpInput = document.getElementById('ogrenci-obp').value;
     let obpPuani = 0;
     if (ogrenciObpInput) {
         let val = parseFloat(ogrenciObpInput);
-        obpPuani = val <= 100 ? val * 5 : val; // Diploma notuysa 5 ile çarp
+        obpPuani = val <= 100 ? val * 5 : val; 
     }
 
     const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
@@ -78,7 +126,6 @@ document.getElementById('deneme-form').addEventListener('submit', async (e) => {
     let toplamNet = tytTurkce + tytSosyal + tytMat + tytFen;
     let altNetler = { "TYT Türkçe": tytTurkce, "TYT Sosyal": tytSosyal, "TYT Matematik": tytMat, "TYT Fen": tytFen };
     
-    // Basit Puan Simülasyon Katsayıları (Örnek)
     const tytPuan = (tytTurkce * 3.3) + (tytSosyal * 3.4) + (tytMat * 3.3) + (tytFen * 3.4) + 100;
     let hamPuanStr = `${tytPuan.toFixed(2)} TYT`;
     let yerlestirmePuanStr = obpPuani > 0 ? `${(tytPuan + (obpPuani * 0.12)).toFixed(2)} Y-TYT` : "Hesaplanamadı";
@@ -135,12 +182,12 @@ async function loadDenemeler() {
         const snap = await getDocs(q);
         tbody.innerHTML = "";
         
-        if(snap.empty) { tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Henüz sınav girmediniz.</td></tr>"; return; }
+        if(snap.empty) { tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Henüz sınav girilmedi.</td></tr>"; return; }
         
         let counter = 0;
         snap.forEach(docSnap => {
             const d = docSnap.data();
-            if (counter === 0) sonDenemeVerisi = d.altNetler; // Karşılaştırma için en güncel denemeyi hafızada tut
+            if (counter === 0) sonDenemeVerisi = d.altNetler; 
 
             let rozetler = "";
             for (const [ders, net] of Object.entries(d.altNetler)) {
@@ -170,7 +217,6 @@ window.hedefKarsilastir = function() {
 
     const ref = yokAtlasReferanslari[secim];
     
-    // Referans Üst Bilgilerini Yaz
     document.getElementById('ref-yil-turu').innerText = `${ref.yil} - ${ref.puanTuru}`;
     document.getElementById('ref-katsayi').innerText = ref.katsayi;
     document.getElementById('ref-obp').innerText = ref.obp;
@@ -180,7 +226,7 @@ window.hedefKarsilastir = function() {
     tbody.innerHTML = "";
 
     for (const [ders, refNet] of Object.entries(ref.netler)) {
-        // Eksik ders verisini 0 değil null olarak kabul ediyoruz
+        // Eksik ders verisini 0 değil null olarak kabul et[cite: 5]
         const ogrenciNet = sonDenemeVerisi.hasOwnProperty(ders) ? sonDenemeVerisi[ders] : null; 
         
         let fark = ogrenciNet !== null ? (ogrenciNet - refNet).toFixed(2) : null;
