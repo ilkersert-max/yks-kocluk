@@ -308,7 +308,7 @@ window.submitAssignmentResult = async function() {
         loadStudentTests();
         loadKonuMatrisiAndAnaliz();
         loadStudentSelfTestsHistory();
-    } catch(e) { alert("Ödev sonucu kaydedilirken hata oluştu!"); }
+    } catch(e) { alert("Ödev sonucu kaydedilerken hata oluştu!"); }
 }
 
 if (assignmentForm) {
@@ -732,7 +732,7 @@ window.tumTestVerileriniSil = async function() {
 }
 
 // -----------------------------------------------------------
-// DENEME KAYIT VE EKRANA BASMA (SÜTUN DETAYLI)
+// DENEME KAYIT VE SÜTUN BAZLI ÖĞRETMEN / VELİ EKRANI LİSTELEME
 // -----------------------------------------------------------
 if(denemeForm) {
     denemeForm.addEventListener('submit', async (e) => {
@@ -751,7 +751,7 @@ if(denemeForm) {
         let alanPuanMetni = `${tytPuan.toFixed(2)} TYT`;
         let toplamNet = tytToplamNet;
 
-        // Alt Ders Netleri Haritası
+        // Bütün alt ders netlerini tutan obje
         let altNetler = {
             "Türkçe": tytTurkce,
             "Sosyal": tytSosyal,
@@ -821,7 +821,7 @@ async function loadDenemeler() {
         querySnapshot.forEach(docSnap => {
             const d = docSnap.data();
             
-            // Ders Netleri Rozetleri
+            // Öğretmen & Veli Ekranı İçin Net Rozetleri
             let netRozetleri = "";
             if (d.altNetler && Object.keys(d.altNetler).length > 0) {
                 for (const [ders, netVal] of Object.entries(d.altNetler)) {
