@@ -1,21 +1,26 @@
-# YKS Portal – TYT net düzeltmesi / Son 5 v5
-
-Bu paket önceki Son 5 v4 sürümünü temel alır. Esas portal işlevleri (öğrenci ekranı, Firebase, roller, diploma/OBP, ödev, kitap ve ses) değiştirilmez.
+# YKS Tek Öğrenci Portalı — Ödev Sadeleştirme + Tekrarlanabilir Test Temizliği (v6)
 
 ## Kurulum
-GitHub Pages deponuzun ana dizinine paket içindeki **yedi dosyanın tamamını** yükleyin: index.html, app.js, scoring.js, style.css, alkis.mp3, last-five-standalone.js, README.md. Çalışan sürümün yedeğini alın. Önceki ayrı Son 5 modülleri varsa aynı anda çağırmayın.
+Yedi dosyanın **tamamını** GitHub Pages deposunun köküne veya basit web sunucusunda aynı klasöre koyun: `index.html`, `app.js`, `scoring.js`, `style.css`, `last-five-standalone.js`, `alkis.mp3`, `README.md`. Önce çalışan sürümünüzü yedekleyin. Eski `last-five.js` / `last-five-view.js` modüllerini ayrıca çağırmayın. Firebase projesi değiştirilmedi.
 
-## Düzeltme
-- TYT seçildiğinde dört TYT testi artık iki kez listelenip toplanmaz.
-- TYT 30,75 + 15,50 + 25,25 + 14,00 = 85,50; alan neti 0.
-- Geçmişte kaydedilmiş 171,00 toplamlı TYT kaydı, ders netleri eksiksizse uygulamanın özet / geçmiş / rapor / basit analiz / Son 5 görünümünde 85,50 olarak hesaplanır; mevcut Firebase kaydı otomatik değiştirilmez.
-- Admin > Detaylı Analiz > Son 5 Deneme > TYT ekranında yalnızca toplamı ders netlerinin tam iki katı olduğu doğrulanmış geçmiş TYT kayıtları için isteğe bağlı **Eski TYT toplamını Firebase'de düzelt (Admin)** düğmesi görünür. Onay sonrasında yalnızca tytNet, fieldNet, toplamNet ve correctedDoubleTYT alanları güncellenir. Önce yedek alın; diğer kayıtlar ve OBP değişmez.
-- Kısmi testler tam deneme analizine eklenmez. Eksik dersleri sistem kendi kendine doldurmaz.
+## Ödev ekranı
+- Admin > **Ödev ders görünümü**: Sade (varsayılan) veya Ayrıntılı (TYT/AYT) seçilebilir.
+- Sade sıra: **DİL, Matematik, Türkçe, Tarih, Coğrafya, Felsefe, Din, Fizik, Kimya, Biyoloji**.
+- Yeni ödev oluştururken **kitap/yayın ve konu alanı sorulmaz**. Ders, soru sayısı, isteğe bağlı hedef doğru, son tarih ve açıklama bulunur.
+- Geçmiş ödev kayıtlarının asıl Firestore verileri değiştirilmez. Eski kitap/konu varsa geçmiş kartında korunabilir. Ödev görüntüleme için eski TYT/AYT, Tarih-1/2, Coğrafya-1/2 isimleri sadeleştirilir. Deneme ve günlük çalışma testleri/hesaplama motoru değişmedi.
 
-## Test
-1) Yeni TYT denemesi: Türkçe 30,75; Sosyal 15,50; Matematik 25,25; Fen 14,00. Beklenen toplam 85,50.
-2) Deneme geçmişi ve Son 5 TYT'de 85,50 görünmeli.
-3) Eski TEST-TYT-01 kaydında dört net varsa analizde otomatik 85,50 görünmeli. Kalıcı Firebase düzeltmesini yalnızca test verisi için, yedek sonrası Admin onayıyla uygulayın.
-4) DİL, OBP, ödev, ses ve mobil görünümün önceki davranışını kontrol edin.
+## Admin > Test verilerini temizle
+- Bu düğme **tekrar kullanılabilir**; silme işleminden sonra test modu kapatılmaz veya gerçek kullanım moduna zorlanmaz.
+- `Denemeler`, `TestEntries`, `Assignments` koleksiyonlarının **tamamını** kapsar. Test ve gerçek kayıtları ayırt etmez; dikkatli kullanın.
+- JSON yedeği indirilebilir. İndirildiğini ve açıldığını onay kutusunda doğrulayın, **TEST VERİLERİNİ SİL** ifadesini yazın, kalıcı silmeyi kabul edin; ardından son tarayıcı onayı istenir.
+- Kullanıcılar/roller, `StudentProfile` içindeki diploma/OBP, `Settings` ve kitap kataloğu silinmez.
+- Yeni yayımlanmış Firestore Rules, yalnızca Admin rolünün bu üç koleksiyonu silmesine izin vermelidir.
 
-Not: Firebase üzerinde canlı oturum testi yapılmamıştır; JavaScript sözdizimi ve yerel hesaplama testleri çalıştırılmıştır.
+## Hızlı test
+1. Admin > Ödev ders görünümü = Sade → Ödev yönetimi > Yeni ödev: 10 ders listesi doğru sırada; kitap ve konu yok.
+2. Bir Matematik ödevi oluşturun. Öğrenci hesabında sonucu girin; öğretmen/veli/koç sonucu görsün.
+3. Admin > Ayrıntılı → yeni ödevde TYT/AYT seçenekleri gelir; daha önce atanan ödevler kaybolmaz. Tekrar Sade seçin.
+4. Admin > Test verilerini temizle: yedek ve tüm onaylar olmadan kalıcı silme etkinleşmez. **Gerçekten silmek istemiyorsanız son onayı vermeyin.**
+5. TYT 30,75 + 15,50 + 25,25 + 14,00 = 85,50; Son 5, OBP ve alkışın önceki davranışı korunur.
+
+Yerel JS sözdizimi ve hesaplama/sürüm kontrolleri yapılmıştır; Firebase hesabında canlı test yapılmamıştır.
