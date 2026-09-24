@@ -308,7 +308,7 @@ window.submitAssignmentResult = async function() {
         loadStudentTests();
         loadKonuMatrisiAndAnaliz();
         loadStudentSelfTestsHistory();
-    } catch(e) { alert("Ödev sonucu kaydedilerken hata oluştu!"); }
+    } catch(e) { alert("Ödev sonucu kaydedilirken hata oluştu!"); }
 }
 
 if (assignmentForm) {
@@ -330,9 +330,6 @@ if (assignmentForm) {
     });
 }
 
-// -----------------------------------------------------------
-// GÜNCELLENEN ATANAN ÖDEVLER LİSTESİ (Soru X Formatı & Tebrikler)
-// -----------------------------------------------------------
 async function loadAssignments() {
     const teacherListEl = document.getElementById('teacher-assignment-list');
     const studentListEl = document.getElementById('student-assignment-list');
@@ -362,10 +359,8 @@ async function loadAssignments() {
                 let detayMetni = "";
 
                 if (!hasYanlis && !hasBos) {
-                    // KUSURSUZ SENARYO
                     detayMetni = `<br><span class="text-success fw-bold">🌟 Tebrikler! Sıfır Hata, Kusursuz Test! 🎯 Toplam ${data.toplamSoru} Soruda Yanlış ve Boş Yok! 👏🥳🎉</span>`;
                 } else {
-                    // YANLIŞ SATIRI
                     if (hasYanlis) {
                         let etiket = data.yanlisSorular.length > 1 ? "❌ Yanlış Yapılanlar:" : "❌ Yanlış Yapılan:";
                         let liste = data.yanlisSorular.map(s => `Soru ${s}`).join(', ');
@@ -374,7 +369,6 @@ async function loadAssignments() {
                         detayMetni += `<br><span class="text-success small">👏 Yanlış Yapılan Soru Yok! 😊</span>`;
                     }
 
-                    // BOŞ SATIRI
                     if (hasBos) {
                         let etiket = data.bosSorular.length > 1 ? "⚠️ Boş Bırakılanlar:" : "⚠️ Boş Bırakılan:";
                         let liste = data.bosSorular.map(s => `Soru ${s}`).join(', ');
@@ -434,9 +428,6 @@ window.deleteAssignment = async function(assignmentId) {
     }
 }
 
-// -----------------------------------------------------------
-// GÜNCELLENEN BİREYSEL TEST GEÇMİŞİ TABLOSU
-// -----------------------------------------------------------
 async function loadStudentSelfTestsHistory() {
     const tbody = document.getElementById('teacher-test-history-list');
     if(!tbody) return;
@@ -740,143 +731,79 @@ window.tumTestVerileriniSil = async function() {
     } catch(e) {}
 }
 
-async function loadSonDenemelerAnalizi() {
-    const container = document.getElementById('son-deneme-cards-container');
-    if(!container) return;
-    try {
-        const denemeSnap = await getDocs(collection(db, "Denemeler"));
-        if(denemeSnap.empty) {
-            container.innerHTML = `<div class="col-12 text-muted small py-2 bg-light rounded border">⚠️ Henüz sisteme girilmiş deneme sınavı bulunmuyor.</div>`;
-            return;
-        }
-        let denemeler = [];
-        denemeSnap.forEach(d => denemeler.push(d.data()));
-        const son3 = denemeler.slice(-3).reverse();
-        container.innerHTML = "";
-        son3.forEach((d, idx) => {
-            container.innerHTML += `
-                <div class="col-md-4 mb-2">
-                    <div class="p-3 bg-light rounded border border-primary shadow-sm">
-                        <small class="text-muted fw-bold d-block">${idx + 1}. Son Deneme</small>
-                        <strong class="text-dark d-block text-truncate">${d.denemeAdi}</strong>
-                        <div class="mt-2">
-                            <span class="badge bg-primary fs-6">${d.toplamNet} Net</span>
-                            <span class="badge bg-success fs-6 ms-1">${d.alanPuanMetni || '-'}</span>
-                        </div>
-                    </div>
-                </div>`;
-        });
-    } catch(e) {}
-}
-
-async function loadKonuMatrisiAndAnaliz() {
-    const barlarContainer = document.getElementById('alan-basari-barlari');
-    const zayifList = document.getElementById('zayif-konular-listesi');
-    if(!barlarContainer || !zayifList) return;
-    try {
-        const testSnap = await getDocs(collection(db, "TestEntries"));
-        if (testSnap.empty) {
-            barlarContainer.innerHTML = `<div class="text-muted small p-2 bg-light rounded border">⚠️ Henüz çözülen test verisi bulunmuyor.</div>`;
-            zayifList.innerHTML = `<li class="list-group-item text-muted small py-2">⚠️ Analiz için henüz test girilmedi.</li>`;
-            return;
-        }
-        const alanlar = {
-            "Sayısal (Mat, Geo, Fiz, Kim, Biyo)": { dogru: 0, toplam: 0 },
-            "Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)": { dogru: 0, toplam: 0 },
-            "YDT / Yabancı Dil": { dogru: 0, toplam: 0 }
-        };
-        const konuIstatistik = {};
-        testSnap.forEach(docSnap => {
-            const d = docSnap.data();
-            const ders = dersIsminiTemizle(d.ders);
-            const konu = d.konu || "Genel";
-            const toplamSoru = (d.dogru || 0) + (d.yanlis || 0) + (d.bos || 0);
-
-            if (toplamSoru > 0) {
-                if (["Matematik", "Geometri", "Fizik", "Kimya", "Biyoloji"].includes(ders)) {
-                    alanlar["Sayısal (Mat, Geo, Fiz, Kim, Biyo)"].dogru += d.dogru || 0;
-                    alanlar["Sayısal (Mat, Geo, Fiz, Kim, Biyo)"].toplam += toplamSoru;
-                } else if (["Türkçe", "Tarih", "Coğrafya", "Edebiyat"].includes(ders)) {
-                    alanlar["Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)"].dogru += d.dogru || 0;
-                    alanlar["Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)"].toplam += toplamSoru;
-                } else if (["İngilizce", "Dil", "YDT"].includes(ders)) {
-                    alanlar["YDT / Yabancı Dil"].dogru += d.dogru || 0;
-                    alanlar["YDT / Yabancı Dil"].toplam += toplamSoru;
-                }
-                if (!konuIstatistik[konu]) konuIstatistik[konu] = { ders: ders, dogru: 0, toplam: 0 };
-                konuIstatistik[konu].dogru += d.dogru || 0;
-                konuIstatistik[konu].toplam += toplamSoru;
-            }
-        });
-        barlarContainer.innerHTML = "";
-        for (const [alanAdi, stat] of Object.entries(alanlar)) {
-            if (stat.toplam > 0) {
-                const oran = Math.round((stat.dogru / stat.toplam) * 100);
-                let barColor = oran >= 75 ? "bg-success" : (oran >= 50 ? "bg-warning" : "bg-danger");
-                barlarContainer.innerHTML += `
-                    <div class="mb-3">
-                        <div class="d-flex justify-content-between small fw-bold mb-1">
-                            <span>${alanAdi}</span>
-                            <span>%${oran} Başarı (${stat.toplam} Soru Çözüldü)</span>
-                        </div>
-                        <div class="progress" style="height: 12px;"><div class="progress-bar ${barColor}" style="width: ${oran}%"></div></div>
-                    </div>`;
-            }
-        }
-        zayifList.innerHTML = "";
-        for (const [konu, stat] of Object.entries(konuIstatistik)) {
-            const oran = Math.round((stat.dogru / stat.toplam) * 100);
-            if (oran < 65) {
-                zayifList.innerHTML += `
-                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
-                        <div><strong class="text-dark">${konu}</strong><br><small class="text-muted">${stat.ders}</small></div>
-                        <span class="badge bg-danger rounded-pill">%${oran} Başarı</span>
-                    </li>`;
-            }
-        }
-    } catch(e) {}
-}
-
+// -----------------------------------------------------------
+// GÜNCELLENEN DENEME KAYIT VE LİSTELEME (Ders Netleri Ekli)
+// -----------------------------------------------------------
 if(denemeForm) {
     denemeForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const denemeAdi = document.getElementById('deneme-adi').value;
         const denemeTuru = document.getElementById('deneme-turu').value;
+
+        // TYT Netleri
         const tytTurkce = parseFloat(document.getElementById('d-tyt-turkce').value) || 0;
         const tytSosyal = parseFloat(document.getElementById('d-tyt-sosyal').value) || 0;
         const tytMat = parseFloat(document.getElementById('d-tyt-mat').value) || 0;
         const tytFen = parseFloat(document.getElementById('d-tyt-fen').value) || 0;
         const tytToplamNet = tytTurkce + tytSosyal + tytMat + tytFen;
         const tytPuan = (tytTurkce * 3.3) + (tytSosyal * 3.4) + (tytMat * 3.3) + (tytFen * 3.4) + 100;
+
         let alanPuanMetni = `${tytPuan.toFixed(2)} TYT`;
         let toplamNet = tytToplamNet;
+
+        // Alan Netleri Objesi
+        let altNetler = {
+            "Türkçe": tytTurkce,
+            "Sosyal": tytSosyal,
+            "Matematik": tytMat,
+            "Fen": tytFen
+        };
 
         if (denemeTuru === "AYT_EA") {
             const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
             const aytEdebiyat = parseFloat(document.getElementById('d-ayt-edebiyat').value) || 0;
             toplamNet += (aytMat + aytEdebiyat);
             alanPuanMetni = `EA: ${((tytPuan * 0.4) + (aytMat * 3.0) + (aytEdebiyat * 3.0) + 100).toFixed(2)} Puan`;
+            altNetler["AYT Mat"] = aytMat;
+            altNetler["AYT Edebiyat"] = aytEdebiyat;
+
         } else if (denemeTuru === "AYT_SAY") {
             const aytMat = parseFloat(document.getElementById('d-ayt-mat').value) || 0;
             const aytFen = parseFloat(document.getElementById('d-ayt-fen').value) || 0;
             toplamNet += (aytMat + aytFen);
             alanPuanMetni = `SAY: ${((tytPuan * 0.4) + (aytMat * 3.0) + (aytFen * 2.8) + 100).toFixed(2)} Puan`;
+            altNetler["AYT Mat"] = aytMat;
+            altNetler["AYT Fen"] = aytFen;
+
         } else if (denemeTuru === "AYT_SOZ") {
             const aytEdebiyat = parseFloat(document.getElementById('d-ayt-edebiyat').value) || 0;
             const aytSos2 = parseFloat(document.getElementById('d-ayt-sos2').value) || 0;
             toplamNet += (aytEdebiyat + aytSos2);
             alanPuanMetni = `SÖZ: ${((tytPuan * 0.4) + (aytEdebiyat * 3.0) + (aytSos2 * 2.9) + 100).toFixed(2)} Puan`;
+            altNetler["AYT Edebiyat"] = aytEdebiyat;
+            altNetler["AYT Sos-2"] = aytSos2;
+
         } else if (denemeTuru === "YDT") {
             const ydtDil = parseFloat(document.getElementById('d-ydt-dil').value) || 0;
             toplamNet += ydtDil;
             alanPuanMetni = `DİL: ${((tytPuan * 0.4) + (ydtDil * 3.0) + 100).toFixed(2)} Puan`;
+            altNetler["YDT Dil"] = ydtDil;
         }
+
         try {
-            await addDoc(collection(db, "Denemeler"), { denemeAdi, denemeTuru, toplamNet: toplamNet.toFixed(2), alanPuanMetni, tarih: serverTimestamp() });
+            await addDoc(collection(db, "Denemeler"), { 
+                denemeAdi, 
+                denemeTuru, 
+                toplamNet: toplamNet.toFixed(2), 
+                alanPuanMetni, 
+                altNetler,
+                tarih: serverTimestamp() 
+            });
             denemeForm.reset();
             const modalEl = document.getElementById('denemeModal');
             if(modalEl) { const modal = bootstrap.Modal.getInstance(modalEl); if(modal) modal.hide(); }
-            loadDenemeler(); loadSonDenemelerAnalizi();
+            loadDenemeler(); 
+            loadSonDenemelerAnalizi();
         } catch(error) {}
     });
 }
@@ -893,7 +820,62 @@ async function loadDenemeler() {
         }
         querySnapshot.forEach(docSnap => {
             const d = docSnap.data();
-            tbody.innerHTML += `<tr><td class="fw-bold text-start ps-3">${d.denemeAdi}</td><td><span class="badge bg-secondary">${d.denemeTuru || 'TYT'}</span></td><td><span class="badge bg-primary fs-6">${d.toplamNet} Net</span></td><td><span class="badge bg-success fs-6">${d.alanPuanMetni || '-'}</span></td></tr>`;
+            
+            // Netlerin görselleştirilmesi
+            let netRozetleri = "";
+            if (d.altNetler) {
+                for (const [ders, netVal] of Object.entries(d.altNetler)) {
+                    netRozetleri += `<span class="badge bg-light text-dark border me-1 mb-1">${ders}: <strong>${netVal}</strong></span>`;
+                }
+            }
+
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold text-start ps-3">
+                        <div>${d.denemeAdi}</div>
+                        <div class="mt-1">${netRozetleri}</div>
+                    </td>
+                    <td><span class="badge bg-secondary">${d.denemeTuru || 'TYT'}</span></td>
+                    <td><span class="badge bg-primary fs-6">${d.toplamNet} Net</span></td>
+                    <td><span class="badge bg-success fs-6">${d.alanPuanMetni || '-'}</span></td>
+                </tr>`;
+        });
+    } catch(e) {}
+}
+
+async function loadSonDenemelerAnalizi() {
+    const container = document.getElementById('son-deneme-cards-container');
+    if(!container) return;
+    try {
+        const denemeSnap = await getDocs(collection(db, "Denemeler"));
+        if(denemeSnap.empty) {
+            container.innerHTML = `<div class="col-12 text-muted small py-2 bg-light rounded border">⚠️ Henüz sisteme girilmiş deneme sınavı bulunmuyor.</div>`;
+            return;
+        }
+        let denemeler = [];
+        denemeSnap.forEach(d => denemeler.push(d.data()));
+        const son3 = denemeler.slice(-3).reverse();
+        container.innerHTML = "";
+        son3.forEach((d, idx) => {
+            let miniNetler = "";
+            if (d.altNetler) {
+                for (const [ders, netVal] of Object.entries(d.altNetler)) {
+                    miniNetler += `<small class="d-inline-block bg-white px-1 border rounded me-1 mb-1">${ders}: <b>${netVal}</b></small>`;
+                }
+            }
+
+            container.innerHTML += `
+                <div class="col-md-4 mb-2">
+                    <div class="p-3 bg-light rounded border border-primary shadow-sm text-start">
+                        <small class="text-muted fw-bold d-block">${idx + 1}. Son Deneme</small>
+                        <strong class="text-dark d-block text-truncate mb-1">${d.denemeAdi}</strong>
+                        <div class="mb-2">${miniNetler}</div>
+                        <div>
+                            <span class="badge bg-primary fs-6">${d.toplamNet} Net</span>
+                            <span class="badge bg-success fs-6 ms-1">${d.alanPuanMetni || '-'}</span>
+                        </div>
+                    </div>
+                </div>`;
         });
     } catch(e) {}
 }
