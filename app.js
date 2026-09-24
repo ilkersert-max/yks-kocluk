@@ -1,374 +1,2234 @@
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+import {
+  initializeApp
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+
+import {
+  getAuth,
+  signInWithEmailAndPassword,
+  onAuthStateChanged,
+  signOut
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
+
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc,
+  collection,
+  addDoc,
+  onSnapshot,
+  updateDoc,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+import {
+  TESTS,
+  TYPES,
+  idsFor,
+  parseNumber,
+  format,
+  computeExam,
+  obpFromProfile,
+  successIndicator
+} from "./scoring.js";
+
+/* =====================================================
+   FIREBASE
+===================================================== */
 
 const firebaseConfig = {
-    apiKey: "AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M",
-    authDomain: "tayt-bbbbe.firebaseapp.com",
-    projectId: "tayt-bbbbe",
-    storageBucket: "tayt-bbbbe.firebasestorage.app",
-    messagingSenderId: "367442443596",
-    appId: "1:367442443596:web:be954f464173e2abe5e3e9"
+  apiKey: "AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M",
+  authDomain: "tayt-bbbbe.firebaseapp.com",
+  projectId: "tayt-bbbbe",
+  storageBucket: "tayt-bbbbe.firebasestorage.app",
+  messagingSenderId: "367442443596",
+  appId: "1:367442443596:web:be954f464173e2abe5e3e9"
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
+const firebase = initializeApp(firebaseConfig);
+const auth = getAuth(firebase);
+const db = getFirestore(firebase);
 
-let currentUserRole = "";
-let isStudentDetailedMode = false;
-let isMatrixInputEnabled = true;
-let mainGridState = [];
-let myChart = null;
+const $ = id => document.getElementById(id);
 
-onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        document.getElementById('login-screen').classList.add('d-none');
-        document.getElementById('main-screen').classList.remove('d-none');
-        
-        try {
-            const docRef = doc(db, "Users", user.uid);
-            const docSnap = await getDoc(docRef);
-            
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                currentUserRole = (data.Rol || "Öğrenci").trim();
-                document.getElementById('welcome-text').innerText = "Hoş Geldin, " + (data.AdSoyad || 'Kullanıcı') + "!";
-                document.getElementById('role-text').innerText = currentUserRole;
-            } else {
-                currentUserRole = "Öğrenci";
-                document.getElementById('role-text').innerText = currentUserRole;
-            }
+const escapeHTML = value =>
+  String(value ?? "").replace(/[&<>"']/g, c => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;"
+  }[c]));
 
-            await loadAdminSettings();
-            applyRoleBasedUI(currentUserRole);
-            loadDenemeler();
-            loadAssignments();
-            loadBireyselTestAnalizi();
-            loadDuyuru();
-        } catch (error) {}
-    } else {
-        document.getElementById('login-screen').classList.remove('d-none');
-        document.getElementById('main-screen').classList.add('d-none');
-    }
+const settingsDefault = {
+  examEntryMode: "BOTH",
+  defaultEntryMode: "NET",
+  studentDetailedMode: false
+};
+
+let user = null;
+let role = "Öğrenci";
+let userName = "";
+
+let settings = { ...settingsDefault };
+
+let profile = {
+  diplomaStatus: "unknown",
+  diplomaNote: null,
+  brokenObp: false
+};
+
+let exams = [];
+let tasks = [];
+let tests = [];
+
+let subscriptions = [];
+let currentPage = "home";
+
+let draftMode = "NET";
+let draftType = "TYT";
+let draft = {};
+let draftMeta = {};
+
+const isAdmin = () => role === "Admin";
+
+const isStaff = () =>
+  ["Admin", "Öğretmen", "Koç", "Veli"]
+    .includes(role);
+
+const canAssign = isStaff;
+
+function toast(message, error = false) {
+  const el = $("toast");
+
+  el.textContent = message;
+  el.style.background = error
+    ? "#ad2932"
+    : "#22324c";
+
+  el.style.display = "block";
+
+  setTimeout(() => {
+    el.style.display = "none";
+  }, 4500);
+}
+
+function numberValid(value) {
+  return Number.isFinite(value);
+}
+
+function dateText(value) {
+  if (!value) return "—";
+
+  if (typeof value.toDate === "function") {
+    return value.toDate().toLocaleDateString("tr-TR");
+  }
+
+  const s = String(value).slice(0, 10);
+
+  return s.split("-").reverse().join(".");
+}
+
+function cardStat(name, value) {
+  return `
+    <div class="stat">
+      <small>${escapeHTML(name)}</small>
+      <strong>${escapeHTML(value)}</strong>
+    </div>
+  `;
+}
+
+/* =====================================================
+   GİRİŞ VE KULLANICI
+===================================================== */
+
+function clearSubscriptions() {
+  subscriptions.forEach(unsubscribe => unsubscribe());
+
+  subscriptions = [];
+  exams = [];
+  tasks = [];
+  tests = [];
+}
+
+function normalizeRole(value) {
+  if (value === "Ogretmen") {
+    return "Öğretmen";
+  }
+
+  const allowed = [
+    "Admin",
+    "Öğretmen",
+    "Veli",
+    "Koç",
+    "Öğrenci"
+  ];
+
+  return allowed.includes(value)
+    ? value
+    : "Öğrenci";
+}
+
+async function startApplication(firebaseUser) {
+  clearSubscriptions();
+
+  user = firebaseUser;
+
+  const userSnap = await getDoc(
+    doc(db, "Users", user.uid)
+  );
+
+  const userData = userSnap.exists()
+    ? userSnap.data()
+    : {};
+
+  role = normalizeRole(
+    String(userData.Rol || "Öğrenci").trim()
+  );
+
+  userName = userData.AdSoyad || "Kullanıcı";
+
+  $("hello").textContent =
+    userName + " · " + role;
+
+  const settingsSnap = await getDoc(
+    doc(db, "Settings", "SystemConfig")
+  );
+
+  if (settingsSnap.exists()) {
+    settings = {
+      ...settingsDefault,
+      ...settingsSnap.data()
+    };
+  }
+
+  const profileSnap = await getDoc(
+    doc(db, "StudentProfile", "mainStudent")
+  );
+
+  if (profileSnap.exists()) {
+    profile = {
+      ...profile,
+      ...profileSnap.data()
+    };
+  }
+
+  draftMode =
+    settings.examEntryMode === "BOTH"
+      ? settings.defaultEntryMode
+      : settings.examEntryMode;
+
+  if (!["NET", "DY"].includes(draftMode)) {
+    draftMode = "NET";
+  }
+
+  $("login").hidden = true;
+  $("app").hidden = false;
+
+  /*
+    Tek öğrenci olduğu için tüm denemeler,
+    testler ve ödevler ortak veri merkezinden okunur.
+  */
+
+  const sources = [
+    ["Denemeler", data => exams = data],
+    ["Assignments", data => tasks = data],
+    ["TestEntries", data => tests = data]
+  ];
+
+  sources.forEach(([name, callback]) => {
+    const unsubscribe = onSnapshot(
+      collection(db, name),
+
+      snapshot => {
+        callback(
+          snapshot.docs.map(d => ({
+            id: d.id,
+            ...d.data()
+          }))
+        );
+
+        render();
+      },
+
+      error => {
+        toast(
+          name + ": " + error.message,
+          true
+        );
+      }
+    );
+
+    subscriptions.push(unsubscribe);
+  });
+
+  currentPage = "home";
+  render();
+}
+
+onAuthStateChanged(auth, firebaseUser => {
+  if (firebaseUser) {
+    startApplication(firebaseUser)
+      .catch(error => {
+        toast(error.message, true);
+      });
+  } else {
+    clearSubscriptions();
+
+    user = null;
+
+    $("app").hidden = true;
+    $("login").hidden = false;
+  }
 });
 
-function applyRoleBasedUI(role) {
-    const adminPnl = document.getElementById('admin-panel');
-    const teachPnl = document.getElementById('teacher-assign-panel');
-    const studPnl = document.getElementById('student-panel');
-    const studAssignPnl = document.getElementById('student-assignment-card');
-    const analizPnl = document.getElementById('analiz-panel');
-    const yeniDenemeBtn = document.getElementById('yeni-deneme-btn');
+$("login-form").addEventListener(
+  "submit",
 
-    // Güvenli sıfırlama (Önce hepsini gizle)
-    if(adminPnl) adminPnl.classList.add('d-none');
-    if(teachPnl) teachPnl.classList.add('d-none');
-    if(studPnl) studPnl.classList.add('d-none');
-    if(studAssignPnl) studAssignPnl.classList.add('d-none');
-    if(analizPnl) analizPnl.classList.add('d-none');
+  async event => {
+    event.preventDefault();
 
-    // Role göre açılacak paneller
-    if (role === "Admin") {
-        if(adminPnl) adminPnl.classList.remove('d-none');
-        if(teachPnl) teachPnl.classList.remove('d-none');
-        if(analizPnl) analizPnl.classList.remove('d-none');
-        if(yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none');
-    } 
-    else if (role === "Öğretmen" || role === "Koç" || role === "Ogretmen") {
-        if(teachPnl) teachPnl.classList.remove('d-none');
-        if(analizPnl) analizPnl.classList.remove('d-none');
-        if(yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none'); 
-    } 
-    else if (role === "Veli") {
-        if(analizPnl) analizPnl.classList.remove('d-none');
-        if(studAssignPnl) studAssignPnl.classList.remove('d-none');
-        if(yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none');
-    } 
-    else {
-        // Öğrenci
-        if(studPnl) studPnl.classList.remove('d-none');
-        if(studAssignPnl) studAssignPnl.classList.remove('d-none');
-        if(yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none');
-        const motiv = document.getElementById('motivation-banner');
-        if(motiv) motiv.classList.remove('d-none');
-        if (isStudentDetailedMode && analizPnl) analizPnl.classList.remove('d-none');
-        generateQuestionGrid(12);
+    $("login-error").textContent = "";
+
+    try {
+      await signInWithEmailAndPassword(
+        auth,
+        $("email").value,
+        $("password").value
+      );
+    } catch (error) {
+      $("login-error").textContent =
+        "Giriş başarısız: " + error.code;
     }
+  }
+);
+
+$("logout").addEventListener(
+  "click",
+  () => signOut(auth)
+);
+
+/* =====================================================
+   SAYFA YÖNETİMİ
+===================================================== */
+
+function navigate(page) {
+  currentPage = page;
+  render();
 }
 
-async function loadAdminSettings() {
-    try {
-        const snap = await getDoc(doc(db, "Settings", "SystemConfig"));
-        if (snap.exists()) {
-            const d = snap.data();
-            isStudentDetailedMode = d.studentDetailedMode === true;
-            isMatrixInputEnabled = d.matrixInputEnabled !== false;
-        }
-        document.getElementById('student-mode-switch').checked = isStudentDetailedMode;
-        document.getElementById('matrix-input-switch').checked = isMatrixInputEnabled;
-        toggleMatrixUI();
+function render() {
+  if (!user) return;
 
-        document.getElementById('student-mode-switch').onchange = async function() {
-            isStudentDetailedMode = this.checked; await setDoc(doc(db, "Settings", "SystemConfig"), { studentDetailedMode: isStudentDetailedMode, matrixInputEnabled: isMatrixInputEnabled });
-            applyRoleBasedUI(currentUserRole);
+  const menu = [
+    ["home", "Özet"],
+    ["exam", "Deneme Gir"],
+    ["test", "Soru Çözdüm"],
+    ["tasks", "Ödevler"],
+    ["history", "Denemeler"]
+  ];
+
+  if (
+    isStaff() ||
+    settings.studentDetailedMode
+  ) {
+    menu.push(["analysis", "Analiz"]);
+  }
+
+  if (isStaff()) {
+    menu.push(["reports", "Rapor"]);
+  }
+
+  if (isAdmin()) {
+    menu.push(["admin", "Admin"]);
+  }
+
+  menu.push(["profile", "Diploma / OBP"]);
+
+  $("nav").innerHTML = menu.map(
+    ([id, label]) => `
+      <button
+        data-page="${id}"
+        class="${currentPage === id ? "active" : ""}"
+      >
+        ${label}
+      </button>
+    `
+  ).join("");
+
+  document.querySelectorAll(
+    "[data-page]"
+  ).forEach(button => {
+    button.onclick = () => navigate(
+      button.dataset.page
+    );
+  });
+
+  const pages = {
+    home: renderHome,
+    exam: renderExam,
+    test: renderTest,
+    tasks: renderTasks,
+    history: renderHistory,
+    analysis: renderAnalysis,
+    reports: renderReports,
+    admin: renderAdmin,
+    profile: renderProfile
+  };
+
+  (pages[currentPage] || renderHome)();
+}
+
+/* =====================================================
+   ANA EKRAN
+===================================================== */
+
+function renderHome() {
+  const sorted = [...exams].sort(
+    (a, b) =>
+      String(b.examDate || "")
+        .localeCompare(String(a.examDate || ""))
+  );
+
+  const latest = sorted[0];
+
+  const completed = tasks.filter(t =>
+    ["completed", "reviewed"].includes(
+      t.status
+    )
+  ).length;
+
+  $("content").innerHTML = `
+    <div class="card">
+      <h1>
+        ${isStaff()
+          ? "Öğrencinin Genel Durumu"
+          : "Bugün ne yaptın? 👋"}
+      </h1>
+
+      <p class="muted">
+        ${isStaff()
+          ? "Denemeler, çalışmalar ve ödevler."
+          : "Sonuçlarını kolayca kaydet."}
+      </p>
+
+      <div class="stats">
+        ${cardStat(
+          "Son Deneme",
+          latest
+            ? latest.denemeTuru + " · " +
+              format(Number(latest.toplamNet))
+            : "Henüz yok"
+        )}
+
+        ${cardStat(
+          "Deneme Sayısı",
+          exams.length
+        )}
+
+        ${cardStat(
+          "Tamamlanan Ödev",
+          completed + "/" + tasks.length
+        )}
+
+        ${cardStat(
+          "Günlük Çalışma",
+          tests.length
+        )}
+      </div>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>📝 Deneme Sonucu</h2>
+
+        <p>
+          Okul, kurs veya ev denemeni gir.
+        </p>
+
+        <button class="primary"
+          data-go="exam">
+          Deneme Ekle
+        </button>
+      </div>
+
+      <div class="card">
+        <h2>✏️ Soru Çözdüm</h2>
+
+        <p>
+          Bugünkü çalışmanı kaydet.
+        </p>
+
+        <button class="primary"
+          data-go="test">
+          Çalışma Ekle
+        </button>
+      </div>
+
+      <div class="card">
+        <h2>📚 Ödevler</h2>
+
+        <p>
+          Ödevlerini ve sonuçlarını gör.
+        </p>
+
+        <button class="primary"
+          data-go="tasks">
+          Ödevleri Aç
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.querySelectorAll(
+    "[data-go]"
+  ).forEach(button => {
+    button.onclick = () =>
+      navigate(button.dataset.go);
+  });
+}
+
+/* =====================================================
+   DENEME GİRİŞİ
+===================================================== */
+
+function renderExam() {
+  const allowed =
+    settings.examEntryMode === "BOTH"
+      ? ["NET", "DY"]
+      : [settings.examEntryMode];
+
+  if (!allowed.includes(draftMode)) {
+    draftMode = allowed[0] || "NET";
+  }
+
+  const modeButtons =
+    allowed.length > 1
+      ? `
+        <div class="tabbar">
+          <button type="button"
+            data-mode="NET"
+            class="${draftMode === "NET"
+              ? "active" : ""}">
+            ⚡ Hızlı Net
+          </button>
+
+          <button type="button"
+            data-mode="DY"
+            class="${draftMode === "DY"
+              ? "active" : ""}">
+            Doğru / Yanlış
+          </button>
+        </div>
+      `
+      : "";
+
+  $("content").innerHTML = `
+    <div class="card">
+      <h1>Yeni Deneme Sonucu</h1>
+
+      <p class="muted">
+        Netler küsüratlı girilebilir.
+        Boş alanlar sıfır sayılmaz.
+      </p>
+
+      <form id="exam-form">
+
+        <div class="grid">
+
+          <label>
+            Deneme Adı
+            <input id="exam-name"
+              required
+              value="${escapeHTML(draftMeta.name || "")}">
+          </label>
+
+          <label>
+            Deneme Tarihi
+            <input id="exam-date"
+              type="date"
+              required
+              value="${draftMeta.date ||
+                new Date().toISOString().slice(0, 10)}">
+          </label>
+
+          <label>
+            Deneme Kaynağı
+            <select id="exam-source">
+              <option>Okul</option>
+              <option>Kurs</option>
+              <option>Ev / Bireysel</option>
+              <option>Türkiye Geneli</option>
+              <option>Diğer</option>
+            </select>
+          </label>
+
+          <label>
+            Sınav / Puan Türü
+            <select id="exam-type">
+              <option value="TYT">TYT</option>
+              <option value="SAY">AYT SAY</option>
+              <option value="EA">AYT EA</option>
+              <option value="SOZ">AYT SÖZ</option>
+              <option value="DIL">YDT DİL</option>
+            </select>
+          </label>
+
+          <label>
+            Yayın / Kurum
+            <input id="exam-publisher"
+              value="${escapeHTML(draftMeta.publisher || "")}">
+          </label>
+
+          <label>
+            Kurumun Açıkladığı Puan
+            <input id="exam-official"
+              inputmode="decimal"
+              placeholder="İsteğe bağlı">
+          </label>
+
+        </div>
+
+        ${modeButtons}
+
+        <div id="exam-rows"></div>
+
+        <div id="exam-summary"
+          class="summary">
+        </div>
+
+        <div id="exam-err"
+          class="error">
+        </div>
+
+        <div class="buttons">
+          <button class="primary">
+            Denemeyi Kaydet
+          </button>
+
+          <button type="button"
+            id="exam-clear"
+            class="subtle">
+            Temizle
+          </button>
+        </div>
+
+      </form>
+
+      <div class="warning">
+        Gerçek ÖSYM puanı için doğrulanmış
+        istatistiksel model gereklidir.
+        Net başarı göstergesi, YKS puanı değildir.
+      </div>
+    </div>
+  `;
+
+  $("exam-type").value = draftType;
+
+  $("exam-source").value =
+    draftMeta.source || "Okul";
+
+  $("exam-type").onchange = () => {
+    saveDraftMeta();
+
+    draftType = $("exam-type").value;
+
+    draft = {};
+
+    renderExam();
+  };
+
+  document.querySelectorAll(
+    "[data-mode]"
+  ).forEach(button => {
+    button.onclick = () => {
+      saveDraftMeta();
+
+      draftMode = button.dataset.mode;
+
+      draft = {};
+
+      renderExam();
+    };
+  });
+
+  $("exam-clear").onclick = () => {
+    draft = {};
+    draftMeta = {};
+
+    renderExam();
+  };
+
+  $("exam-form").onsubmit = saveExam;
+
+  renderExamRows();
+}
+
+function saveDraftMeta() {
+  draftMeta = {
+    name: $("exam-name").value.trim(),
+    date: $("exam-date").value,
+    source: $("exam-source").value,
+    publisher:
+      $("exam-publisher").value.trim()
+  };
+}
+
+function renderExamRows() {
+  const container = $("exam-rows");
+
+  container.innerHTML = "";
+
+  let previousGroup = "";
+
+  for (const id of idsFor(draftType)) {
+    const test = TESTS[id];
+
+    if (test.group !== previousGroup) {
+      previousGroup = test.group;
+
+      const heading =
+        document.createElement("h2");
+
+      heading.textContent =
+        test.group === "TYT"
+          ? "TYT Dersleri"
+          : test.group === "YDT"
+            ? "YDT"
+            : "Alan Dersleri";
+
+      container.appendChild(heading);
+    }
+
+    const row = document.createElement("div");
+
+    row.className =
+      "testrow " +
+      (draftMode === "NET"
+        ? "netmode"
+        : "");
+
+    const title = document.createElement("strong");
+
+    title.textContent = test.label;
+
+    const count = document.createElement("span");
+
+    count.className = "small";
+    count.textContent = test.q + " soru";
+
+    row.append(title, count);
+
+    if (draftMode === "NET") {
+      const input =
+        document.createElement("input");
+
+      input.inputMode = "decimal";
+      input.placeholder = "Örn. 23,75";
+
+      input.value =
+        draft[id]?.net ?? "";
+
+      input.oninput = () => {
+        draft[id] = {
+          net: input.value
         };
-        document.getElementById('matrix-input-switch').onchange = async function() {
-            isMatrixInputEnabled = this.checked; await setDoc(doc(db, "Settings", "SystemConfig"), { studentDetailedMode: isStudentDetailedMode, matrixInputEnabled: isMatrixInputEnabled });
-            toggleMatrixUI();
+
+        updateExamSummary();
+      };
+
+      row.appendChild(input);
+    } else {
+      for (const field of [
+        "correct",
+        "wrong"
+      ]) {
+        const input =
+          document.createElement("input");
+
+        input.type = "number";
+        input.min = "0";
+        input.max = String(test.q);
+        input.step = "1";
+
+        input.placeholder =
+          field === "correct"
+            ? "Doğru"
+            : "Yanlış";
+
+        input.value =
+          draft[id]?.[field] ?? "";
+
+        input.oninput = () => {
+          draft[id] = {
+            ...(draft[id] || {}),
+            [field]: input.value
+          };
+
+          updateExamSummary();
         };
-    } catch(e) {}
-}
 
-function toggleMatrixUI() {
-    if (isMatrixInputEnabled) {
-        document.getElementById('matrix-input-section').classList.remove('d-none');
-        document.getElementById('manual-input-section').classList.add('d-none');
-    } else {
-        document.getElementById('matrix-input-section').classList.add('d-none');
-        document.getElementById('manual-input-section').classList.remove('d-none');
+        row.appendChild(input);
+      }
+
+      const preview =
+        document.createElement("span");
+
+      preview.id = "preview-" + id;
+      preview.className =
+        "testnet small";
+
+      preview.textContent = "—";
+
+      row.appendChild(preview);
     }
+
+    container.appendChild(row);
+  }
+
+  updateExamSummary();
 }
 
-window.generateQuestionGrid = function(count) {
-    const container = document.getElementById('question-grid-container');
-    if (!container) return;
-    const total = parseInt(count) || 12;
-    mainGridState = []; container.innerHTML = "";
-    for (let i = 1; i <= total; i++) {
-        mainGridState.push({ no: i, status: 'D' });
-        const btn = document.createElement('button');
-        btn.type = 'button'; btn.className = 'btn btn-success grid-btn'; btn.innerText = `${i}: D`;
-        btn.onclick = () => {
-            let q = mainGridState.find(x => x.no === i);
-            if(q.status === 'D') { q.status = 'Y'; btn.className = 'btn btn-danger grid-btn'; btn.innerText = `${i}: Y`; }
-            else if(q.status === 'Y') { q.status = 'B'; btn.className = 'btn btn-warning text-dark grid-btn'; btn.innerText = `${i}: B`; }
-            else { q.status = 'D'; btn.className = 'btn btn-success grid-btn'; btn.innerText = `${i}: D`; }
+function updateExamSummary() {
+  const summary = $("exam-summary");
+  const error = $("exam-err");
+
+  try {
+    const result = computeExam(
+      draftType,
+      draftMode,
+      draft
+    );
+
+    summary.textContent =
+      "TYT: " +
+      format(result.tytNet) +
+      " · Alan: " +
+      format(result.fieldNet) +
+      " · Toplam: " +
+      format(result.totalNet) +
+      " net" +
+      (result.complete
+        ? ""
+        : " · Kısmi giriş");
+
+    error.textContent = "";
+
+    for (const id of idsFor(draftType)) {
+      const preview =
+        $("preview-" + id);
+
+      if (preview) {
+        preview.textContent =
+          format(result.results[id].net);
+      }
+    }
+  } catch (err) {
+    summary.textContent =
+      "Sonuçları kontrol et.";
+
+    error.textContent = err.message;
+  }
+}
+
+async function saveExam(event) {
+  event.preventDefault();
+
+  saveDraftMeta();
+
+  try {
+    const result = computeExam(
+      draftType,
+      draftMode,
+      draft
+    );
+
+    const reportedInput =
+      $("exam-official").value.trim();
+
+    const reportedScore =
+      parseNumber(reportedInput);
+
+    if (
+      reportedInput !== "" &&
+      reportedScore === null
+    ) {
+      throw Error(
+        "Kurum puanı sayısal olmalıdır."
+      );
+    }
+
+    const altNetler = {};
+
+    for (const [id, item] of
+      Object.entries(result.results)) {
+
+      if (item.entered) {
+        altNetler[TESTS[id].label] =
+          item.net;
+      }
+    }
+
+    const obp = obpFromProfile(profile);
+
+    await addDoc(
+      collection(db, "Denemeler"),
+
+      {
+        schemaVersion: 2,
+        studentKey: "mainStudent",
+
+        createdBy: user.uid,
+        createdByRole: role,
+
+        denemeAdi: draftMeta.name,
+        denemeTuru: draftType,
+
+        examDate: draftMeta.date,
+        examSource: draftMeta.source,
+        publisher: draftMeta.publisher,
+
+        entryMode: draftMode,
+
+        results: result.results,
+        altNetler,
+
+        tytNet: result.tytNet,
+        fieldNet: result.fieldNet,
+
+        toplamNet: result.totalNet,
+
+        complete: result.complete,
+
+        indicator:
+          successIndicator(
+            draftType,
+            result
+          ),
+
+        indicatorLabel:
+          "Net başarı göstergesi",
+
+        reportedScore,
+
+        obpSnapshot: obp,
+
+        tarih: serverTimestamp()
+      }
+    );
+
+    draft = {};
+    draftMeta = {};
+
+    toast("Deneme kaydedildi.");
+
+    navigate("history");
+
+  } catch (err) {
+    $("exam-err").textContent =
+      err.message;
+
+    toast(err.message, true);
+  }
+}
+
+/* =====================================================
+   DIPLOMA NOTU VE OBP
+===================================================== */
+
+function renderProfile() {
+  $("content").innerHTML = `
+    <div class="card">
+      <h1>Diploma Notu ve OBP</h1>
+
+      <p>
+        Diploma notu öğrenci profilinde
+        bir kez tanımlanır.
+      </p>
+
+      <form id="profile-form">
+
+        <label>
+          Diploma Notu Durumu
+
+          <select id="diploma-status">
+            <option value="unknown">
+              Henüz Belli Değil
+            </option>
+
+            <option value="estimated">
+              Tahmini Diploma Notu
+            </option>
+
+            <option value="final">
+              Kesinleşmiş Diploma Notu
+            </option>
+          </select>
+        </label>
+
+        <label>
+          Diploma Notu (50–100)
+
+          <input
+            id="diploma-note"
+            inputmode="decimal"
+            placeholder="Örn. 90,25"
+            value="${profile.diplomaNote ?? ""}">
+        </label>
+
+        <label>
+          <input
+            id="broken-obp"
+            type="checkbox"
+            style="width:auto"
+            ${profile.brokenObp
+              ? "checked"
+              : ""}>
+
+          Kırık OBP uygula
+        </label>
+
+        <div id="obp-preview"
+          class="summary">
+        </div>
+
+        <p class="muted">
+          OBP = Diploma Notu × 5.
+          Normal katkı 0,12;
+          kırık OBP katkısı 0,06.
+        </p>
+
+        <button class="primary">
+          Bilgileri Kaydet
+        </button>
+
+      </form>
+    </div>
+  `;
+
+  $("diploma-status").value =
+    profile.diplomaStatus || "unknown";
+
+  function preview() {
+    const result = obpFromProfile({
+      diplomaStatus:
+        $("diploma-status").value,
+
+      diplomaNote:
+        $("diploma-note").value,
+
+      brokenObp:
+        $("broken-obp").checked
+    });
+
+    $("obp-preview").textContent =
+      result
+        ? "OBP: " +
+          format(result.obp) +
+          " · Katsayı: " +
+          result.factor +
+          " · Katkı: " +
+          format(result.contribution) +
+          (result.isEstimate
+            ? " (Tahmini)"
+            : "")
+        : "OBP henüz hesaplanamıyor.";
+  }
+
+  $("diploma-status").onchange = preview;
+  $("diploma-note").oninput = preview;
+  $("broken-obp").onchange = preview;
+
+  preview();
+
+  $("profile-form").onsubmit =
+    async event => {
+      event.preventDefault();
+
+      const status =
+        $("diploma-status").value;
+
+      const note = parseNumber(
+        $("diploma-note").value
+      );
+
+      if (
+        status !== "unknown" &&
+        (
+          note === null ||
+          note < 50 ||
+          note > 100
+        )
+      ) {
+        toast(
+          "Diploma notu 50–100 arasında olmalıdır.",
+          true
+        );
+
+        return;
+      }
+
+      const updated = {
+        diplomaStatus: status,
+
+        diplomaNote:
+          status === "unknown"
+            ? null
+            : note,
+
+        brokenObp:
+          $("broken-obp").checked,
+
+        updatedAt:
+          serverTimestamp()
+      };
+
+      try {
+        await setDoc(
+          doc(
+            db,
+            "StudentProfile",
+            "mainStudent"
+          ),
+
+          updated,
+
+          { merge: true }
+        );
+
+        profile = {
+          ...profile,
+          ...updated
         };
-        container.appendChild(btn);
-    }
+
+        toast("OBP bilgileri kaydedildi.");
+
+        renderProfile();
+
+      } catch (err) {
+        toast(err.message, true);
+      }
+    };
 }
 
-document.getElementById('test-entry-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const ders = document.getElementById('ders').value;
-    const kitap = document.getElementById('kaynak-kitap').value;
-    const konu = document.getElementById('konu').value;
-    let dogru = 0, yanlis = 0, bos = 0;
+/* =====================================================
+   GÜNLÜK SORU ÇÖZÜMÜ
+===================================================== */
 
-    if (isMatrixInputEnabled) {
-        dogru = mainGridState.filter(q => q.status === 'D').length;
-        yanlis = mainGridState.filter(q => q.status === 'Y').length;
-        bos = mainGridState.filter(q => q.status === 'B').length;
-    } else {
-        dogru = parseInt(document.getElementById('dogru').value) || 0;
-        yanlis = parseInt(document.getElementById('yanlis').value) || 0;
-        bos = parseInt(document.getElementById('bos').value) || 0;
+function renderTest() {
+  $("content").innerHTML = `
+    <div class="card">
+
+      <h1>Bugün Soru Çözdüm ✏️</h1>
+
+      <form id="test-form">
+
+        <div class="grid">
+
+          <label>
+            Ders
+            <select id="test-subject" required>
+              <option value="">Seçiniz</option>
+              <option>Matematik</option>
+              <option>Geometri</option>
+              <option>Türkçe</option>
+              <option>Edebiyat</option>
+              <option>Fizik</option>
+              <option>Kimya</option>
+              <option>Biyoloji</option>
+              <option>Tarih</option>
+              <option>Coğrafya</option>
+              <option>Felsefe</option>
+              <option>Yabancı Dil</option>
+            </select>
+          </label>
+
+          <label>
+            Kitap / Yayın
+            <input id="test-book" required>
+          </label>
+
+          <label>
+            Konu / Test
+            <input id="test-topic" required>
+          </label>
+
+          <label>
+            Soru Sayısı
+            <input id="test-count"
+              type="number"
+              min="1"
+              required>
+          </label>
+
+          <label>
+            Doğru
+            <input id="test-correct"
+              type="number"
+              min="0"
+              required>
+          </label>
+
+          <label>
+            Yanlış
+            <input id="test-wrong"
+              type="number"
+              min="0"
+              required>
+          </label>
+
+        </div>
+
+        <div id="test-preview"
+          class="summary">
+        </div>
+
+        <button class="primary">
+          Çalışmamı Kaydet
+        </button>
+
+      </form>
+
+    </div>
+  `;
+
+  const preview = () => {
+    const q = parseNumber(
+      $("test-count").value
+    );
+
+    const d = parseNumber(
+      $("test-correct").value
+    );
+
+    const y = parseNumber(
+      $("test-wrong").value
+    );
+
+    if (
+      q === null ||
+      d === null ||
+      y === null
+    ) {
+      $("test-preview").textContent =
+        "Sonuçları gir.";
+      return;
     }
 
-    const net = parseFloat((dogru - (yanlis / 4)).toFixed(2));
+    $("test-preview").textContent =
+      format(d - y / 4) +
+      " net · " +
+      (q - d - y) +
+      " boş";
+  };
+
+  [
+    "test-count",
+    "test-correct",
+    "test-wrong"
+  ].forEach(id => {
+    $(id).oninput = preview;
+  });
+
+  $("test-form").onsubmit =
+    async event => {
+      event.preventDefault();
+
+      const q = parseNumber(
+        $("test-count").value
+      );
+
+      const d = parseNumber(
+        $("test-correct").value
+      );
+
+      const y = parseNumber(
+        $("test-wrong").value
+      );
+
+      if (
+        ![q, d, y].every(Number.isInteger) ||
+        q < 1 ||
+        d < 0 ||
+        y < 0 ||
+        d + y > q
+      ) {
+        toast(
+          "Soru sayılarını kontrol et.",
+          true
+        );
+
+        return;
+      }
+
+      try {
+        await addDoc(
+          collection(db, "TestEntries"),
+
+          {
+            studentKey: "mainStudent",
+
+            ders:
+              $("test-subject").value,
+
+            kitap:
+              $("test-book").value.trim(),
+
+            konu:
+              $("test-topic").value.trim(),
+
+            questionCount: q,
+
+            dogru: d,
+            yanlis: y,
+            bos: q - d - y,
+
+            net: d - y / 4,
+
+            createdBy: user.uid,
+            tarih: serverTimestamp()
+          }
+        );
+
+        toast("Çalışma kaydedildi.");
+
+        renderTest();
+
+      } catch (err) {
+        toast(err.message, true);
+      }
+    };
+}
+
+/* =====================================================
+   DENEME GEÇMİŞİ
+===================================================== */
+
+function sortedExams() {
+  return [...exams].sort(
+    (a, b) =>
+      String(b.examDate || "")
+        .localeCompare(String(a.examDate || ""))
+  );
+}
+
+function renderHistory() {
+  $("content").innerHTML = `
+    <div class="card">
+
+      <h1>Deneme Geçmişi</h1>
+
+      <div class="tablewrap">
+        <table>
+
+          <thead>
+            <tr>
+              <th>Deneme</th>
+              <th>Tür</th>
+              <th>Kaynak</th>
+              <th>TYT</th>
+              <th>Alan</th>
+              <th>Toplam</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${sortedExams().map(exam => `
+              <tr>
+
+                <td>
+                  <strong>
+                    ${escapeHTML(exam.denemeAdi)}
+                  </strong>
+
+                  <br>
+
+                  <small>
+                    ${dateText(
+                      exam.examDate ||
+                      exam.tarih
+                    )}
+                  </small>
+                </td>
+
+                <td>
+                  ${escapeHTML(
+                    exam.denemeTuru
+                  )}
+                </td>
+
+                <td>
+                  ${escapeHTML(
+                    exam.examSource || "—"
+                  )}
+                </td>
+
+                <td>
+                  ${format(exam.tytNet)}
+                </td>
+
+                <td>
+                  ${format(exam.fieldNet)}
+                </td>
+
+                <td>
+                  <strong>
+                    ${format(
+                      Number(exam.toplamNet)
+                    )}
+                  </strong>
+                </td>
+
+              </tr>
+            `).join("")}
+          </tbody>
+
+        </table>
+      </div>
+
+    </div>
+  `;
+}
+
+/* =====================================================
+   ÖDEVLER
+===================================================== */
+
+function renderTasks() {
+  const assignForm = canAssign()
+    ? `
+      <div class="card">
+        <h1>Yeni Ödev Ata</h1>
+
+        <form id="task-form">
+
+          <div class="grid">
+
+            <label>
+              Ders
+              <input id="task-subject"
+                required>
+            </label>
+
+            <label>
+              Kitap
+              <input id="task-book"
+                required>
+            </label>
+
+            <label>
+              Konu / Test
+              <input id="task-topic"
+                required>
+            </label>
+
+            <label>
+              Soru Sayısı
+              <input id="task-count"
+                type="number"
+                min="1"
+                required>
+            </label>
+
+            <label>
+              Hedef Doğru
+              <input id="task-target"
+                type="number"
+                min="0">
+            </label>
+
+            <label>
+              Son Tarih
+              <input id="task-date"
+                type="date"
+                required>
+            </label>
+
+          </div>
+
+          <label>
+            Açıklama
+            <textarea id="task-note"></textarea>
+          </label>
+
+          <button class="primary">
+            Ödev Ata
+          </button>
+
+        </form>
+      </div>
+    `
+    : "";
+
+  $("content").innerHTML = `
+    ${assignForm}
+
+    <div class="card">
+      <h1>Ödevler</h1>
+
+      <div id="task-list"></div>
+    </div>
+  `;
+
+  if (canAssign()) {
+    $("task-form").onsubmit =
+      saveTask;
+  }
+
+  renderTaskList();
+}
+
+async function saveTask(event) {
+  event.preventDefault();
+
+  const count = parseNumber(
+    $("task-count").value
+  );
+
+  const target = parseNumber(
+    $("task-target").value
+  );
+
+  if (
+    !Number.isInteger(count) ||
+    count < 1 ||
+    (
+      target !== null &&
+      (
+        !Number.isInteger(target) ||
+        target < 0 ||
+        target > count
+      )
+    )
+  ) {
+    toast(
+      "Ödev soru sayısı geçersiz.",
+      true
+    );
+
+    return;
+  }
+
+  try {
+    await addDoc(
+      collection(db, "Assignments"),
+
+      {
+        schemaVersion: 2,
+
+        studentKey: "mainStudent",
+
+        ders:
+          $("task-subject").value.trim(),
+
+        kitap:
+          $("task-book").value.trim(),
+
+        konu:
+          $("task-topic").value.trim(),
+
+        questionCount: count,
+        targetCorrect: target,
+
+        dueDate:
+          $("task-date").value,
+
+        note:
+          $("task-note").value.trim(),
+
+        status: "waiting",
+
+        assignedBy: user.uid,
+        assignedByRole: role,
+
+        atanmaTarihi:
+          serverTimestamp()
+      }
+    );
+
+    toast("Ödev atandı.");
+
+    renderTasks();
+
+  } catch (err) {
+    toast(err.message, true);
+  }
+}
+
+function renderTaskList() {
+  const list = $("task-list");
+
+  list.innerHTML = "";
+
+  if (tasks.length === 0) {
+    list.textContent =
+      "Henüz ödev yok.";
+
+    return;
+  }
+
+  for (const task of tasks) {
+    const card =
+      document.createElement("div");
+
+    card.className = "task";
+
+    const oldRecord =
+      !task.questionCount;
+
+    card.innerHTML = `
+      <div class="taskhead">
+        <h3>
+          ${escapeHTML(task.ders)}
+          ·
+          ${escapeHTML(task.konu)}
+        </h3>
+
+        <span class="pill">
+          ${escapeHTML(
+            task.status ||
+            task.durum ||
+            "Bekliyor"
+          )}
+        </span>
+      </div>
+
+      <p>
+        ${escapeHTML(task.kitap)}
+      </p>
+
+      <p class="muted">
+        Atayan:
+        ${escapeHTML(
+          task.assignedByRole ||
+          "Eski kayıt"
+        )}
+      </p>
+
+      <p>
+        Son tarih:
+        ${dateText(
+          task.dueDate ||
+          task.tarih
+        )}
+      </p>
+
+      ${task.result
+        ? `
+          <div class="summary">
+            ${task.result.correct} doğru ·
+            ${task.result.wrong} yanlış ·
+            ${task.result.blank} boş ·
+            ${format(task.result.net)} net
+          </div>
+        `
+        : ""}
+    `;
+
+    if (!oldRecord) {
+      const resultButton =
+        document.createElement("button");
+
+      resultButton.className =
+        "secondary";
+
+      resultButton.textContent =
+        "Sonuç Gir";
+
+      resultButton.onclick = () =>
+        showTaskResult(card, task);
+
+      card.appendChild(
+        resultButton
+      );
+
+      if (canAssign()) {
+        const reviewButton =
+          document.createElement("button");
+
+        reviewButton.className =
+          "subtle";
+
+        reviewButton.textContent =
+          "Değerlendir";
+
+        reviewButton.onclick = () =>
+          showTaskReview(card, task);
+
+        card.appendChild(
+          reviewButton
+        );
+      }
+    }
+
+    if (task.review) {
+      const note =
+        document.createElement("p");
+
+      note.textContent =
+        "Değerlendirme: " +
+        task.review;
+
+      card.appendChild(note);
+    }
+
+    list.appendChild(card);
+  }
+}
+
+function showTaskResult(card, task) {
+  const old = card.querySelector(
+    ".task-result-editor"
+  );
+
+  if (old) {
+    old.remove();
+    return;
+  }
+
+  const form =
+    document.createElement("form");
+
+  form.className =
+    "task-result-editor";
+
+  form.innerHTML = `
+    <h3>Ödev Sonucu</h3>
+
+    <label>
+      Çözülen Soru
+      <input name="attempted"
+        type="number"
+        min="0"
+        max="${task.questionCount}"
+        required>
+    </label>
+
+    <label>
+      Doğru
+      <input name="correct"
+        type="number"
+        min="0"
+        required>
+    </label>
+
+    <label>
+      Yanlış
+      <input name="wrong"
+        type="number"
+        min="0"
+        required>
+    </label>
+
+    <label>
+      <input name="finished"
+        type="checkbox"
+        style="width:auto">
+
+      Ödevi tamamladım
+    </label>
+
+    <button class="primary">
+      Sonucu Kaydet
+    </button>
+  `;
+
+  form.onsubmit = async event => {
+    event.preventDefault();
+
+    const attempted = parseNumber(
+      form.elements.attempted.value
+    );
+
+    const correct = parseNumber(
+      form.elements.correct.value
+    );
+
+    const wrong = parseNumber(
+      form.elements.wrong.value
+    );
+
+    if (
+      ![
+        attempted,
+        correct,
+        wrong
+      ].every(Number.isInteger) ||
+
+      attempted < 0 ||
+      correct < 0 ||
+      wrong < 0 ||
+
+      correct + wrong > attempted ||
+
+      attempted > task.questionCount
+    ) {
+      toast(
+        "Ödev sonucunu kontrol et.",
+        true
+      );
+
+      return;
+    }
+
+    const finished =
+      form.elements.finished.checked;
+
+    if (
+      finished &&
+      attempted !== task.questionCount
+    ) {
+      toast(
+        "Ödevin tamamını çözmeden tamamlandı işaretlenemez.",
+        true
+      );
+
+      return;
+    }
+
     try {
-        await addDoc(collection(db, "TestEntries"), { ders, kitap, konu, dogru, yanlis, bos, net, tarih: serverTimestamp() });
-        document.getElementById('test-entry-form').reset();
-        if (isMatrixInputEnabled) generateQuestionGrid(12);
-        loadBireyselTestAnalizi();
-        alert("Günlük testiniz kaydedildi!");
-    } catch(err) { alert("Test kaydedilemedi!"); }
-});
+      await updateDoc(
+        doc(
+          db,
+          "Assignments",
+          task.id
+        ),
 
-document.getElementById('deneme-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const denemeAdi = document.getElementById('deneme-adi').value.trim();
-    const denemeTuru = document.getElementById('deneme-turu').value;
-    const isHizli = document.getElementById('hizli-net-switch').checked;
+        {
+          result: {
+            attempted,
+            correct,
+            wrong,
 
-    let ogrenciObpInput = document.getElementById('ogrenci-obp').value;
-    let obpPuani = 0;
-    if (ogrenciObpInput) {
-        let val = parseFloat(ogrenciObpInput);
-        obpPuani = val <= 100 ? val * 5 : val; 
-    }
+            blank:
+              attempted -
+              correct -
+              wrong,
 
-    let tytTurkce = 0, tytSosyal = 0, tytMat = 0, tytFen = 0;
-    let altNetler = {};
+            remaining:
+              task.questionCount -
+              attempted,
 
-    if (isHizli) {
-        tytTurkce = parseFloat(document.getElementById('hizli-turkce').value) || 0;
-        tytSosyal = parseFloat(document.getElementById('hizli-sosyal').value) || 0;
-        tytMat = parseFloat(document.getElementById('hizli-mat').value) || 0;
-        tytFen = parseFloat(document.getElementById('hizli-fen').value) || 0;
-    } else {
-        const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
-        tytTurkce = parseNet('tyt-turkce');
-        tytSosyal = parseNet('tyt-sosyal');
-        tytMat = parseNet('tyt-mat');
-        tytFen = parseNet('tyt-fen');
-    }
+            net:
+              correct -
+              wrong / 4
+          },
 
-    let toplamNet = tytTurkce + tytSosyal + tytMat + tytFen;
-    altNetler = { "TYT Türkçe": tytTurkce, "TYT Sosyal": tytSosyal, "TYT Matematik": tytMat, "TYT Fen": tytFen };
+          status:
+            finished
+              ? "completed"
+              : "in_progress",
 
-    const tytPuan = (tytTurkce * 3.3) + (tytSosyal * 3.4) + (tytMat * 3.3) + (tytFen * 3.4) + 100;
-    let hamPuanStr = `${tytPuan.toFixed(2)} TYT`;
-    
-    let yerlestirmePuanStr = obpPuani > 0 
-        ? `${(t => t.toFixed(2))(tytPuan + (obpPuani * 0.12))} Y-TYT <br><small class="text-muted">(OBP: ${obpPuani})</small>` 
-        : `Hesaplanamadı <br><small class="text-muted">(OBP Girilmedi)</small>`;
-
-    if (denemeTuru === "SAY") {
-        let mat = 0, fiz = 0, kim = 0, biy = 0;
-        if (isHizli) {
-            mat = parseFloat(document.getElementById('hizli-ayt-mat').value) || 0;
-            fiz = parseFloat(document.getElementById('hizli-ayt-fizik').value) || 0;
-            kim = parseFloat(document.getElementById('hizli-ayt-kimya').value) || 0;
-            biy = parseFloat(document.getElementById('hizli-ayt-biyo').value) || 0;
-        } else {
-            const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
-            mat = parseNet('ayt-mat'); fiz = parseNet('ayt-fizik'); kim = parseNet('ayt-kimya'); biy = parseNet('ayt-biyo');
+          resultUpdatedAt:
+            serverTimestamp()
         }
-        toplamNet += (mat + fiz + kim + biy);
-        altNetler["AYT Matematik"] = mat; altNetler["AYT Fizik"] = fiz; altNetler["AYT Kimya"] = kim; altNetler["AYT Biyoloji"] = biy;
-        let p = (tytPuan * 0.4) + (mat * 3.0) + (fiz * 2.8) + (kim * 2.8) + (biy * 2.8) + 100;
-        hamPuanStr = `${p.toFixed(2)} SAY`;
-        yerlestirmePuanStr = obpPuani > 0 ? `${(t => t.toFixed(2))(p + (obpPuani * 0.12))} Y-SAY <br><small class="text-muted">(OBP: ${obpPuani})</small>` : "Hesaplanamadı";
+      );
 
-    } else if (denemeTuru === "EA") {
-        let mat = 0, tde = 0, tar1 = 0, cog1 = 0;
-        if (isHizli) {
-            mat = parseFloat(document.getElementById('hizli-ayt-mat').value) || 0;
-            tde = parseFloat(document.getElementById('hizli-ayt-tde').value) || 0;
-            tar1 = parseFloat(document.getElementById('hizli-ayt-tar1').value) || 0;
-            cog1 = parseFloat(document.getElementById('hizli-ayt-cog1').value) || 0;
-        } else {
-            const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
-            mat = parseNet('ayt-mat'); tde = parseNet('ayt-tde'); tar1 = parseNet('ayt-tar1'); cog1 = parseNet('ayt-cog1');
+      toast(
+        "Ödev sonucu kaydedildi."
+      );
+
+    } catch (err) {
+      toast(err.message, true);
+    }
+  };
+
+  card.appendChild(form);
+}
+
+function showTaskReview(card, task) {
+  const form =
+    document.createElement("form");
+
+  form.innerHTML = `
+    <label>
+      Değerlendirme
+
+      <textarea name="review"
+        required></textarea>
+    </label>
+
+    <button class="primary">
+      Değerlendirmeyi Kaydet
+    </button>
+  `;
+
+  form.elements.review.value =
+    task.review || "";
+
+  form.onsubmit = async event => {
+    event.preventDefault();
+
+    try {
+      await updateDoc(
+        doc(
+          db,
+          "Assignments",
+          task.id
+        ),
+
+        {
+          review:
+            form.elements.review.value,
+
+          reviewedBy: user.uid,
+          reviewedByRole: role,
+
+          reviewedAt:
+            serverTimestamp(),
+
+          status:
+            task.status === "completed"
+              ? "reviewed"
+              : task.status
         }
-        toplamNet += (mat + tde + tar1 + cog1);
-        altNetler["AYT Matematik"] = mat; altNetler["AYT TDE"] = tde; altNetler["AYT Tarih-1"] = tar1; altNetler["AYT Coğrafya-1"] = cog1;
-        let p = (tytPuan * 0.4) + (mat * 3.0) + (tde * 3.0) + (tar1 * 2.8) + (cog1 * 2.8) + 100;
-        hamPuanStr = `${p.toFixed(2)} EA`;
-        yerlestirmePuanStr = obpPuani > 0 ? `${(t => t.toFixed(2))(p + (obpPuani * 0.12))} Y-EA <br><small class="text-muted">(OBP: ${obpPuani})</small>` : "Hesaplanamadı";
+      );
+
+      toast(
+        "Değerlendirme kaydedildi."
+      );
+
+    } catch (err) {
+      toast(err.message, true);
+    }
+  };
+
+  card.appendChild(form);
+}
+
+/* =====================================================
+   ANALİZ
+===================================================== */
+
+function renderAnalysis() {
+  const byType = {};
+
+  exams.forEach(exam => {
+    const type =
+      exam.denemeTuru || "TYT";
+
+    if (!byType[type]) {
+      byType[type] = [];
     }
 
-    try {
-        await addDoc(collection(db, "Denemeler"), {
-            denemeAdi, denemeTuru, toplamNet: toplamNet.toFixed(2), altNetler, hamPuanStr, yerlestirmePuanStr, obpPuani, tarih: serverTimestamp()
-        });
-        document.getElementById('deneme-form').reset();
-        bootstrap.Modal.getInstance(document.getElementById('denemeModal')).hide();
-        loadDenemeler();
-    } catch(err) { alert("Kaydedilemedi."); }
-});
+    byType[type].push(exam);
+  });
 
-async function loadDenemeler() {
-    const tbody = document.getElementById('deneme-list-table');
-    try {
-        const q = query(collection(db, "Denemeler"), orderBy("tarih", "desc"));
-        const snap = await getDocs(q);
-        tbody.innerHTML = "";
-        
-        if(snap.empty) { tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Henüz sınav girilmedi.</td></tr>"; return; }
-        
-        snap.forEach(docSnap => {
-            const d = docSnap.data();
-            let rozetler = "";
-            for (const [ders, net] of Object.entries(d.altNetler)) {
-                rozetler += `<span class="badge bg-light text-dark border deneme-badge">${ders}: <strong>${net}</strong></span> `;
-            }
-            tbody.innerHTML += `
+  const analysisRows =
+    Object.entries(byType).map(
+      ([type, records]) => {
+        const values = records.map(
+          item =>
+            Number(item.toplamNet)
+        );
+
+        const average =
+          values.reduce(
+            (sum, value) =>
+              sum + value,
+            0
+          ) / values.length;
+
+        return `
+          <tr>
+            <td>${escapeHTML(type)}</td>
+            <td>${records.length}</td>
+            <td>${format(average)}</td>
+          </tr>
+        `;
+      }
+    ).join("");
+
+  $("content").innerHTML = `
+    <div class="card">
+      <h1>Öğrenci Analizi</h1>
+
+      <div class="stats">
+
+        ${cardStat(
+          "Deneme",
+          exams.length
+        )}
+
+        ${cardStat(
+          "Günlük Çalışma",
+          tests.length
+        )}
+
+        ${cardStat(
+          "Ödev",
+          tasks.length
+        )}
+
+      </div>
+    </div>
+
+    <div class="card">
+
+      <h2>Puan Türüne Göre Netler</h2>
+
+      <div class="tablewrap">
+
+        <table>
+          <thead>
+            <tr>
+              <th>Tür</th>
+              <th>Deneme Sayısı</th>
+              <th>Ortalama Net</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${analysisRows}
+          </tbody>
+        </table>
+
+      </div>
+    </div>
+
+    <div class="card">
+
+      <h2>Ödev Sonuçları</h2>
+
+      ${tasks.map(task => `
+        <div class="task">
+
+          <strong>
+            ${escapeHTML(task.ders)}
+            ·
+            ${escapeHTML(task.konu)}
+          </strong>
+
+          <p>
+            ${task.result
+              ? format(task.result.net) +
+                " net"
+              : "Sonuç bekleniyor"}
+          </p>
+
+          <p class="muted">
+            ${escapeHTML(
+              task.review || ""
+            )}
+          </p>
+
+        </div>
+      `).join("")}
+
+    </div>
+  `;
+}
+
+/* =====================================================
+   RAPOR
+===================================================== */
+
+function renderReports() {
+  const obp = obpFromProfile(profile);
+
+  $("content").innerHTML = `
+    <div class="card">
+
+      <h1>Öğrenci Durum Raporu</h1>
+
+      <div class="noprint">
+        <button
+          id="print-report"
+          class="primary">
+          Yazdır / PDF
+        </button>
+      </div>
+
+      <h2>Diploma / OBP</h2>
+
+      <p>
+        ${obp
+          ? "Diploma: " +
+            format(obp.diploma) +
+            " · OBP: " +
+            format(obp.obp) +
+            " · Katkı: " +
+            format(obp.contribution)
+          : "OBP bilgisi yok"}
+      </p>
+
+      <h2>Deneme Sonuçları</h2>
+
+      <div class="tablewrap">
+
+        <table>
+          <thead>
+            <tr>
+              <th>Deneme</th>
+              <th>Tür</th>
+              <th>Net</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            ${sortedExams().map(
+              exam => `
                 <tr>
-                    <td class="fw-bold align-middle">${d.denemeAdi}<br><span class="badge bg-secondary mt-1">${d.denemeTuru}</span></td>
-                    <td class="align-middle text-start">${rozetler}</td>
-                    <td class="align-middle"><span class="badge bg-primary fs-6">${d.toplamNet}</span></td>
-                    <td class="align-middle text-primary fw-bold">${d.hamPuanStr || 'Hesaplanamadı'}</td>
-                    <td class="align-middle text-success fw-bold">${d.yerlestirmePuanStr || 'Hesaplanamadı'}</td>
-                </tr>`;
-        });
-    } catch(e) {}
+                  <td>
+                    ${escapeHTML(
+                      exam.denemeAdi
+                    )}
+                  </td>
+
+                  <td>
+                    ${escapeHTML(
+                      exam.denemeTuru
+                    )}
+                  </td>
+
+                  <td>
+                    ${format(
+                      Number(
+                        exam.toplamNet
+                      )
+                    )}
+                  </td>
+                </tr>
+              `
+            ).join("")}
+          </tbody>
+        </table>
+
+      </div>
+
+    </div>
+  `;
+
+  $("print-report").onclick = () =>
+    window.print();
 }
 
-document.getElementById('assignment-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    try {
-        await addDoc(collection(db, "Assignments"), { 
-            ders: document.getElementById('assignment-ders').value, kitap: document.getElementById('assignment-kitap').value,
-            konu: document.getElementById('assignment-konu-input').value, tarih: document.getElementById('assignment-date').value, durum: "Bekliyor", atanmaTarihi: serverTimestamp()
-        });
-        document.getElementById('assignment-form').reset(); loadAssignments(); alert("Ödev Atandı!");
-    } catch(err) {}
-});
+/* =====================================================
+   ADMIN PARAMETRELERİ
+===================================================== */
 
-async function loadAssignments() {
-    const teachList = document.getElementById('teacher-assignment-list');
-    const studList = document.getElementById('student-assignment-list');
-    const snap = await getDocs(collection(db, "Assignments"));
-    if(teachList) teachList.innerHTML = ""; if(studList) studList.innerHTML = "";
-    if(snap.empty) {
-        if(teachList) teachList.innerHTML = "<li class='list-group-item text-muted'>Atanmış ödev yok.</li>";
-        if(studList) studList.innerHTML = "<li class='list-group-item text-muted'>Aktif ödeviniz yok.</li>"; return;
-    }
-    snap.forEach(docSnap => {
-        const d = docSnap.data();
-        if(teachList) teachList.innerHTML += `<li class='list-group-item d-flex justify-content-between align-items-center bg-light'><div><strong>${d.ders}</strong> - ${d.konu}<br><small>${d.kitap} | Son Tarih: ${d.tarih}</small></div><span class='badge bg-warning text-dark'>${d.durum}</span></li>`;
-        if(studList) studList.innerHTML += `<li class='list-group-item d-flex justify-content-between align-items-center'><div><strong>${d.ders}</strong> - ${d.konu}<br><small>${d.kitap} | Son Tarih: ${d.tarih}</small></div><button class='btn btn-sm btn-outline-success'>Tamamla</button></li>`;
-    });
+function renderAdmin() {
+  if (!isAdmin()) {
+    navigate("home");
+    return;
+  }
+
+  $("content").innerHTML = `
+    <div class="card">
+
+      <h1>Admin Parametreleri</h1>
+
+      <form id="admin-form">
+
+        <label>
+          Deneme Sonuç Giriş Yöntemi
+
+          <select id="setting-mode">
+
+            <option value="BOTH">
+              Her İki Yöntem
+            </option>
+
+            <option value="NET">
+              Yalnızca Net
+            </option>
+
+            <option value="DY">
+              Yalnızca Doğru / Yanlış
+            </option>
+
+          </select>
+        </label>
+
+        <label>
+          Varsayılan Giriş Yöntemi
+
+          <select id="setting-default">
+
+            <option value="NET">
+              Hızlı Net
+            </option>
+
+            <option value="DY">
+              Doğru / Yanlış
+            </option>
+
+          </select>
+        </label>
+
+        <label>
+          <input
+            id="setting-details"
+            type="checkbox"
+            style="width:auto">
+
+          Öğrenci detaylı analizleri görsün
+        </label>
+
+        <button class="primary">
+          Ayarları Kaydet
+        </button>
+
+      </form>
+    </div>
+  `;
+
+  $("setting-mode").value =
+    settings.examEntryMode || "BOTH";
+
+  $("setting-default").value =
+    settings.defaultEntryMode || "NET";
+
+  $("setting-details").checked =
+    settings.studentDetailedMode === true;
+
+  $("admin-form").onsubmit =
+    async event => {
+      event.preventDefault();
+
+      const updated = {
+        examEntryMode:
+          $("setting-mode").value,
+
+        defaultEntryMode:
+          $("setting-default").value,
+
+        studentDetailedMode:
+          $("setting-details").checked
+      };
+
+      try {
+        await setDoc(
+          doc(
+            db,
+            "Settings",
+            "SystemConfig"
+          ),
+
+          updated,
+
+          { merge: true }
+        );
+
+        settings = {
+          ...settings,
+          ...updated
+        };
+
+        draftMode =
+          settings.examEntryMode === "BOTH"
+            ? settings.defaultEntryMode
+            : settings.examEntryMode;
+
+        toast(
+          "Admin parametreleri kaydedildi."
+        );
+
+        render();
+
+      } catch (err) {
+        toast(err.message, true);
+      }
+    };
 }
-
-async function loadBireyselTestAnalizi() {
-    const list = document.getElementById('zayif-konular-listesi');
-    const snap = await getDocs(collection(db, "TestEntries"));
-    let konuStat = {}, labels = [], data = [];
-    if(snap.empty) { if(list) list.innerHTML = "<li class='list-group-item text-muted'>Veri yok.</li>"; return; }
-    
-    let count = 1;
-    snap.forEach(d => {
-        const t = d.data(); labels.push(`Test ${count++}`); data.push(t.net);
-        const toplamSoru = (t.dogru||0) + (t.yanlis||0) + (t.bos||0);
-        if(!konuStat[t.konu]) konuStat[t.konu] = { d:0, t:0 };
-        konuStat[t.konu].d += t.dogru||0; konuStat[t.konu].t += toplamSoru;
-    });
-    
-    if(list) {
-        list.innerHTML = "";
-        for(const [k, s] of Object.entries(konuStat)) {
-            const oran = Math.round((s.d / s.t) * 100);
-            if(oran < 65) list.innerHTML += `<li class="list-group-item d-flex justify-content-between"><strong>${k}</strong> <span class="badge bg-danger">%${oran} Başarı</span></li>`;
-        }
-    }
-    
-    const ctx = document.getElementById('netChart');
-    if(ctx) {
-        if(myChart) myChart.destroy();
-        myChart = new Chart(ctx.getContext('2d'), { type: 'line', data: { labels, datasets: [{ label: 'Bireysel Net Grafiği', data, borderColor: 'blue', fill: true }] } });
-    }
-}
-
-window.tumTestVerileriniSil = async function() {
-    document.getElementById('confirm-delete-btn').innerText = "Siliniyor...";
-    try {
-        for(let col of ["TestEntries", "Denemeler", "Assignments"]) {
-            const s = await getDocs(collection(db, col));
-            await Promise.all(s.docs.map(docSnap => deleteDoc(doc(db, col, docSnap.id))));
-        }
-        alert("Sıfırlandı!"); location.reload();
-    } catch(e) {}
-}
-
-document.getElementById('admin-duyuru-form')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    await setDoc(doc(db, "Settings", "Duyuru"), { metin: document.getElementById('admin-duyuru-input').value });
-    alert("Yayınlandı!"); loadDuyuru();
-});
-
-async function loadDuyuru() {
-    const s = await getDoc(doc(db, "Settings", "Duyuru"));
-    if(s.exists() && s.data().metin) {
-        document.getElementById('duyuru-banner').classList.remove('d-none');
-        document.getElementById('duyuru-text').innerText = s.data().metin;
-    }
-}
-
-document.getElementById('login-form').addEventListener('submit', (e) => {
-    e.preventDefault(); signInWithEmailAndPassword(auth, document.getElementById('email').value, document.getElementById('password').value).catch(() => document.getElementById('error-msg').classList.remove('d-none'));
-});
-document.getElementById('logout-btn')?.addEventListener('click', () => { signOut(auth).then(() => location.reload()); });
