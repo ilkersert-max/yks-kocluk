@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YKS Koçluk Takip & İletişim Portalı</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .modal:not(.show) { display: none !important; }
         .dy-input { width: 60px; display: inline-block; text-align: center; font-weight: bold; }
@@ -47,28 +46,55 @@
             </div>
         </div>
 
-        <!-- HEDEF PROGRAM KARŞILAŞTIRMA (YÖK ATLAS SİHİRBAZI MANTIĞI) -->
+        <!-- YÖK ATLAS NET SİHİRBAZI & HEDEF KARŞILAŞTIRMA -->
         <div class="card p-4 shadow-sm mb-4 border-info">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
-                    <h5 class="text-info text-dark mb-0">🎯 Hedef Program & YÖK Atlas Net Karşılaştırması</h5>
-                    <small class="text-muted">Son deneme netleriniz ile hedef programın referans netlerini karşılaştırın.</small>
+                    <h5 class="text-info text-dark mb-0">🎯 YÖK Atlas Net Sihirbazı & Hedef Karşılaştırma</h5>
+                    <small class="text-muted">Son yerleşen aday netleri ile kendi son deneme sonucunuzu karşılaştırın.</small>
                 </div>
             </div>
             
             <div class="row mb-3">
-                <div class="col-md-6">
-                    <label class="form-label fw-bold">Hedef Program Referansı Seçin</label>
-                    <select id="hedef-program-select" class="form-select border-info">
-                        <option value="">Seçiniz...</option>
-                        <option value="boun-ceng">Boğaziçi Üniv. - Bilgisayar Müh. (SAY - Referans)</option>
-                        <option value="gs-hukuk">Galatasaray Üniv. - Hukuk (EA - Referans)</option>
-                        <option value="boun-tde">Boğaziçi Üniv. - T. Edebiyatı (SÖZ - Referans)</option>
+                <div class="col-md-2 mb-2">
+                    <label class="form-label fw-bold">Yıl</label>
+                    <select id="hedef-yil" class="form-select border-info">
+                        <option value="2026">2026</option>
+                        <option value="2025" selected>2025</option>
                     </select>
                 </div>
-                <div class="col-md-6 d-flex align-items-end">
-                    <button class="btn btn-info text-white w-100 fw-bold" onclick="hedefKarsilastir()">Karşılaştırmayı Getir</button>
+                <div class="col-md-3 mb-2">
+                    <label class="form-label fw-bold">Puan Türü</label>
+                    <select id="hedef-puan-turu" class="form-select border-info">
+                        <option value="">Tümü</option>
+                        <option value="SAY">SAY (Sayısal)</option>
+                        <option value="EA">EA (Eşit Ağırlık)</option>
+                        <option value="SÖZ">SÖZ (Sözel)</option>
+                        <option value="DİL">DİL (Yabancı Dil)</option>
+                        <option value="TYT">TYT</option>
+                    </select>
                 </div>
+                <div class="col-md-5 mb-2">
+                    <label class="form-label fw-bold">Üniversite & Program</label>
+                    <select id="hedef-program-select" class="form-select border-info">
+                        <option value="">Seçiniz...</option>
+                        <option value="boun-ceng">Boğaziçi Üniv. - Bilgisayar Müh. (SAY)</option>
+                        <option value="gs-hukuk">Galatasaray Üniv. - Hukuk (EA)</option>
+                        <option value="boun-tde">Boğaziçi Üniv. - T. Edebiyatı (SÖZ)</option>
+                        <option value="odtu-ing">ODTÜ - İngilizce Öğretmenliği (DİL)</option>
+                    </select>
+                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end">
+                    <button class="btn btn-info text-white w-100 fw-bold" onclick="hedefKarsilastir()">Analiz Et</button>
+                </div>
+            </div>
+
+            <!-- Referans Aday Bilgileri -->
+            <div id="referans-bilgi-alani" class="alert alert-secondary d-none mb-3">
+                <strong>Son Yerleşen Aday Bilgileri:</strong> 
+                <span id="ref-yil-turu" class="badge bg-dark mx-1">-</span>
+                Katsayı Durumu: <strong id="ref-katsayi" class="text-primary">-</strong> | 
+                Adayın OBP'si: <strong id="ref-obp" class="text-primary">-</strong>
             </div>
 
             <div class="table-responsive d-none" id="karsilastirma-container">
@@ -76,25 +102,25 @@
                     <thead class="table-info">
                         <tr>
                             <th>Ders Branşı</th>
-                            <th>Senin Son Netin</th>
-                            <th>Hedef Referans Neti</th>
+                            <th>Öğrenci Neti (Son Deneme)</th>
+                            <th>Referans Net (YÖK Atlas)</th>
                             <th>Fark Durumu</th>
                         </tr>
                     </thead>
                     <tbody id="karsilastirma-body">
-                        <!-- JS ile doldurulacak -->
+                        <!-- JS ile dinamik dolacak -->
                     </tbody>
                 </table>
-                <small class="text-muted mt-2 d-block">* Karşılaştırma kesin yerleşme garantisi vermez, gelişim göstergesidir.</small>
+                <small class="text-muted mt-2 d-block">* Bu tablo kesin yerleşme garantisi vermez; gelişim takibi ve koçluk analizi içindir.</small>
             </div>
         </div>
 
-        <!-- DENEME KARNESİ VE ANALİZ BÖLÜMÜ -->
+        <!-- DENEME KARNESİ (ÖĞRENCİ PERFORMANSI) -->
         <div id="deneme-karnesi-card" class="card p-4 shadow-sm mb-4 border-primary">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
                     <h5 class="text-primary mb-0">📊 Genel Deneme Karnesi & YKS Puan Simülasyonu</h5>
-                    <small class="text-muted">Öğrencinin girdiği tüm denemeler ve puan türüne göre net kırılımları</small>
+                    <small class="text-muted">Öğrencinin hesaplanan sınav ve OBP yerleştirme puanları</small>
                 </div>
                 <button class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#denemeModal">+ Yeni Deneme Sınavı Ekle</button>
             </div>
@@ -103,11 +129,11 @@
                 <table class="table table-bordered table-striped text-center align-middle mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th style="width: 20%;">Deneme Adı / Yayın</th>
-                            <th style="width: 10%;">Tür</th>
+                            <th style="width: 20%;">Deneme Adı / Tür</th>
                             <th style="width: 45%;">Ders Netleri Detayı</th>
-                            <th style="width: 12%;">Toplam Net</th>
-                            <th style="width: 13%;">Gösterge</th>
+                            <th style="width: 10%;">Toplam Net</th>
+                            <th style="width: 12%;">Tahmini Ham Puan</th>
+                            <th style="width: 13%;">Tahmini Y-Puan (OBP'li)</th>
                         </tr>
                     </thead>
                     <tbody id="deneme-list-table">
@@ -130,12 +156,12 @@
                 <div class="modal-body">
                     <form id="deneme-form">
                         <div class="row">
-                            <div class="col-md-7 mb-3">
-                                <label class="form-label fw-bold">Deneme Sınav Adı / Yayın</label>
+                            <div class="col-md-5 mb-3">
+                                <label class="form-label fw-bold">Deneme Sınav Adı</label>
                                 <input type="text" id="deneme-adi" class="form-control" placeholder="Örn: 3D Türkiye Geneli" required>
                             </div>
-                            <div class="col-md-5 mb-3">
-                                <label class="form-label fw-bold">Deneme Puan Türü</label>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold">Puan Türü</label>
                                 <select id="deneme-turu" class="form-select fw-bold text-primary" onchange="denemeTuruDegisti()" required>
                                     <option value="TYT">TYT</option>
                                     <option value="SAY">SAY (Sayısal)</option>
@@ -143,6 +169,11 @@
                                     <option value="SOZ">SÖZ (Sözel)</option>
                                     <option value="DIL">DİL (Yabancı Dil)</option>
                                 </select>
+                            </div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold text-success">Diploma Notu / OBP (Opsiyonel)</label>
+                                <input type="number" id="ogrenci-obp" class="form-control border-success" placeholder="Örn: 85 (Diploma) veya 425 (OBP)" max="500">
+                                <small class="text-muted">Yerleştirme puanı tahmini için.</small>
                             </div>
                         </div>
 
@@ -208,8 +239,9 @@
                                     <span id="net-ayt-biyo" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
 
+                                <!-- ŞARTNAMEYE UYGUN GÜNCEL ETİKETLER -->
                                 <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tde">
-                                    <div class="small fw-bold text-muted mb-1">AYT TDE (24)</div>
+                                    <div class="small fw-bold text-muted mb-1">AYT Türk Dili ve Edebiyatı (24)</div>
                                     <input type="number" id="dy-ayt-tde-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tde', 24)">
                                     <input type="number" id="dy-ayt-tde-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tde', 24)">
                                     <span id="net-ayt-tde" class="badge bg-danger net-badge mt-1">0.00</span>
@@ -240,7 +272,7 @@
                                     <span id="net-ayt-cog2" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
                                 <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-fels">
-                                    <div class="small fw-bold text-muted mb-1">Felsefe Grubu (12)</div>
+                                    <div class="small fw-bold text-muted mb-1">AYT Felsefe Grubu (12)</div>
                                     <input type="number" id="dy-ayt-fels-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fels', 12)">
                                     <input type="number" id="dy-ayt-fels-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fels', 12)">
                                     <span id="net-ayt-fels" class="badge bg-danger net-badge mt-1">0.00</span>
@@ -276,7 +308,7 @@
             const yVal = parseInt(document.getElementById('dy-' + subject + '-y').value) || 0;
             
             if ((dVal + yVal) > maxQs) {
-                alert(`Hata: ${subject} dersinde Doğru ve Yanlış toplamı ${maxQs} soruyu geçemez!`);
+                alert(`Hata: Doğru ve Yanlış toplamı ${maxQs} soruyu geçemez!`);
                 document.getElementById('dy-' + subject + '-d').value = "";
                 document.getElementById('dy-' + subject + '-y').value = "";
                 document.getElementById('net-' + subject).innerText = "0.00";
@@ -327,7 +359,6 @@
             }
         }
     </script>
-
     <script type="module" src="app.js"></script>
 </body>
 </html>
