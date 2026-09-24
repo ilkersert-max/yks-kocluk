@@ -46,3 +46,17 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 }
 @media(min-width:801px){.shell{grid-template-columns:220px minmax(0,1fr)}}
 @media print{.cleanup-panel{display:none!important}}
+
+/* Son 5 deneme - telefon öncelikli grafik ve kaydırılabilir tablolar */
+.last5-panel{overflow:hidden}
+.last5-heading{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.last5-heading label{min-width:190px;max-width:100%;margin:0}
+.last5-panel .stats{margin:15px 0}
+.last5-chart{width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch;background:#f8fbff;border:1px solid #dbeafe;border-radius:12px;margin:12px 0}
+.last5-chart svg{display:block;width:100%;height:auto;min-width:310px}
+.analysis-note{background:#eef7ff;border-left:4px solid #2563eb;padding:13px;border-radius:8px;margin:12px 0;line-height:1.6}
+.trend-up{color:#15803d;font-weight:700}.trend-down{color:#b45309;font-weight:700}
+.empty-state{padding:24px;text-align:center;color:#64748b}
+.last5-panel h3{margin-top:18px}
+.last5-panel .tablewrap{overflow-x:auto;max-width:100%}
+@media(max-width:560px){.last5-heading{display:block}.last5-heading label{display:block;margin:12px 0}.last5-panel .stats{grid-template-columns:repeat(2,minmax(0,1fr))}.last5-panel .stat strong{font-size:21px}.last5-panel{padding:14px}.last5-chart svg{min-width:310px}}
