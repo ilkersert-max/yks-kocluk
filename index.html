@@ -210,40 +210,7 @@
                 <span class="badge bg-info text-dark">Veli & Koç Görünümü</span>
             </div>
 
-            <!-- YÖK ATLAS 5 HEDEF SEÇİMİ VE NET KIYASLAMA KARTI -->
-            <div class="card p-3 mb-4 bg-light border-info">
-                <h6 class="fw-bold text-dark border-bottom pb-2 mb-3">🏛️ YÖK Atlas Hedef Seçimi & Canlı Net Kıyaslama</h6>
-                
-                <div class="row mb-3">
-                    <div class="col-md-9 mb-2">
-                        <label class="form-label small fw-bold text-secondary">İlgilendiğiniz 5 Hedef Bölümü Seçin (CTRL tuşuyla çoklu seçebilirsiniz)</label>
-                        <select id="yok-atlas-multi-select" class="form-select form-select-sm" multiple style="height: 110px;">
-                        </select>
-                        <small class="text-muted d-block mt-1">CTRL tuşuna basılı tutarak en fazla 5 hedef seçebilirsiniz.</small>
-                    </div>
-                    <div class="col-md-3 d-flex align-items-end mb-2">
-                        <button class="btn btn-info btn-sm w-100 text-white fw-bold py-2" onclick="saveTargetUniversities()">🎯 5 Hedefimi Kaydet</button>
-                    </div>
-                </div>
-
-                <div class="border-top pt-3">
-                    <div class="row align-items-center">
-                        <div class="col-md-5 mb-2">
-                            <label class="form-label small fw-bold text-primary mb-1">Kaydedilen Hedeflerinizden Seçip İnceleyin:</label>
-                            <select id="saved-targets-dropdown" class="form-select form-select-sm fw-bold border-primary" onchange="compareSelectedTarget()">
-                                <option value="">Önce Hedef Kaydediniz...</option>
-                            </select>
-                        </div>
-                        <div class="col-md-7 mb-2">
-                            <div id="target-comparison-result" class="p-2 bg-white rounded border small">
-                                <em>Lütfen kıyaslamak için yukarıdan bir hedef seçiniz.</em>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- ÖĞRENCİNİN BİREYSEL ÇÖZDÜĞÜ TESTLER VE HATA KARNESİ TABLOSU (YENİ VE EN KRİTİK ALAN) -->
+            <!-- ÖĞRENCİNİN BİREYSEL ÇÖZDÜĞÜ TESTLER VE HATA KARNESİ TABLOSU -->
             <div class="card p-3 mb-4 border-secondary shadow-sm">
                 <h6 class="fw-bold text-secondary border-bottom pb-2 mb-3">🔍 Öğrencinin Bireysel Çözdüğü Testler (Hata & Süre Karnesi)</h6>
                 <div class="table-responsive">
@@ -323,7 +290,7 @@
                     </div>
                 </div>
 
-                <!-- İŞARETLEMELİ SORU IZGARASI BÖLÜMÜ (Öğrenci Kendi Testi İçin) -->
+                <!-- İŞARETLEMELİ SORU IZGARASI BÖLÜMÜ -->
                 <div id="matrix-input-section" class="card p-3 mb-3 bg-light border-success">
                     <div class="row align-items-center mb-3">
                         <div class="col-md-4 mb-2">
@@ -365,7 +332,7 @@
                     </div>
                 </div>
 
-                <!-- ESKİ TİP MANUEL GİRİŞ BÖLÜMÜ (Admin kapatırsa bu görünür) -->
+                <!-- ESKİ TİP MANUEL GİRİŞ BÖLÜMÜ -->
                 <div id="manual-input-section" class="row d-none">
                     <div class="col-md-3 col-6 mb-3">
                         <label class="form-label text-success fw-bold">Doğru</label>
@@ -436,7 +403,7 @@
 
     </div>
 
-    <!-- ÖDEV ÇÖZÜM MODALI (ÖĞRENCİ ÖDEVİ TIKLAYIP D/Y/SÜRE GİRDİĞİNDE) -->
+    <!-- ÖDEV ÇÖZÜM MODALI -->
     <div class="modal fade" id="solveAssignmentModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-centered">
             <div class="modal-content border-success">
@@ -451,7 +418,6 @@
                         <small id="modal-assignment-sub" class="text-muted">--</small>
                     </div>
 
-                    <!-- Ödev için sadece Matrix modu geçerlidir -->
                     <div class="row align-items-center mb-3">
                         <div class="col-md-6 mb-2">
                             <label class="form-label fw-bold text-success mb-1">Toplam Soru Sayısı</label>

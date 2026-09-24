@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, updatePassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, query, where, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M",
@@ -61,20 +61,8 @@ let isMatrixInputEnabled = true;
 let isMatrisVisible = false;
 
 // Soru Izgarası Veri Durumu
-let mainGridState = []; // Bireysel test için
-let modalGridState = []; // Ödev çözümü için
-
-// YÖK ATLAS BENCHMARK VERİLERİ
-const yokAtlasDatabase = [
-    { id: "boun_ceng", name: "Boğaziçi Üniv. - Bilgisayar Müh. (SAY)", alan: "SAY", hedefNet: 112.5 },
-    { id: "itu_ceng", name: "İTÜ - Bilgisayar Müh. (SAY)", alan: "SAY", hedefNet: 108.0 },
-    { id: "odtu_ee", name: "ODTÜ - Elektrik-Elektronik Müh. (SAY)", alan: "SAY", hedefNet: 109.5 },
-    { id: "gsu_hukuk", name: "Galatasaray Üniv. - Hukuk (EA)", alan: "EA", hedefNet: 98.0 },
-    { id: "ankara_hukuk", name: "Ankara Üniv. - Hukuk (EA)", alan: "EA", hedefNet: 89.0 },
-    { id: "boun_isletme", name: "Boğaziçi Üniv. - İşletme (EA)", alan: "EA", hedefNet: 102.0 },
-    { id: "istanbul_tip", name: "İstanbul Üniv. (Çapa) - Tıp (SAY)", alan: "SAY", hedefNet: 104.0 },
-    { id: "boun_ing_ogrt", name: "Boğaziçi Üniv. - İngilizce Öğrt. (DİL)", alan: "DİL", hedefNet: 95.0 }
-];
+let mainGridState = [];
+let modalGridState = [];
 
 const defaultBooks = [
     { name: "ÜçDörtBeş TYT Türkçe Soru Bankası", sinav: "TYT", ders: "Türkçe" },
@@ -130,9 +118,6 @@ window.playClapSound = function() {
     } catch(e) {}
 }
 
-// -----------------------------------------------------------
-// SORU IZGARASI MANTIĞI (ÖĞRENCİ KENDİ TESTİ İÇİN)
-// -----------------------------------------------------------
 window.generateQuestionGrid = function(count) {
     const container = document.getElementById('question-grid-container');
     if (!container) return;
@@ -152,7 +137,6 @@ window.generateQuestionGrid = function(count) {
     updateGridStats('main');
 }
 
-// SORU IZGARASI MANTIĞI (ÖDEV ÇÖZÜM MODALI İÇİN)
 window.generateModalGrid = function(count) {
     const container = document.getElementById('modal-grid-container');
     if (!container) return;
@@ -179,7 +163,6 @@ function toggleQuestionStatus(qNo, target) {
     if (!qObj) return;
     const btn = document.getElementById(`${btnPrefix}${qNo}`);
     
-    // D -> Y -> B -> D
     if (qObj.status === 'D') {
         qObj.status = 'Y';
         btn.className = 'btn btn-danger grid-btn';
@@ -216,9 +199,6 @@ function updateGridStats(target) {
     }
 }
 
-// -----------------------------------------------------------
-// 1. ÖĞRENCİ BİREYSEL TEST GİRİŞİNİ KAYDETME
-// -----------------------------------------------------------
 if(testEntryForm) {
     testEntryForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -230,7 +210,6 @@ if(testEntryForm) {
 
         let dogru, yanlis, bos, net, sure, yanlisSorular = [], bosSorular = [];
 
-        // Matrix mi yoksa manuel giriş mi?
         if (isMatrixInputEnabled) {
             sure = parseInt(document.getElementById('sure').value) || 0;
             if(!sure) { alert("Lütfen süreyi giriniz."); return; }
@@ -252,12 +231,11 @@ if(testEntryForm) {
         const user = auth.currentUser;
         if(user && kaynakKitap) {
             try {
-                // TESTİ KAYDET
                 await addDoc(collection(db, "TestEntries"), {
                     userId: user.uid, ders, kaynakKitap, konu, 
                     toplamSoru, dogru, yanlis, bos, net, sure,
                     yanlisSorular, bosSorular, 
-                    isOdev: false, // Bireysel test olduğunu belirtmek için
+                    isOdev: false,
                     tarih: serverTimestamp()
                 });
                 
@@ -271,15 +249,12 @@ if(testEntryForm) {
                 
                 loadStudentTests();
                 loadKonuMatrisiAndAnaliz();
-                loadStudentSelfTestsHistory(); // Öğretmenin tablosunu da güncelle
+                loadStudentSelfTestsHistory();
             } catch (error) { alert("Test kaydedilemedi!"); }
         }
     });
 }
 
-// -----------------------------------------------------------
-// 2. ÖDEV ÇÖZÜM MODALI & SONUÇ KAYDETME
-// -----------------------------------------------------------
 window.openSolveModal = function(assignmentId, sinav, ders, kaynak, konu) {
     document.getElementById('modal-assignment-id').value = assignmentId;
     document.getElementById('modal-assignment-title').innerText = `${sinav} - ${ders}: ${kaynak}`;
@@ -303,7 +278,6 @@ window.submitAssignmentResult = async function() {
     let toplamSoru = modalGridState.length;
 
     try {
-        // ÖDEVİ GÜNCELLE
         await updateDoc(doc(db, "Assignments", assignmentId), {
             durum: "Tamamlandı",
             toplamSoru, dogru, yanlis, bos, net, sure,
@@ -311,10 +285,8 @@ window.submitAssignmentResult = async function() {
             tamamlanmaTarihi: serverTimestamp()
         });
 
-        // AYNI ZAMANDA BUNU TESTENTRIES'E İŞLE Kİ GRAFİĞE VE MATRİSE DÜŞSÜN
         const user = auth.currentUser;
         if (user) {
-            // Ödevi almak için belgeyi oku
             const assignSnap = await getDoc(doc(db, "Assignments", assignmentId));
             if(assignSnap.exists()) {
                 const assignData = assignSnap.data();
@@ -322,7 +294,7 @@ window.submitAssignmentResult = async function() {
                     userId: user.uid, ders: assignData.ders, kaynakKitap: assignData.kaynak, konu: assignData.konu, 
                     toplamSoru, dogru, yanlis, bos, net, sure,
                     yanlisSorular, bosSorular, 
-                    isOdev: true, // Ödevden geldiğini belirtir
+                    isOdev: true,
                     tarih: serverTimestamp()
                 });
             }
@@ -335,13 +307,10 @@ window.submitAssignmentResult = async function() {
         loadAssignments();
         loadStudentTests();
         loadKonuMatrisiAndAnaliz();
-        loadStudentSelfTestsHistory(); // Hata geçmişini güncelle
-    } catch(e) { alert("Ödev sonucu kaydedilirken hata oluştu!"); }
+        loadStudentSelfTestsHistory();
+    } catch(e) { alert("Ödev sonucu kaydedilerken hata oluştu!"); }
 }
 
-// -----------------------------------------------------------
-// 3. ÖDEV ATAMA & LİSTELEME
-// -----------------------------------------------------------
 if (assignmentForm) {
     assignmentForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -361,6 +330,9 @@ if (assignmentForm) {
     });
 }
 
+// -----------------------------------------------------------
+// GÜNCELLENEN ATANAN ÖDEVLER LİSTESİ (Soru X Formatı & Tebrikler)
+// -----------------------------------------------------------
 async function loadAssignments() {
     const teacherListEl = document.getElementById('teacher-assignment-list');
     const studentListEl = document.getElementById('student-assignment-list');
@@ -384,11 +356,37 @@ async function loadAssignments() {
 
             let performansDetayi = "";
             if (isTamamlandi && data.toplamSoru) {
-                let yMetni = data.yanlisSorular && data.yanlisSorular.length > 0 ? `<br><span class="text-danger">❌ Yanlış Sorular: ${data.yanlisSorular.join(', ')}</span>` : '';
-                let bMetni = data.bosSorular && data.bosSorular.length > 0 ? `<br><span class="text-warning text-dark">⚠️ Boş Sorular: ${data.bosSorular.join(', ')}</span>` : '';
+                const hasYanlis = data.yanlisSorular && data.yanlisSorular.length > 0;
+                const hasBos = data.bosSorular && data.bosSorular.length > 0;
+
+                let detayMetni = "";
+
+                if (!hasYanlis && !hasBos) {
+                    // KUSURSUZ SENARYO
+                    detayMetni = `<br><span class="text-success fw-bold">🌟 Tebrikler! Sıfır Hata, Kusursuz Test! 🎯 Toplam ${data.toplamSoru} Soruda Yanlış ve Boş Yok! 👏🥳🎉</span>`;
+                } else {
+                    // YANLIŞ SATIRI
+                    if (hasYanlis) {
+                        let etiket = data.yanlisSorular.length > 1 ? "❌ Yanlış Yapılanlar:" : "❌ Yanlış Yapılan:";
+                        let liste = data.yanlisSorular.map(s => `Soru ${s}`).join(', ');
+                        detayMetni += `<br><span class="text-danger fw-bold">${etiket} ${liste}</span>`;
+                    } else {
+                        detayMetni += `<br><span class="text-success small">👏 Yanlış Yapılan Soru Yok! 😊</span>`;
+                    }
+
+                    // BOŞ SATIRI
+                    if (hasBos) {
+                        let etiket = data.bosSorular.length > 1 ? "⚠️ Boş Bırakılanlar:" : "⚠️ Boş Bırakılan:";
+                        let liste = data.bosSorular.map(s => `Soru ${s}`).join(', ');
+                        detayMetni += `<br><span class="text-warning text-dark fw-bold">${etiket} ${liste}</span>`;
+                    } else {
+                        detayMetni += `<br><span class="text-success small">👏 Boş Bırakılan Soru Yok! 😊</span>`;
+                    }
+                }
+
                 performansDetayi = `<div class="mt-2 p-2 bg-white rounded border border-success small">
                                         📊 <strong>Sonuç:</strong> ${data.toplamSoru} Soru | <span class="text-success">${data.dogru}D</span> <span class="text-danger">${data.yanlis}Y</span> <span class="text-warning text-dark">${data.bos}B</span> | <strong>${data.net} Net</strong> | Süre: ${data.sure} Dk
-                                        ${yMetni} ${bMetni}
+                                        ${detayMetni}
                                     </div>`;
             }
 
@@ -437,7 +435,7 @@ window.deleteAssignment = async function(assignmentId) {
 }
 
 // -----------------------------------------------------------
-// 4. ÖĞRETMEN/VELİ İÇİN BİREYSEL TEST GEÇMİŞİ (YENİ)
+// GÜNCELLENEN BİREYSEL TEST GEÇMİŞİ TABLOSU
 // -----------------------------------------------------------
 async function loadStudentSelfTestsHistory() {
     const tbody = document.getElementById('teacher-test-history-list');
@@ -453,21 +451,31 @@ async function loadStudentSelfTestsHistory() {
         let tests = [];
         snap.forEach(d => tests.push(d.data()));
 
-        // Tarihe göre yeniden eskiye sırala
         tests.sort((a,b) => {
             let ta = a.tarih ? a.tarih.toMillis() : 0;
             let tb = b.tarih ? b.tarih.toMillis() : 0;
             return tb - ta;
         });
 
-        // Sadece son 15 testi gösterelim
         let recentTests = tests.slice(0, 15);
         tbody.innerHTML = "";
 
         recentTests.forEach(t => {
             let dateStr = t.tarih ? new Date(t.tarih.toDate()).toLocaleDateString('tr-TR') : '-';
-            let yStr = (t.yanlisSorular && t.yanlisSorular.length > 0) ? t.yanlisSorular.join(', ') : '-';
-            let bStr = (t.bosSorular && t.bosSorular.length > 0) ? t.bosSorular.join(', ') : '-';
+            
+            let yStr = (t.yanlisSorular && t.yanlisSorular.length > 0) 
+                ? t.yanlisSorular.map(s => `Soru ${s}`).join(', ') 
+                : '👏 Yok 😊';
+                
+            let bStr = (t.bosSorular && t.bosSorular.length > 0) 
+                ? t.bosSorular.map(s => `Soru ${s}`).join(', ') 
+                : '👏 Yok 😊';
+
+            if ((!t.yanlisSorular || t.yanlisSorular.length === 0) && (!t.bosSorular || t.bosSorular.length === 0)) {
+                yStr = '🌟 Kusursuz';
+                bStr = '🌟 Kusursuz';
+            }
+
             let odevBadge = t.isOdev ? `<br><span class="badge bg-info mt-1">Ödevden</span>` : `<br><span class="badge bg-secondary mt-1">Bireysel</span>`;
 
             tbody.innerHTML += `
@@ -482,88 +490,11 @@ async function loadStudentSelfTestsHistory() {
                         <br><strong class="text-primary">${t.net || 0} Net</strong>
                     </td>
                     <td class="align-middle">${t.sure || 0} Dk</td>
-                    <td class="align-middle text-danger fw-bold">${yStr}</td>
-                    <td class="align-middle text-warning text-dark fw-bold">${bStr}</td>
+                    <td class="align-middle text-danger fw-bold small">${yStr}</td>
+                    <td class="align-middle text-warning text-dark fw-bold small">${bStr}</td>
                 </tr>`;
         });
 
-    } catch(e) {
-        console.error("Test geçmişi yükleme hatası:", e);
-    }
-}
-
-// -----------------------------------------------------------
-// 5. DİĞER ANALİZ VE GÖRSEL FONKSİYONLAR
-// -----------------------------------------------------------
-function populateYokAtlasMultiSelect() {
-    const selectEl = document.getElementById('yok-atlas-multi-select');
-    if (!selectEl) return;
-    selectEl.innerHTML = "";
-    yokAtlasDatabase.forEach(item => {
-        selectEl.innerHTML += `<option value="${item.id}">${item.name}</option>`;
-    });
-}
-
-window.saveTargetUniversities = async function() {
-    const selectEl = document.getElementById('yok-atlas-multi-select');
-    if (!selectEl) return;
-    const selectedOptions = Array.from(selectEl.selectedOptions).map(opt => opt.value);
-    if (selectedOptions.length === 0) { alert("Lütfen en az 1 hedef seçiniz!"); return; }
-    if (selectedOptions.length > 5) { alert("En fazla 5 adet hedef seçebilirsiniz!"); return; }
-    try {
-        await setDoc(doc(db, "Settings", "SavedTargets"), { targets: selectedOptions });
-        alert("5 Hedefiniz başarıyla kaydedildi!");
-        loadSavedTargetsDropdown();
-    } catch(e) { alert("Hedefler kaydedilirken hata oluştu!"); }
-}
-
-async function loadSavedTargetsDropdown() {
-    const dropdownEl = document.getElementById('saved-targets-dropdown');
-    if (!dropdownEl) return;
-    try {
-        const snap = await getDoc(doc(db, "Settings", "SavedTargets"));
-        if (snap.exists() && snap.data().targets) {
-            const savedIds = snap.data().targets;
-            dropdownEl.innerHTML = `<option value="">Kaydedilen Hedef Seçiniz...</option>`;
-            savedIds.forEach(targetId => {
-                const targetObj = yokAtlasDatabase.find(t => t.id === targetId);
-                if (targetObj) dropdownEl.innerHTML += `<option value="${targetObj.id}">${targetObj.name}</option>`;
-            });
-        } else {
-            dropdownEl.innerHTML = `<option value="">Henüz Hedef Kaydedilmedi</option>`;
-        }
-    } catch(e) {}
-}
-
-window.compareSelectedTarget = async function() {
-    const dropdownEl = document.getElementById('saved-targets-dropdown');
-    const resultBox = document.getElementById('target-comparison-result');
-    if (!dropdownEl || !resultBox) return;
-    const selectedId = dropdownEl.value;
-    if (!selectedId) { resultBox.innerHTML = `<em>Lütfen kıyaslamak için yukarıdan bir hedef seçiniz.</em>`; return; }
-    const targetObj = yokAtlasDatabase.find(t => t.id === selectedId);
-    if (!targetObj) return;
-    try {
-        const denemeSnap = await getDocs(collection(db, "Denemeler"));
-        if (denemeSnap.empty) {
-            resultBox.innerHTML = `<span class="text-warning fw-bold">⚠️ Öğrencinin henüz girilmiş deneme sınavı yok.</span>`;
-            return;
-        }
-        let denemeler = [];
-        denemeSnap.forEach(d => denemeler.push(d.data()));
-        const sonDeneme = denemeler[denemeler.length - 1];
-        const ogrenciNet = parseFloat(sonDeneme.toplamNet) || 0;
-        const fark = (ogrenciNet - targetObj.hedefNet).toFixed(2);
-        let mesajClass = fark >= 0 ? "text-success fw-bold" : "text-danger fw-bold";
-        let mesajMetni = fark >= 0 
-            ? `🎉 Harika! Öğrencinin son neti (${ogrenciNet} Net) bu hedefin ortalamasının (+${fark} Net) üzerindedir!`
-            : `🚨 Hedefe ulaşmak için öğrencinin **${Math.abs(fark)} Net** daha artırması gerekmektedir.`;
-        resultBox.innerHTML = `
-            <div>
-                <strong>${targetObj.name}</strong>
-                <br>🎯 YÖK Atlas Hedef Net Ortalaması: <strong>${targetObj.hedefNet} Net</strong> | Öğrenci Son Neti: <strong>${ogrenciNet} Net</strong>
-                <div class="mt-1 ${mesajClass}">${mesajMetni}</div>
-            </div>`;
     } catch(e) {}
 }
 
@@ -621,9 +552,6 @@ function setupDynamicBookFilters() {
     if (assignDers) assignDers.addEventListener('change', updateAssignBooks);
 }
 
-// -----------------------------------------------------------
-// 6. ADMİN AYARLARI VE OTURUM KONTROLÜ
-// -----------------------------------------------------------
 async function loadAdminSettings() {
     try {
         const snap = await getDoc(doc(db, "Settings", "SystemConfig"));
@@ -707,7 +635,6 @@ onAuthStateChanged(auth, async (user) => {
                 currentUserRole = (userData.Rol || "").trim();
                 if(roleText) roleText.innerText = currentUserRole;
 
-                // Tüm panelleri önce gizle
                 if(studentPanel) studentPanel.classList.add('d-none');
                 if(teacherAssignPanel) teacherAssignPanel.classList.add('d-none');
                 if(studentAssignmentCard) studentAssignmentCard.classList.add('d-none');
@@ -717,12 +644,9 @@ onAuthStateChanged(auth, async (user) => {
                 await loadAdminSettings();
                 setupDynamicBookFilters();
                 generateQuestionGrid(12);
-                populateYokAtlasMultiSelect();
-                await loadSavedTargetsDropdown();
 
                 const analizPanel = document.getElementById('analiz-panel');
 
-                // ROL BAZLI GÖRÜNÜRLÜK YÖNETİMİ
                 if (currentUserRole === "Admin") {
                     if(adminPanel) adminPanel.classList.remove('d-none');
                     if(teacherAssignPanel) teacherAssignPanel.classList.remove('d-none');
@@ -777,7 +701,6 @@ onAuthStateChanged(auth, async (user) => {
                 loadDuyuru();
                 hesaplaYksSayac();
                 
-                // Öğretmen ve Veli için yeni tabloyu yükle
                 if (currentUserRole !== "Öğrenci" && currentUserRole !== "Ogrenci") {
                     loadStudentSelfTestsHistory();
                 }
@@ -802,7 +725,6 @@ if(loginForm) {
 
 if(logoutBtn) { logoutBtn.addEventListener('click', () => { signOut(auth); }); }
 
-// Silme Modülü
 window.tumTestVerileriniSil = async function() {
     const confirmBtn = document.getElementById('confirm-delete-btn');
     if (confirmBtn) { confirmBtn.innerText = "Siliniyor..."; confirmBtn.disabled = true; }
@@ -954,7 +876,7 @@ if(denemeForm) {
             denemeForm.reset();
             const modalEl = document.getElementById('denemeModal');
             if(modalEl) { const modal = bootstrap.Modal.getInstance(modalEl); if(modal) modal.hide(); }
-            loadDenemeler(); loadSonDenemelerAnalizi(); compareSelectedTarget();
+            loadDenemeler(); loadSonDenemelerAnalizi();
         } catch(error) {}
     });
 }
