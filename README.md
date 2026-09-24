@@ -9,3 +9,9 @@
 - Kullanıcıya gösterilen ödev durumları Türkçe, Firestore'da saklanan teknik durum enumları değişmez.
 - Admin veri temizleme, diğer deneme/OBP/son beş ve ödev parametreleri korunmuştur. Firestore Rules ödev silme/düzenlemeye izin vermiyorsa ilgili işlem engellenir.
 - Sözdizimi ve yerel örnek veri kontrolleri yapılmıştır; canlı Firebase ve gerçek cihaz testleri yapılmamıştır.
+
+
+## v9 – Hesap tutarlılığı
+- Ödev kartı, ana sayfa ve öğrenci analizinde tamamlanan ödevler tek `assignmentMetrics` hesabından alınır. Kaydedilmiş status değeri geride kalmışsa gösterim ve sayaç ayrışmaz.
+- Sonuç girilmiş eski kayıtlarda boş alanı eksikse çözülen − doğru − yanlış üzerinden hesaplanır. Geçersiz aritmetikli kayıtlar haftalık toplama dahil edilmez.
+- Eski verileri topluca değiştirmez veya silmez. Firestore üzerinde canlı test gereklidir.
