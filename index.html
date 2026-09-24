@@ -38,7 +38,6 @@
                 <small class="text-muted">Rolünüz: <span id="role-text" class="badge bg-secondary">Yükleniyor...</span></small>
             </div>
             <div>
-                <button class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#sifreDegistirModal">Şifre Değiştir</button>
                 <button id="logout-btn" class="btn btn-sm btn-outline-danger">Çıkış Yap</button>
             </div>
         </div>
@@ -52,7 +51,7 @@
             📢 <strong>Sistem Duyurusu:</strong> <span id="duyuru-text">Duyuru yükleniyor...</span>
         </div>
 
-        <!-- 1. ADMIN PANELİ -->
+        <!-- 1. ADMIN PANELİ (PARAMETRELER DAHİL EDİLDİ) -->
         <div id="admin-panel" class="card p-4 shadow-sm d-none mb-4 border-danger">
             <h5 class="text-danger border-bottom pb-2 mb-3">👑 Admin Yönetim & Denetim Paneli</h5>
             
@@ -165,7 +164,7 @@
             </form>
         </div>
 
-        <!-- 5. GENEL DENEME KARNESİ (OBP ve Küsüratlı Net Destekli) -->
+        <!-- 5. GENEL DENEME KARNESİ -->
         <div id="deneme-karnesi-card" class="card p-4 shadow-sm mb-4 border-primary">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
@@ -210,7 +209,7 @@
     </div>
 
     <!-- MODALLAR -->
-    <!-- DETAYLI DENEME GİRİŞ MODALI (Parametrik: Hızlı Net vs Detaylı D/Y) -->
+    <!-- DETAYLI DENEME GİRİŞ MODALI -->
     <div class="modal fade" id="denemeModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
@@ -390,7 +389,7 @@
                 document.getElementById('dy-' + subject + '-d').value = ""; document.getElementById('dy-' + subject + '-y').value = "";
                 document.getElementById('net-' + subject).innerText = "0.00"; return 0;
             }
-            const net = dVal - (yVal / 4); // Küsürat yuvarlanmadan bırakılır
+            const net = dVal - (yVal / 4);
             document.getElementById('net-' + subject).innerText = net.toFixed(2); return net;
         }
 
