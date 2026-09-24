@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v10.1';
+const BUILD_VERSION='v10.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:true,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='all';
@@ -195,7 +195,8 @@ function showTaskEdit(card,t){
  form.elements.assigned.value=t.assignedDate||dateISO(t.atanmaTarihi)||dateISO(t.tarih)||new Date().toLocaleDateString('sv-SE');
  form.elements.due.value=t.dueDate||dateISO(t.tarih)||new Date().toLocaleDateString('sv-SE');form.elements.note.value=t.note||'';
  form.onsubmit=async e=>{e.preventDefault();const q=parseNumber(form.elements.q.value),target=parseNumber(form.elements.target.value);
-  if(!Number.isInteger(q)||q<1||(target!==null&&(!Number.isInteger(target)||target<0||target>q))){notify('Soru/hedef geçersiz.',true);return;}
+  if(!Number.isInteger(q)||q<1){notify('Atanan soru sayısı en az 1 olan tam sayı olmalı.',true);return;}
+  if(target!==null&&(!Number.isInteger(target)||target<0||target>q)){notify('Hedef doğru 0 ile atanan soru sayısı arasında olmalı.',true);return;}
   if(form.elements.due.value<form.elements.assigned.value){notify('Bitiş tarihi veriliş tarihinden önce olamaz.',true);return;}
   // Atanan miktar hedef olduğundan, yeni hedef önceki gerçekleşmenin altında kalabilir.
   const patch={ders:form.elements.subject.value,questionCount:q,targetCorrect:target,assignedDate:form.elements.assigned.value,dueDate:form.elements.due.value,note:form.elements.note.value.trim(),editedBy:user.uid,editedAt:serverTimestamp()};
@@ -213,7 +214,8 @@ function dateISO(value){if(!value)return '';if(typeof value==='string')return va
 async function saveTask(e){
  e.preventDefault();
  const q=parseNumber($('task-q').value),target=parseNumber($('task-target').value);
- if(!Number.isInteger(q)||q<1||(target!==null&&(!Number.isInteger(target)||target<0||target>q))){notify('Soru sayısı / hedef geçersiz.',true);return;}
+ if(!Number.isInteger(q)||q<1){notify('Atanan soru sayısı en az 1 olan tam sayı olmalı.',true);return;}
+ if(target!==null&&(!Number.isInteger(target)||target<0||target>q)){notify('Hedef doğru, atanan soru sayısını aşamaz. Hedef alanını boş da bırakabilirsin.',true);return;}
  const submit=e.submitter;if(submit)submit.disabled=true;
  try{
   const subject=$('task-subject').value;
@@ -233,7 +235,45 @@ async function saveTask(e){
  finally{if(submit)submit.disabled=false;}
 }
 
-function showTaskResult(card,t){const old=card.querySelector('.task-editor');if(old){old.remove();return}const editor=E('form',{className:'task-editor'});editor.innerHTML=`<h3>Ödev sonucu</h3><p>Atanan ${t.questionCount} soru minimum tamamlanma hedefidir; daha az ya da daha fazla soru girebilirsin. Boşlar, çözdüğün çalışmada işaretsiz bıraktığın sorulardır; eksik ödev miktarı değildir.</p><div class="grid"><label>Çözülen soru<input name="attempted" type="number" min="0" step="1" value="${t.result?.attempted??''}" required></label><label>Doğru<input name="correct" type="number" min="0" step="1" value="${t.result?.correct??''}" required></label><label>Yanlış<input name="wrong" type="number" min="0" step="1" value="${t.result?.wrong??''}" required></label></div><div class="summary" id="task-result-preview">Sonuç değerlerini gir.</div><label>Çözüm tarihi<input name="resultDate" type="date" required></label><button class="primary">Sonucu kaydet</button>`;editor.elements.resultDate.value=t.resultDate||dateISO(t.resultUpdatedAt)||new Date().toLocaleDateString('sv-SE');const preview=()=>{const a=parseNumber(editor.elements.attempted.value),d=parseNumber(editor.elements.correct.value),w=parseNumber(editor.elements.wrong.value);editor.querySelector('#task-result-preview').textContent=[a,d,w].every(Number.isInteger)&&a>=0&&d>=0&&w>=0&&d+w<=a?`Çözülen: ${a}/${t.questionCount} · ${format(a/t.questionCount*100)}% · ${a>=t.questionCount?'Tamamlandı':'Eksik'} · Boş: ${a-d-w} · Net: ${format(d-w/4)}`:'Çözülen, doğru ve yanlış değerlerini kontrol et.';};['attempted','correct','wrong'].forEach(key=>editor.elements[key].addEventListener('input',preview));preview();editor.onsubmit=async e=>{e.preventDefault();const a=parseNumber(editor.elements.attempted.value),d=parseNumber(editor.elements.correct.value),w=parseNumber(editor.elements.wrong.value);if(![a,d,w].every(Number.isInteger)||a<0||d<0||w<0||d+w>a){notify('Ödev soru sayıları geçersiz.',true);return}const finished=a>=Number(t.questionCount);try{await updateDoc(doc(db,'Assignments',t.id),{result:{attempted:a,correct:d,wrong:w,blank:a-d-w,remaining:Math.max(0,t.questionCount-a),net:d-w/4,updatedBy:user.uid},status:finished?(t.review?'reviewed':'completed'):'in_progress',resultDate:editor.elements.resultDate.value,resultUpdatedAt:serverTimestamp()});notify('Ödev sonucu kaydedildi.')}catch(err){notify('Ödev sonucu kaydedilemedi: '+err.message,true)}};card.append(editor)}
+function validateAssignmentResult(a,d,w){
+ if(![a,d,w].every(Number.isInteger)||a<0||d<0||w<0)return 'Çözülen, doğru ve yanlış alanlarına sıfır veya pozitif tam sayı gir.';
+ if(d+w>a)return `Doğru (${d}) + yanlış (${w}) = ${d+w}. Çözülen soru sayısı en az ${d+w} olmalı; atanan soru sayısına bağlı bir üst sınır yok.`;
+ return '';
+}
+function showTaskResult(card,t){
+ const old=card.querySelector('.task-editor');if(old){old.remove();return;}
+ const editor=E('form',{className:'task-editor'});
+ const existing=t.result||{};
+ const priorActual=existing.attempted??(Number.isFinite(Number(existing.correct))&&Number.isFinite(Number(existing.wrong))&&Number.isFinite(Number(existing.blank))?Number(existing.correct)+Number(existing.wrong)+Number(existing.blank):'');
+ editor.innerHTML=`<h3>Ödev sonucu</h3><p><strong>Atanan: ${esc(t.questionCount)} soru.</strong> Daha az veya daha çok çözebilirsin; atanan miktar üst sınır değildir. Çözülen, doğru + yanlış + boş toplamıdır. Eksik kalan ödev soruları “boş” sayılmaz.</p><div class="grid"><label>Çözülen toplam soru<input name="attempted" type="number" min="0" step="1" value="${esc(priorActual)}" required></label><label>Doğru<input name="correct" type="number" min="0" step="1" value="${esc(existing.correct??'')}" required></label><label>Yanlış<input name="wrong" type="number" min="0" step="1" value="${esc(existing.wrong??'')}" required></label></div><div class="summary" id="task-result-preview">Sonuç değerlerini gir.</div><label>Çözüm tarihi<input name="resultDate" type="date" required></label><button class="primary">Sonucu kaydet</button>`;
+ editor.elements.resultDate.value=t.resultDate||dateISO(t.resultUpdatedAt)||new Date().toLocaleDateString('sv-SE');
+ const read=()=>[parseNumber(editor.elements.attempted.value),parseNumber(editor.elements.correct.value),parseNumber(editor.elements.wrong.value)];
+ const preview=()=>{
+  const [a,d,w]=read(),message=validateAssignmentResult(a,d,w),host=editor.querySelector('#task-result-preview');
+  if(message){host.textContent=message;return;}
+  host.textContent=`Çözülen: ${a}/${t.questionCount} · ${format(a/Number(t.questionCount)*100)}% · ${a>=Number(t.questionCount)?(a>Number(t.questionCount)?'Tamamlandı · Hedef üstü':'Tamamlandı'):'Eksik'} · Boş: ${a-d-w} · Net: ${format(d-w/4)}`;
+ };
+ // As correct/wrong totals increase, bring solved total up to the minimum
+ // instead of rejecting an extra-work result with the old assigned amount.
+ const expandAttempted=()=>{
+  const d=parseNumber(editor.elements.correct.value),w=parseNumber(editor.elements.wrong.value),a=parseNumber(editor.elements.attempted.value);
+  if(Number.isInteger(d)&&Number.isInteger(w)&&d>=0&&w>=0&&(a===null||a<d+w))editor.elements.attempted.value=String(d+w);
+  preview();
+ };
+ editor.elements.attempted.addEventListener('input',preview);
+ editor.elements.correct.addEventListener('input',expandAttempted);
+ editor.elements.wrong.addEventListener('input',expandAttempted);
+ preview();
+ editor.onsubmit=async e=>{
+  e.preventDefault();const [a,d,w]=read(),message=validateAssignmentResult(a,d,w);
+  if(message){notify(message,true);return;}
+  const finished=a>=Number(t.questionCount),submit=e.submitter;if(submit)submit.disabled=true;
+  try{await updateDoc(doc(db,'Assignments',t.id),{result:{attempted:a,correct:d,wrong:w,blank:a-d-w,remaining:Math.max(0,Number(t.questionCount)-a),net:d-w/4,updatedBy:user.uid},status:finished?(t.review?'reviewed':'completed'):'in_progress',resultDate:editor.elements.resultDate.value,resultUpdatedAt:serverTimestamp()});notify('Ödev sonucu kaydedildi.');}
+  catch(err){notify('Ödev sonucu kaydedilemedi: '+err.message,true);}
+  finally{if(submit)submit.disabled=false;}
+ };
+ card.append(editor);
+}
 function showTaskReview(card,t){const old=card.querySelector('.review-editor');if(old){old.remove();return}const form=E('form',{className:'review-editor'});form.innerHTML='<label>Ödev değerlendirmesi<textarea name="review" rows="3" required></textarea></label><button class="primary">Değerlendirmeyi kaydet</button>';form.elements.review.value=t.review||'';form.onsubmit=async e=>{e.preventDefault();try{await updateDoc(doc(db,'Assignments',t.id),{review:form.elements.review.value.trim(),reviewedBy:user.uid,reviewedByRole:role,reviewedAt:serverTimestamp(),status:assignmentMetrics(t).complete?'reviewed':t.status});notify('Değerlendirme kaydedildi.')}catch(err){notify(err.message,true)}};card.append(form)}
 function weeklyDate(value){const iso=dateISO(value);return /^\d{4}-\d\d-\d\d$/.test(iso)?iso:null;}
 function weekBounds(value){const anchor=new Date(value+'T12:00:00');if(Number.isNaN(+anchor))return null;const mon=new Date(anchor);mon.setDate(mon.getDate()-((mon.getDay()+6)%7));const sun=new Date(mon);sun.setDate(sun.getDate()+6);return [mon.toLocaleDateString('sv-SE'),sun.toLocaleDateString('sv-SE')];}

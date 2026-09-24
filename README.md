@@ -20,3 +20,11 @@
 - v9 erroneously shipped app.js?v=weekly-v8, so older browsers/CDNs could keep serving v8 despite uploaded v9 code. All index assets now carry v10-1. Confirm browser tab title v10.1 and app.js?v=v10-1 on deployed page.
 - Completion uses one metric for cards, home and analysis; historical completed/reviewed status is a fallback only for legacy records without usable numerical totals. Cancelled items never count.
 - No Firestore records are changed, deleted or migrated. Deploy all 7 files to the *published GitHub Pages branch/folder*, and check that index.html has v10-1; if a different build is served, a new ZIP cannot fix the running site.
+
+
+## v10.2 – Ödev sonuç girişinin netleştirilmesi
+- Atanan soru sayısı üst sınır değildir; 8/20, 20/20, 35/20 kayıtları geçerlidir.
+- Doğru/yanlış girerken bunların toplamı çözülen alanını aşarsa çözülen alanı otomatik en az bu toplama yükseltilir. Gerekirse öğrenci toplamı daha da yükselterek boşları gösterebilir.
+- Kullanıcı çözülen sayısını sonradan D+Y altına indirirse sayısal örnekli açıklama gösterilir; Firebase'e çelişkili sonuç kaydedilmez.
+- Atanan soru ve hedef doğru girişinin hataları ayrıştırıldı. Hedef doğru en fazla atanmış soru adedi olabilir; öğrencinin gerçek doğru sayısı atanmış soru adedini geçebilir.
+- Firestore şeması, hesap göstergeleri ve geçmiş veriler değiştirilmez. Gerçek Firebase üzerinde henüz test yapılmamıştır.
