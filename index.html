@@ -5,8 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>YKS Koçluk Takip & İletişim Portalı</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" crossorigin="anonymous">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .modal:not(.show) { display: none !important; }
+        .grid-btn { width: 45px; height: 45px; font-weight: bold; font-size: 14px; margin: 4px; border-radius: 8px; transition: all 0.2s ease; }
         .dy-input { width: 60px; display: inline-block; text-align: center; font-weight: bold; }
         .net-badge { width: 65px; display: inline-block; text-align: center; }
         .deneme-badge { font-size: 0.82rem; margin-right: 4px; margin-bottom: 4px; display: inline-block; }
@@ -19,14 +21,8 @@
         <div class="card p-4 shadow-sm" style="width: 100%; max-width: 400px;">
             <h3 class="text-center text-primary mb-4">YKS Portal Giriş</h3>
             <form id="login-form">
-                <div class="mb-3">
-                    <label class="form-label">E-Posta Adresi</label>
-                    <input type="email" id="email" class="form-control" required>
-                </div>
-                <div class="mb-3">
-                    <label class="form-label">Şifre</label>
-                    <input type="password" id="password" class="form-control" required>
-                </div>
+                <div class="mb-3"><label class="form-label">E-Posta Adresi</label><input type="email" id="email" class="form-control" required></div>
+                <div class="mb-3"><label class="form-label">Şifre</label><input type="password" id="password" class="form-control" required></div>
                 <div id="error-msg" class="text-danger mb-3 d-none">Hatalı e-posta veya şifre!</div>
                 <button type="submit" class="btn btn-primary w-100 py-2">Giriş Yap</button>
             </form>
@@ -39,52 +35,106 @@
         <div class="d-flex justify-content-between align-items-center mb-3 p-3 bg-white rounded shadow-sm border-bottom border-primary border-3">
             <div>
                 <h4 id="welcome-text" class="mb-1 text-primary">Hoş Geldin!</h4>
-                <small class="text-muted">Sistem Rolünüz: <span id="role-text" class="badge bg-secondary">Yükleniyor...</span></small>
+                <small class="text-muted">Rolünüz: <span id="role-text" class="badge bg-secondary">Yükleniyor...</span></small>
             </div>
             <div>
+                <button class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal" data-bs-target="#sifreDegistirModal">Şifre Değiştir</button>
                 <button id="logout-btn" class="btn btn-sm btn-outline-danger">Çıkış Yap</button>
             </div>
         </div>
 
-        <!-- ADMIN PANELİ (SADECE ADMIN GÖRÜR) -->
-        <div id="admin-panel" class="card p-4 shadow-sm mb-4 border-danger d-none">
-            <h5 class="text-danger border-bottom pb-2 mb-3">👑 Admin & Ayarlar Paneli</h5>
-            <div class="alert alert-warning py-2 mb-0">Sistemdeki test verilerini sıfırlama ve duyuru yönetimi buraya eklenecek.</div>
+        <div id="motivation-banner" class="alert alert-success p-3 mb-4 d-none shadow-sm border-success">
+            <h5 class="alert-heading fw-bold mb-1">👏 Harika Bir Gün YKS Şampiyonu!</h5>
+            <p class="mb-0 fs-6">"Gelecek, bugün ne yaptığına bağlıdır. Hayallerin için bir adım daha at!"</p>
         </div>
 
-        <!-- ÖĞRETMEN / KOÇ ÖDEV ATAMA PANELİ -->
-        <div id="teacher-assign-panel" class="card p-4 shadow-sm mb-4 border-success d-none">
-            <h5 class="text-success border-bottom pb-2 mb-3">📌 Koçluk & Ödev/Hedef Yönetimi</h5>
-            <p class="text-muted small">Öğrencinin YÖK Atlas analizlerine bakarak bu alandan eksik konuları için ödev atayabilirsiniz.</p>
-            <button class="btn btn-outline-success w-100">Yeni Ödev/Hedef Ata (Geliştirilecek)</button>
+        <div id="duyuru-banner" class="alert alert-warning py-2 mb-4 d-none" role="alert">
+            📢 <strong>Sistem Duyurusu:</strong> <span id="duyuru-text">Duyuru yükleniyor...</span>
         </div>
 
-        <!-- YÖK ATLAS NET SİHİRBAZI & HEDEF KARŞILAŞTIRMA (HERKES GÖRÜR) -->
-        <div class="card p-4 shadow-sm mb-4 border-info">
-            <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
-                <div>
-                    <h5 class="text-info text-dark mb-0">🎯 YÖK Atlas Net Sihirbazı & Hedef Karşılaştırma</h5>
-                    <small class="text-muted">Son yerleşen aday netleri ile öğrencinin son deneme sonucunu karşılaştırın.</small>
+        <!-- 1. ADMIN PANELİ -->
+        <div id="admin-panel" class="card p-4 shadow-sm d-none mb-4 border-danger">
+            <h5 class="text-danger border-bottom pb-2 mb-3">👑 Admin Yönetim & Denetim Paneli</h5>
+            
+            <div class="card p-3 mb-4 bg-light border border-danger">
+                <h6 class="fw-bold text-danger mb-3">⚙️ Sistem Parametreleri</h6>
+                <div class="form-check form-switch d-flex justify-content-between align-items-center ps-0 mb-3 border-bottom pb-2">
+                    <label class="form-check-label fw-bold" for="student-mode-switch">🌱 Öğrenci Ekranı Detaylı Modu (Tüm Analizleri Görsün)</label>
+                    <input class="form-check-input" type="checkbox" role="switch" id="student-mode-switch" style="width: 3em; height: 1.5em; cursor: pointer;">
+                </div>
+                <div class="form-check form-switch d-flex justify-content-between align-items-center ps-0 mb-3 border-bottom pb-2">
+                    <label class="form-check-label fw-bold" for="matrix-input-switch">🔘 Öğrenci Soru İzgarası (Tıklamalı Hata Defteri Modu) Aktif</label>
+                    <input class="form-check-input" type="checkbox" role="switch" id="matrix-input-switch" style="width: 3em; height: 1.5em; cursor: pointer;">
                 </div>
             </div>
-            
+
+            <div class="row">
+                <div class="col-md-8 mb-3">
+                    <form id="admin-duyuru-form">
+                        <div class="input-group">
+                            <input type="text" id="admin-duyuru-input" class="form-control" placeholder="Tüm kullanıcılara duyuru yayınla..." required>
+                            <button type="submit" class="btn btn-primary">Yayınla</button>
+                        </div>
+                    </form>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <button class="btn btn-outline-danger w-100" data-bs-toggle="modal" data-bs-target="#resetConfirmModal">Tüm Test Verilerini Sıfırla</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. ÖĞRETMEN / KOÇ ÖDEV ATAMA PANELİ -->
+        <div id="teacher-assign-panel" class="card p-4 shadow-sm d-none mb-4 border-success">
+            <h5 class="text-success border-bottom pb-2 mb-3">📌 Koçluk & Ödev/Hedef Yönetimi</h5>
+            <form id="assignment-form" class="mb-4 bg-light p-3 rounded border">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Ders</label>
+                        <select id="assignment-ders" class="form-select" required>
+                            <option value="">Seçiniz...</option>
+                            <option value="Matematik">Matematik</option><option value="Geometri">Geometri</option>
+                            <option value="Türkçe">Türkçe / Edebiyat</option><option value="Fizik">Fizik</option>
+                            <option value="Kimya">Kimya</option><option value="Biyoloji">Biyoloji</option>
+                            <option value="Tarih">Tarih</option><option value="Coğrafya">Coğrafya</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label fw-bold">Kaynak / Kitap Adı</label>
+                        <input type="text" id="assignment-kitap" class="form-control" placeholder="Örn: 3D TYT Matematik" required>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Konu / Test Adı</label>
+                        <input type="text" id="assignment-konu-input" class="form-control" placeholder="Örn: Türev Test 1-5" required>
+                    </div>
+                    <div class="col-md-2 mb-3">
+                        <label class="form-label fw-bold">Son Tarih</label>
+                        <input type="date" id="assignment-date" class="form-control" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Hedef / Ödev Ata</button>
+            </form>
+            <h6 class="text-secondary fw-bold mb-2">📋 Atanan Ödevler ve Durumları</h6>
+            <ul id="teacher-assignment-list" class="list-group"><li class="list-group-item text-muted">Yükleniyor...</li></ul>
+        </div>
+
+        <!-- 3. ÖĞRENCİ ÖDEVLERİM KARTI -->
+        <div id="student-assignment-card" class="card p-4 shadow-sm mb-4 border-warning d-none">
+            <h5 class="text-warning text-dark border-bottom pb-2 mb-3">📌 Bana Atanan Ödevler / Hedefler</h5>
+            <ul id="student-assignment-list" class="list-group"><li class="list-group-item text-muted">Ödevler yükleniyor...</li></ul>
+        </div>
+
+        <!-- 4. YÖK ATLAS HEDEF KARŞILAŞTIRMA MODÜLÜ -->
+        <div id="yokatlas-panel" class="card p-4 shadow-sm mb-4 border-info">
+            <h5 class="text-info text-dark border-bottom pb-2 mb-3">🎯 YÖK Atlas Net Sihirbazı & Hedef Karşılaştırma</h5>
             <div class="row mb-3">
                 <div class="col-md-2 mb-2">
                     <label class="form-label fw-bold">Yıl</label>
-                    <select id="hedef-yil" class="form-select border-info">
-                        <option value="2026">2026</option>
-                        <option value="2025" selected>2025</option>
-                    </select>
+                    <select id="hedef-yil" class="form-select border-info"><option value="2025" selected>2025</option></select>
                 </div>
                 <div class="col-md-3 mb-2">
                     <label class="form-label fw-bold">Puan Türü</label>
                     <select id="hedef-puan-turu" class="form-select border-info">
-                        <option value="">Tümü</option>
-                        <option value="SAY">SAY (Sayısal)</option>
-                        <option value="EA">EA (Eşit Ağırlık)</option>
-                        <option value="SÖZ">SÖZ (Sözel)</option>
-                        <option value="DİL">DİL (Yabancı Dil)</option>
-                        <option value="TYT">TYT</option>
+                        <option value="SAY">SAY</option><option value="EA">EA</option><option value="SÖZ">SÖZ</option><option value="DİL">DİL</option>
                     </select>
                 </div>
                 <div class="col-md-5 mb-2">
@@ -97,217 +147,207 @@
                         <option value="odtu-ing">ODTÜ - İngilizce Öğretmenliği (DİL)</option>
                     </select>
                 </div>
-                <div class="col-md-2 mb-2 d-flex align-items-end">
-                    <button class="btn btn-info text-white w-100 fw-bold" onclick="hedefKarsilastir()">Analiz Et</button>
-                </div>
+                <div class="col-md-2 mb-2 d-flex align-items-end"><button class="btn btn-info text-white w-100 fw-bold" onclick="hedefKarsilastir()">Analiz Et</button></div>
             </div>
-
-            <!-- Referans Aday Bilgileri -->
             <div id="referans-bilgi-alani" class="alert alert-secondary d-none mb-3">
-                <strong>Son Yerleşen Aday Bilgileri:</strong> 
-                <span id="ref-yil-turu" class="badge bg-dark mx-1">-</span>
-                Katsayı Durumu: <strong id="ref-katsayi" class="text-primary">-</strong> | 
-                Adayın OBP'si: <strong id="ref-obp" class="text-primary">-</strong>
+                <strong>Referans:</strong> <span id="ref-yil-turu" class="badge bg-dark mx-1">-</span>
+                Katsayı: <strong id="ref-katsayi" class="text-primary">-</strong> | OBP: <strong id="ref-obp" class="text-primary">-</strong>
             </div>
-
             <div class="table-responsive d-none" id="karsilastirma-container">
                 <table class="table table-bordered table-striped text-center align-middle mb-0">
-                    <thead class="table-info">
-                        <tr>
-                            <th>Ders Branşı</th>
-                            <th>Öğrenci Neti (Son Deneme)</th>
-                            <th>Referans Net (YÖK Atlas)</th>
-                            <th>Fark Durumu</th>
-                        </tr>
-                    </thead>
-                    <tbody id="karsilastirma-body">
-                        <!-- JS ile dinamik dolacak -->
-                    </tbody>
+                    <thead class="table-info"><tr><th>Ders Branşı</th><th>Senin Son Netin</th><th>YÖK Atlas Neti</th><th>Durum</th></tr></thead>
+                    <tbody id="karsilastirma-body"></tbody>
                 </table>
-                <small class="text-muted mt-2 d-block">* Bu tablo kesin yerleşme garantisi vermez; gelişim takibi ve koçluk analizi içindir.</small>
             </div>
         </div>
 
-        <!-- DENEME KARNESİ (HERKES GÖRÜR, SADECE ÖĞRENCİ/ADMIN DENEME EKLER) -->
+        <!-- 5. ÖĞRENCİ BİREYSEL SORU BANKASI / TEST GİRİŞİ -->
+        <div id="student-panel" class="card p-4 shadow-sm d-none mb-4 border-success">
+            <h5 class="text-success border-bottom pb-2 mb-3">📚 Günlük Soru Bankası Çözüm Girişi</h5>
+            <form id="test-entry-form">
+                <div class="row">
+                    <div class="col-md-3 mb-3">
+                        <label class="form-label fw-bold">Ders</label>
+                        <select id="ders" class="form-select" required>
+                            <option value="">Seçiniz...</option>
+                            <option value="Matematik">Matematik</option><option value="Geometri">Geometri</option>
+                            <option value="Türkçe">Türkçe</option><option value="Fizik">Fizik</option>
+                            <option value="Kimya">Kimya</option><option value="Biyoloji">Biyoloji</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5 mb-3"><label class="form-label fw-bold">Kitap / Yayın</label><input type="text" id="kaynak-kitap" class="form-control" placeholder="Örn: 3D Soru Bankası" required></div>
+                    <div class="col-md-4 mb-3"><label class="form-label fw-bold">Konu / Test</label><input type="text" id="konu" class="form-control" placeholder="Örn: Fonksiyonlar Test 2" required></div>
+                </div>
+
+                <div id="matrix-input-section" class="card p-3 mb-3 bg-light border-success">
+                    <div class="row align-items-center mb-3">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label fw-bold text-success mb-1">Soru Sayısı</label>
+                            <select id="total-question-count" class="form-select fw-bold border-success" onchange="generateQuestionGrid(this.value)">
+                                <option value="10">10</option><option value="12" selected>12</option><option value="15">15</option><option value="20">20</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-2"><label class="form-label fw-bold text-primary mb-1">Süre (Dk)</label><input type="number" id="sure" class="form-control fw-bold border-primary" min="1" required></div>
+                    </div>
+                    <label class="form-label small fw-bold text-secondary mb-2">Soru Durumlarını Tıklayarak Değiştirin (1 Tık: Yanlış, 2 Tık: Boş)</label>
+                    <div id="question-grid-container" class="d-flex flex-wrap p-2 bg-white rounded border mb-3"></div>
+                </div>
+
+                <div id="manual-input-section" class="row d-none">
+                    <div class="col-md-3 col-6 mb-3"><label class="form-label text-success fw-bold">Doğru</label><input type="number" id="dogru" class="form-control" min="0" value="0"></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="form-label text-danger fw-bold">Yanlış</label><input type="number" id="yanlis" class="form-control" min="0" value="0"></div>
+                    <div class="col-md-3 col-6 mb-3"><label class="form-label text-secondary fw-bold">Boş</label><input type="number" id="bos" class="form-control" min="0" value="0"></div>
+                </div>
+
+                <button type="submit" class="btn btn-success w-100 py-2 fw-bold">Test Sonucunu Kaydet</button>
+            </form>
+        </div>
+
+        <!-- 6. GENEL DENEME KARNESİ -->
         <div id="deneme-karnesi-card" class="card p-4 shadow-sm mb-4 border-primary">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
                     <h5 class="text-primary mb-0">📊 Genel Deneme Karnesi & YKS Puan Simülasyonu</h5>
-                    <small class="text-muted">Öğrencinin hesaplanan sınav ve OBP yerleştirme puanları</small>
+                    <small class="text-muted">Girilen denemeler ve hesaplanan yerleştirme puanları</small>
                 </div>
-                <button id="yeni-deneme-btn" class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#denemeModal">+ Yeni Deneme Sonucu Ekle</button>
+                <button id="yeni-deneme-btn" class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#denemeModal">+ Yeni Deneme Ekle</button>
             </div>
-
             <div class="table-responsive">
                 <table class="table table-bordered table-striped text-center align-middle mb-0">
-                    <thead class="table-dark">
-                        <tr>
-                            <th style="width: 20%;">Deneme Adı / Tür</th>
-                            <th style="width: 45%;">Ders Netleri Detayı</th>
-                            <th style="width: 10%;">Toplam Net</th>
-                            <th style="width: 12%;">Tahmini Ham Puan</th>
-                            <th style="width: 13%;">Tahmini Y-Puan (OBP'li)</th>
-                        </tr>
-                    </thead>
-                    <tbody id="deneme-list-table">
-                        <tr><td colspan='5' class='text-center text-muted py-3'>Yükleniyor...</td></tr>
-                    </tbody>
+                    <thead class="table-dark"><tr><th>Deneme Adı / Tür</th><th>Ders Netleri Detayı</th><th>Toplam Net</th><th>Tahmini Y-Puan</th></tr></thead>
+                    <tbody id="deneme-list-table"><tr><td colspan='4' class='text-muted'>Yükleniyor...</td></tr></tbody>
                 </table>
+            </div>
+        </div>
+
+        <!-- 7. DETAYLI ANALİZ PANELİ (Veli, Öğretmen, Admin, ve Yetkili Öğrenci Görür) -->
+        <div id="analiz-panel" class="card p-4 shadow-sm mb-4 border-dark d-none">
+            <h5 class="text-dark fw-bold border-bottom pb-2 mb-3">📈 Bireysel Soru Bankası Gelişim & Zayıf Konu Analizi</h5>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <h6 class="fw-bold text-secondary">📋 Zayıf Konu Analizi (<%65 Başarı)</h6>
+                    <ul id="zayif-konular-listesi" class="list-group list-group-flush border rounded bg-white" style="max-height: 250px; overflow-y: auto;">
+                        <li class="list-group-item text-muted small py-2">Veri bekleniyor...</li>
+                    </ul>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <h6 class="fw-bold text-secondary">📊 Net Gelişim Grafiği (Bireysel Testler)</h6>
+                    <div style="position: relative; height:250px; width:100%"><canvas id="netChart"></canvas></div>
+                </div>
             </div>
         </div>
 
     </div>
 
-    <!-- DETAYLI DENEME MODALI -->
+    <!-- MODALLAR -->
+    <!-- DETAYLI DENEME GİRİŞ MODALI (YÖK Atlas Uyumlu D/Y Formu) -->
     <div class="modal fade" id="denemeModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">📝 Yeni Deneme Sınavı Sonucu Ekle (D/Y Girişi)</h5>
+                    <h5 class="modal-title">📝 Yeni Deneme Sınavı (D/Y Girişi)</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
                 </div>
                 <div class="modal-body">
                     <form id="deneme-form">
                         <div class="row">
-                            <div class="col-md-5 mb-3">
-                                <label class="form-label fw-bold">Deneme Sınav Adı</label>
-                                <input type="text" id="deneme-adi" class="form-control" placeholder="Örn: 3D Türkiye Geneli" required>
-                            </div>
+                            <div class="col-md-5 mb-3"><label class="form-label fw-bold">Deneme Adı</label><input type="text" id="deneme-adi" class="form-control" required></div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label fw-bold">Puan Türü</label>
                                 <select id="deneme-turu" class="form-select fw-bold text-primary" onchange="denemeTuruDegisti()" required>
-                                    <option value="TYT">TYT</option>
-                                    <option value="SAY">SAY (Sayısal)</option>
-                                    <option value="EA">EA (Eşit Ağırlık)</option>
-                                    <option value="SOZ">SÖZ (Sözel)</option>
-                                    <option value="DIL">DİL (Yabancı Dil)</option>
+                                    <option value="TYT">TYT</option><option value="SAY">SAY</option><option value="EA">EA</option><option value="SOZ">SÖZ</option><option value="DIL">DİL</option>
                                 </select>
                             </div>
-                            <div class="col-md-4 mb-3">
-                                <label class="form-label fw-bold text-success">Diploma Notu / OBP (Opsiyonel)</label>
-                                <input type="number" id="ogrenci-obp" class="form-control border-success" placeholder="Örn: 85 (Diploma) veya 425 (OBP)" max="500">
-                                <small class="text-muted">Yerleştirme puanı tahmini için.</small>
-                            </div>
+                            <div class="col-md-4 mb-3"><label class="form-label fw-bold text-success">Diploma Notu (Opsiyonel)</label><input type="number" id="ogrenci-obp" class="form-control border-success"></div>
                         </div>
 
                         <!-- TYT BRANŞ NETLERİ -->
-                        <div id="deneme-fields-tyt" class="card p-3 mb-3 bg-light border-primary">
+                        <div class="card p-3 mb-3 bg-light border-primary">
                             <h6 class="text-primary fw-bold mb-2">📌 TYT Dersleri</h6>
-                            <div class="row text-center fw-bold small text-muted mb-2">
-                                <div class="col-3">Türkçe (40S)</div><div class="col-3">Sosyal (20S)</div>
-                                <div class="col-3">Matematik (40S)</div><div class="col-3">Fen (20S)</div>
-                            </div>
                             <div class="row text-center">
                                 <div class="col-3">
-                                    <input type="number" id="dy-tyt-turkce-d" class="form-control dy-input border-success" placeholder="D" min="0" max="40" oninput="calcNet('tyt-turkce', 40)">
-                                    <input type="number" id="dy-tyt-turkce-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="40" oninput="calcNet('tyt-turkce', 40)">
-                                    <span id="net-tyt-turkce" class="badge bg-primary net-badge fs-6 mt-1">0.00</span>
+                                    <div class="small fw-bold text-muted mb-1">Türkçe (40)</div>
+                                    <input type="number" id="dy-tyt-turkce-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-turkce', 40)"><input type="number" id="dy-tyt-turkce-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-turkce', 40)">
+                                    <span id="net-tyt-turkce" class="badge bg-primary net-badge mt-1">0.00</span>
                                 </div>
                                 <div class="col-3">
-                                    <input type="number" id="dy-tyt-sosyal-d" class="form-control dy-input border-success" placeholder="D" min="0" max="20" oninput="calcNet('tyt-sosyal', 20)">
-                                    <input type="number" id="dy-tyt-sosyal-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="20" oninput="calcNet('tyt-sosyal', 20)">
-                                    <span id="net-tyt-sosyal" class="badge bg-primary net-badge fs-6 mt-1">0.00</span>
+                                    <div class="small fw-bold text-muted mb-1">Sosyal (20)</div>
+                                    <input type="number" id="dy-tyt-sosyal-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-sosyal', 20)"><input type="number" id="dy-tyt-sosyal-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-sosyal', 20)">
+                                    <span id="net-tyt-sosyal" class="badge bg-primary net-badge mt-1">0.00</span>
                                 </div>
                                 <div class="col-3">
-                                    <input type="number" id="dy-tyt-mat-d" class="form-control dy-input border-success" placeholder="D" min="0" max="40" oninput="calcNet('tyt-mat', 40)">
-                                    <input type="number" id="dy-tyt-mat-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="40" oninput="calcNet('tyt-mat', 40)">
-                                    <span id="net-tyt-mat" class="badge bg-primary net-badge fs-6 mt-1">0.00</span>
+                                    <div class="small fw-bold text-muted mb-1">Matematik (40)</div>
+                                    <input type="number" id="dy-tyt-mat-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-mat', 40)"><input type="number" id="dy-tyt-mat-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-mat', 40)">
+                                    <span id="net-tyt-mat" class="badge bg-primary net-badge mt-1">0.00</span>
                                 </div>
                                 <div class="col-3">
-                                    <input type="number" id="dy-tyt-fen-d" class="form-control dy-input border-success" placeholder="D" min="0" max="20" oninput="calcNet('tyt-fen', 20)">
-                                    <input type="number" id="dy-tyt-fen-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="20" oninput="calcNet('tyt-fen', 20)">
-                                    <span id="net-tyt-fen" class="badge bg-primary net-badge fs-6 mt-1">0.00</span>
+                                    <div class="small fw-bold text-muted mb-1">Fen (20)</div>
+                                    <input type="number" id="dy-tyt-fen-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-fen', 20)"><input type="number" id="dy-tyt-fen-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-fen', 20)">
+                                    <span id="net-tyt-fen" class="badge bg-primary net-badge mt-1">0.00</span>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- AYT VE YDT DERS NETLERİ -->
+                        <!-- AYT DERSLERİ (Dinamik Gizlenen) -->
                         <div id="deneme-fields-ayt" class="card p-3 mb-3 bg-light border-danger d-none">
-                            <h6 class="text-danger fw-bold mb-2">📌 Alan Dersleri (SAY/EA/SÖZ/DİL)</h6>
+                            <h6 class="text-danger fw-bold mb-2">📌 Alan Dersleri</h6>
                             <div class="row text-center">
-                                
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-mat">
-                                    <div class="small fw-bold text-muted mb-1">AYT Mat (40)</div>
-                                    <input type="number" id="dy-ayt-mat-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-mat', 40)">
-                                    <input type="number" id="dy-ayt-mat-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-mat', 40)">
-                                    <span id="net-ayt-mat" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-mat">
+                                    <div class="small fw-bold text-muted mb-1">AYT Mat (40)</div><input type="number" id="dy-ayt-mat-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-mat', 40)"><input type="number" id="dy-ayt-mat-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-mat', 40)"><span id="net-ayt-mat" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-fizik">
-                                    <div class="small fw-bold text-muted mb-1">Fizik (14)</div>
-                                    <input type="number" id="dy-ayt-fizik-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fizik', 14)">
-                                    <input type="number" id="dy-ayt-fizik-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fizik', 14)">
-                                    <span id="net-ayt-fizik" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-fizik">
+                                    <div class="small fw-bold text-muted mb-1">Fizik (14)</div><input type="number" id="dy-ayt-fizik-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fizik', 14)"><input type="number" id="dy-ayt-fizik-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fizik', 14)"><span id="net-ayt-fizik" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-kimya">
-                                    <div class="small fw-bold text-muted mb-1">Kimya (13)</div>
-                                    <input type="number" id="dy-ayt-kimya-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-kimya', 13)">
-                                    <input type="number" id="dy-ayt-kimya-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-kimya', 13)">
-                                    <span id="net-ayt-kimya" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-kimya">
+                                    <div class="small fw-bold text-muted mb-1">Kimya (13)</div><input type="number" id="dy-ayt-kimya-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-kimya', 13)"><input type="number" id="dy-ayt-kimya-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-kimya', 13)"><span id="net-ayt-kimya" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-biyo">
-                                    <div class="small fw-bold text-muted mb-1">Biyoloji (13)</div>
-                                    <input type="number" id="dy-ayt-biyo-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-biyo', 13)">
-                                    <input type="number" id="dy-ayt-biyo-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-biyo', 13)">
-                                    <span id="net-ayt-biyo" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-biyo">
+                                    <div class="small fw-bold text-muted mb-1">Biyoloji (13)</div><input type="number" id="dy-ayt-biyo-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-biyo', 13)"><input type="number" id="dy-ayt-biyo-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-biyo', 13)"><span id="net-ayt-biyo" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tde">
-                                    <div class="small fw-bold text-muted mb-1">AYT Türk Dili ve Edebiyatı (24)</div>
-                                    <input type="number" id="dy-ayt-tde-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tde', 24)">
-                                    <input type="number" id="dy-ayt-tde-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tde', 24)">
-                                    <span id="net-ayt-tde" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-tde">
+                                    <div class="small fw-bold text-muted mb-1">AYT TDE (24)</div><input type="number" id="dy-ayt-tde-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tde', 24)"><input type="number" id="dy-ayt-tde-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tde', 24)"><span id="net-ayt-tde" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tar1">
-                                    <div class="small fw-bold text-muted mb-1">Tarih-1 (10)</div>
-                                    <input type="number" id="dy-ayt-tar1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar1', 10)">
-                                    <input type="number" id="dy-ayt-tar1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar1', 10)">
-                                    <span id="net-ayt-tar1" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-tar1">
+                                    <div class="small fw-bold text-muted mb-1">Tarih-1 (10)</div><input type="number" id="dy-ayt-tar1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar1', 10)"><input type="number" id="dy-ayt-tar1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar1', 10)"><span id="net-ayt-tar1" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-cog1">
-                                    <div class="small fw-bold text-muted mb-1">Coğrafya-1 (6)</div>
-                                    <input type="number" id="dy-ayt-cog1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog1', 6)">
-                                    <input type="number" id="dy-ayt-cog1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog1', 6)">
-                                    <span id="net-ayt-cog1" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-cog1">
+                                    <div class="small fw-bold text-muted mb-1">Coğrafya-1 (6)</div><input type="number" id="dy-ayt-cog1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog1', 6)"><input type="number" id="dy-ayt-cog1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog1', 6)"><span id="net-ayt-cog1" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tar2">
-                                    <div class="small fw-bold text-muted mb-1">Tarih-2 (11)</div>
-                                    <input type="number" id="dy-ayt-tar2-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar2', 11)">
-                                    <input type="number" id="dy-ayt-tar2-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar2', 11)">
-                                    <span id="net-ayt-tar2" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-tar2">
+                                    <div class="small fw-bold text-muted mb-1">Tarih-2 (11)</div><input type="number" id="dy-ayt-tar2-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar2', 11)"><input type="number" id="dy-ayt-tar2-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar2', 11)"><span id="net-ayt-tar2" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-cog2">
-                                    <div class="small fw-bold text-muted mb-1">Coğrafya-2 (11)</div>
-                                    <input type="number" id="dy-ayt-cog2-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog2', 11)">
-                                    <input type="number" id="dy-ayt-cog2-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog2', 11)">
-                                    <span id="net-ayt-cog2" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-cog2">
+                                    <div class="small fw-bold text-muted mb-1">Coğrafya-2 (11)</div><input type="number" id="dy-ayt-cog2-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog2', 11)"><input type="number" id="dy-ayt-cog2-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog2', 11)"><span id="net-ayt-cog2" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-fels">
-                                    <div class="small fw-bold text-muted mb-1">AYT Felsefe Grubu (12)</div>
-                                    <input type="number" id="dy-ayt-fels-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fels', 12)">
-                                    <input type="number" id="dy-ayt-fels-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fels', 12)">
-                                    <span id="net-ayt-fels" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-fels">
+                                    <div class="small fw-bold text-muted mb-1">Felsefe Grb (12)</div><input type="number" id="dy-ayt-fels-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fels', 12)"><input type="number" id="dy-ayt-fels-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fels', 12)"><span id="net-ayt-fels" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-                                <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-din">
-                                    <div class="small fw-bold text-muted mb-1">Din (6)</div>
-                                    <input type="number" id="dy-ayt-din-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-din', 6)">
-                                    <input type="number" id="dy-ayt-din-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-din', 6)">
-                                    <span id="net-ayt-din" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-3 mb-3 d-none" id="box-ayt-din">
+                                    <div class="small fw-bold text-muted mb-1">Din (6)</div><input type="number" id="dy-ayt-din-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-din', 6)"><input type="number" id="dy-ayt-din-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-din', 6)"><span id="net-ayt-din" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
-
-                                <div class="col-md-6 mb-3 d-none" id="box-ydt-dil">
-                                    <div class="small fw-bold text-muted mb-1">YDT Yabancı Dil (80)</div>
-                                    <input type="number" id="dy-ydt-dil-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ydt-dil', 80)">
-                                    <input type="number" id="dy-ydt-dil-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ydt-dil', 80)">
-                                    <span id="net-ydt-dil" class="badge bg-danger net-badge mt-1">0.00</span>
+                                <div class="col-6 mb-3 d-none" id="box-ydt-dil">
+                                    <div class="small fw-bold text-muted mb-1">YDT Yabancı Dil (80)</div><input type="number" id="dy-ydt-dil-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ydt-dil', 80)"><input type="number" id="dy-ydt-dil-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ydt-dil', 80)"><span id="net-ydt-dil" class="badge bg-danger net-badge mt-1">0.00</span>
                                 </div>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Deneme Sonucunu Hesapla ve Kaydet</button>
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Denemeyi Kaydet</button>
                     </form>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SİLME ONAY MODALI -->
+    <div class="modal fade" id="resetConfirmModal" tabindex="-1">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-danger">
+                <div class="modal-header bg-danger text-white"><h5 class="modal-title">Tüm Verileri Sıfırla</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <p class="text-danger fw-bold">Bu işlem tüm test ve denemeleri silecektir!</p>
+                    <input type="text" id="confirm-input" class="form-control text-center fw-bold" placeholder="Buraya SIL yazın" oninput="checkConfirmInput()">
+                </div>
+                <div class="modal-footer"><button type="button" id="confirm-delete-btn" class="btn btn-danger" disabled onclick="tumTestVerileriniSil()">Temizle</button></div>
             </div>
         </div>
     </div>
@@ -315,61 +355,36 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" crossorigin="anonymous"></script>
 
     <script>
-        // İlgili derse ait max soru sayısını kontrol eder ve neti hesaplar[cite: 5]
+        function checkConfirmInput() {
+            const val = document.getElementById('confirm-input').value.trim().toUpperCase();
+            document.getElementById('confirm-delete-btn').disabled = (val !== "SIL");
+        }
+
         function calcNet(subject, maxQs) {
             const dVal = parseInt(document.getElementById('dy-' + subject + '-d').value) || 0;
             const yVal = parseInt(document.getElementById('dy-' + subject + '-y').value) || 0;
-            
             if ((dVal + yVal) > maxQs) {
                 alert(`Hata: Doğru ve Yanlış toplamı ${maxQs} soruyu geçemez!`);
-                document.getElementById('dy-' + subject + '-d').value = "";
-                document.getElementById('dy-' + subject + '-y').value = "";
-                document.getElementById('net-' + subject).innerText = "0.00";
-                return 0;
+                document.getElementById('dy-' + subject + '-d').value = ""; document.getElementById('dy-' + subject + '-y').value = "";
+                document.getElementById('net-' + subject).innerText = "0.00"; return 0;
             }
-
             const net = dVal - (yVal / 4);
-            document.getElementById('net-' + subject).innerText = net.toFixed(2);
-            return net;
+            document.getElementById('net-' + subject).innerText = net.toFixed(2); return net;
         }
 
-        // Puan türüne göre formdaki ilgili dersleri gösterir/gizler[cite: 5]
         function denemeTuruDegisti() {
             const tur = document.getElementById('deneme-turu').value;
             const aytCard = document.getElementById('deneme-fields-ayt');
-
-            const ids = [
-                'box-ayt-mat', 'box-ayt-fizik', 'box-ayt-kimya', 'box-ayt-biyo',
-                'box-ayt-tde', 'box-ayt-tar1', 'box-ayt-cog1', 'box-ayt-tar2', 'box-ayt-cog2', 'box-ayt-fels', 'box-ayt-din', 'box-ydt-dil'
-            ];
-
+            const ids = ['box-ayt-mat','box-ayt-fizik','box-ayt-kimya','box-ayt-biyo','box-ayt-tde','box-ayt-tar1','box-ayt-cog1','box-ayt-tar2','box-ayt-cog2','box-ayt-fels','box-ayt-din','box-ydt-dil'];
             ids.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('d-none'); });
 
-            if (tur === "TYT") {
-                aytCard.classList.add('d-none');
-            } else {
+            if (tur === "TYT") { aytCard.classList.add('d-none'); } 
+            else {
                 aytCard.classList.remove('d-none');
-                if (tur === "SAY") {
-                    document.getElementById('box-ayt-mat').classList.remove('d-none');
-                    document.getElementById('box-ayt-fizik').classList.remove('d-none');
-                    document.getElementById('box-ayt-kimya').classList.remove('d-none');
-                    document.getElementById('box-ayt-biyo').classList.remove('d-none');
-                } else if (tur === "EA") {
-                    document.getElementById('box-ayt-mat').classList.remove('d-none');
-                    document.getElementById('box-ayt-tde').classList.remove('d-none');
-                    document.getElementById('box-ayt-tar1').classList.remove('d-none');
-                    document.getElementById('box-ayt-cog1').classList.remove('d-none');
-                } else if (tur === "SOZ") {
-                    document.getElementById('box-ayt-tde').classList.remove('d-none');
-                    document.getElementById('box-ayt-tar1').classList.remove('d-none');
-                    document.getElementById('box-ayt-cog1').classList.remove('d-none');
-                    document.getElementById('box-ayt-tar2').classList.remove('d-none');
-                    document.getElementById('box-ayt-cog2').classList.remove('d-none');
-                    document.getElementById('box-ayt-fels').classList.remove('d-none');
-                    document.getElementById('box-ayt-din').classList.remove('d-none');
-                } else if (tur === "DIL") {
-                    document.getElementById('box-ydt-dil').classList.remove('d-none');
-                }
+                if (tur === "SAY") { ['box-ayt-mat','box-ayt-fizik','box-ayt-kimya','box-ayt-biyo'].forEach(id => document.getElementById(id).classList.remove('d-none')); }
+                else if (tur === "EA") { ['box-ayt-mat','box-ayt-tde','box-ayt-tar1','box-ayt-cog1'].forEach(id => document.getElementById(id).classList.remove('d-none')); }
+                else if (tur === "SOZ") { ['box-ayt-tde','box-ayt-tar1','box-ayt-cog1','box-ayt-tar2','box-ayt-cog2','box-ayt-fels','box-ayt-din'].forEach(id => document.getElementById(id).classList.remove('d-none')); }
+                else if (tur === "DIL") { document.getElementById('box-ydt-dil').classList.remove('d-none'); }
             }
         }
     </script>
