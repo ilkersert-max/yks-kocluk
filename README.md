@@ -1,10 +1,11 @@
-# YKS Koçluk Portalı v7 — deneme / ödev / haftalık istatistik
+# YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
-ZIP içindeki index.html, app.js, scoring.js, style.css, last-five-standalone.js, alkis.mp3, README.md dosyalarını birlikte GitHub Pages deposunun köküne yükleyin. Önce yedek alın. Firebase projesi değiştirilmedi.
+**Kurulum:** ZIP içindeki 7 dosyanın tamamını GitHub Pages deponuzun köküne yükleyin. Önce eski sürümün yedeğini alın. Firebase projesi/şeması göçü yapılmaz.
 
-- Deneme kaydında sonuç zorunlu değildir; boş sonuç `pending`, kısmi sonuç `partial`, tamamı `complete`. Son 5 yalnızca tam kayıtları kullanır. Deneme geçmişinde **Sonuçları ekle / düzenle** ile aynı kayda daha sonra sonuç işlenebilir; yeni deneme oluşturulmaz.
-- Ödev: veriliş ve bitiş tarihi, ders/branş, soru sayısı, hedef ve not. Öğretmen/veli/koç/Admin ödevleri günceller/siler; öğrenci sonuç girer. Eski ödevler silinmez. Biten ödevin soru sayısı değişirse yeniden sürüyor durumuna alınır.
-- Haftalık sorular: Pazartesi–Pazar, ders bazında günlük `TestEntries` ve ödev sonuçları toplanır; denemeler hariç tutulur. Ödevde çözülen aynı soruyu günlük çalışma olarak ayrıca girmeyin, çift sayılır. Eski tarihli sonucu bulunmayan kayda tahmini tarih atanmaz. Kısmi ödev sonucu son durum olarak sayılır, geçmişteki her günün kümülatif çözümü ayrıca tutulmaz.
-- Admin test temizleme ve v6 ödev ders görünümü korunur.
-- Firestore Rules ilgili `Assignments` için öğretmen/veli/koç/Admin update/delete izni vermiyorsa uygulama `permission-denied` gösterir. İstemci rol kontrolü tek başına güvenlik kuralı değildir.
-- Canlı Firebase, gerçek telefon ve tarayıcı kullanıcı testi burada yapılamadı; yerel sözdizimi ve hesaplama testleri uygulanmıştır.
+- Atanan soru sayısı hedef; çözülen soru sayısı hedefin altında, eşit veya üstünde olabilir. Doğru + yanlış <= çözülen; boş = çözülen − doğru − yanlış. Çözülmeyen ödev miktarı boş sayılmaz.
+- Çözülen ≥ atanan: tamamlandı (üstündeyse hedef üstü); altındaysa eksik / devam ediyor, süre geçmişse süresi geçti / eksik. Sonuç girişinde tamamlama kutusu yoktur, durum otomatik hesaplanır. Sonuçlar daha sonra tekrar düzenlenebilir.
+- Gerçekleşme yüzdesi, fark ve doğru hedefi ödev kartında gösterilir. Hedef doğru gerçekleşme durumundan bağımsızdır. Var olan kayıtlar silinmez; `remaining` sıfırın altına düşmez.
+- Haftalık ders tablosuna çözülen/doğru/yanlış/boş/net için **GENEL TOPLAM** satırı eklenmiştir. Günlük çalışmalar ve ödev sonuçları dahildir; denemeler hariçtir. Ödevle aynı çalışma günlük girişte de kayıtlıysa iki kez sayılır. Bir ödevin güncellenen tek sonuç kaydı kendi sonuç tarihi haftasında sayılır; günlük artışları geçmiş haftalara dağıtmaz.
+- Kullanıcıya gösterilen ödev durumları Türkçe, Firestore'da saklanan teknik durum enumları değişmez.
+- Admin veri temizleme, diğer deneme/OBP/son beş ve ödev parametreleri korunmuştur. Firestore Rules ödev silme/düzenlemeye izin vermiyorsa ilgili işlem engellenir.
+- Sözdizimi ve yerel örnek veri kontrolleri yapılmıştır; canlı Firebase ve gerçek cihaz testleri yapılmamıştır.
