@@ -123,45 +123,7 @@
             <ul id="student-assignment-list" class="list-group"><li class="list-group-item text-muted">Ödevler yükleniyor...</li></ul>
         </div>
 
-        <!-- 4. YÖK ATLAS HEDEF KARŞILAŞTIRMA MODÜLÜ -->
-        <div id="yokatlas-panel" class="card p-4 shadow-sm mb-4 border-info">
-            <h5 class="text-info text-dark border-bottom pb-2 mb-3">🎯 YÖK Atlas Net Sihirbazı & Hedef Karşılaştırma</h5>
-            <div class="row mb-3">
-                <div class="col-md-2 mb-2">
-                    <label class="form-label fw-bold">Yıl</label>
-                    <select id="hedef-yil" class="form-select border-info"><option value="2025" selected>2025</option></select>
-                </div>
-                <div class="col-md-3 mb-2">
-                    <label class="form-label fw-bold">Puan Türü</label>
-                    <select id="hedef-puan-turu" class="form-select border-info">
-                        <option value="SAY">SAY</option><option value="EA">EA</option><option value="SÖZ">SÖZ</option><option value="DİL">DİL</option>
-                    </select>
-                </div>
-                <div class="col-md-5 mb-2">
-                    <label class="form-label fw-bold">Üniversite & Program</label>
-                    <select id="hedef-program-select" class="form-select border-info">
-                        <option value="">Seçiniz...</option>
-                        <option value="boun-ceng">Boğaziçi Üniv. - Bilgisayar Müh. (SAY)</option>
-                        <option value="gs-hukuk">Galatasaray Üniv. - Hukuk (EA)</option>
-                        <option value="boun-tde">Boğaziçi Üniv. - T. Edebiyatı (SÖZ)</option>
-                        <option value="odtu-ing">ODTÜ - İngilizce Öğretmenliği (DİL)</option>
-                    </select>
-                </div>
-                <div class="col-md-2 mb-2 d-flex align-items-end"><button class="btn btn-info text-white w-100 fw-bold" onclick="hedefKarsilastir()">Analiz Et</button></div>
-            </div>
-            <div id="referans-bilgi-alani" class="alert alert-secondary d-none mb-3">
-                <strong>Referans:</strong> <span id="ref-yil-turu" class="badge bg-dark mx-1">-</span>
-                Katsayı: <strong id="ref-katsayi" class="text-primary">-</strong> | OBP: <strong id="ref-obp" class="text-primary">-</strong>
-            </div>
-            <div class="table-responsive d-none" id="karsilastirma-container">
-                <table class="table table-bordered table-striped text-center align-middle mb-0">
-                    <thead class="table-info"><tr><th>Ders Branşı</th><th>Senin Son Netin</th><th>YÖK Atlas Neti</th><th>Durum</th></tr></thead>
-                    <tbody id="karsilastirma-body"></tbody>
-                </table>
-            </div>
-        </div>
-
-        <!-- 5. ÖĞRENCİ BİREYSEL SORU BANKASI / TEST GİRİŞİ -->
+        <!-- 4. ÖĞRENCİ BİREYSEL SORU BANKASI / TEST GİRİŞİ -->
         <div id="student-panel" class="card p-4 shadow-sm d-none mb-4 border-success">
             <h5 class="text-success border-bottom pb-2 mb-3">📚 Günlük Soru Bankası Çözüm Girişi</h5>
             <form id="test-entry-form">
@@ -203,24 +165,32 @@
             </form>
         </div>
 
-        <!-- 6. GENEL DENEME KARNESİ -->
+        <!-- 5. GENEL DENEME KARNESİ (OBP ve Küsüratlı Net Destekli) -->
         <div id="deneme-karnesi-card" class="card p-4 shadow-sm mb-4 border-primary">
             <div class="d-flex justify-content-between align-items-center border-bottom pb-2 mb-3">
                 <div>
                     <h5 class="text-primary mb-0">📊 Genel Deneme Karnesi & YKS Puan Simülasyonu</h5>
-                    <small class="text-muted">Girilen denemeler ve hesaplanan yerleştirme puanları</small>
+                    <small class="text-muted">Girilen denemeler, küsüratlı netler ve şeffaf OBP'li yerleştirme puanları</small>
                 </div>
                 <button id="yeni-deneme-btn" class="btn btn-sm btn-primary fw-bold" data-bs-toggle="modal" data-bs-target="#denemeModal">+ Yeni Deneme Ekle</button>
             </div>
             <div class="table-responsive">
                 <table class="table table-bordered table-striped text-center align-middle mb-0">
-                    <thead class="table-dark"><tr><th>Deneme Adı / Tür</th><th>Ders Netleri Detayı</th><th>Toplam Net</th><th>Tahmini Y-Puan</th></tr></thead>
-                    <tbody id="deneme-list-table"><tr><td colspan='4' class='text-muted'>Yükleniyor...</td></tr></tbody>
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width: 20%;">Deneme Adı / Tür</th>
+                            <th style="width: 40%;">Ders Netleri Detayı</th>
+                            <th style="width: 10%;">Toplam Net</th>
+                            <th style="width: 15%;">Tahmini Ham Puan</th>
+                            <th style="width: 15%;">Tahmini Y-Puan (OBP Detaylı)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deneme-list-table"><tr><td colspan='5' class='text-muted'>Yükleniyor...</td></tr></tbody>
                 </table>
             </div>
         </div>
 
-        <!-- 7. DETAYLI ANALİZ PANELİ (Veli, Öğretmen, Admin, ve Yetkili Öğrenci Görür) -->
+        <!-- 6. DETAYLI ANALİZ PANELİ -->
         <div id="analiz-panel" class="card p-4 shadow-sm mb-4 border-dark d-none">
             <h5 class="text-dark fw-bold border-bottom pb-2 mb-3">📈 Bireysel Soru Bankası Gelişim & Zayıf Konu Analizi</h5>
             <div class="row">
@@ -240,98 +210,144 @@
     </div>
 
     <!-- MODALLAR -->
-    <!-- DETAYLI DENEME GİRİŞ MODALI (YÖK Atlas Uyumlu D/Y Formu) -->
+    <!-- DETAYLI DENEME GİRİŞ MODALI (Parametrik: Hızlı Net vs Detaylı D/Y) -->
     <div class="modal fade" id="denemeModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header bg-primary text-white">
-                    <h5 class="modal-title">📝 Yeni Deneme Sınavı (D/Y Girişi)</h5>
+                    <h5 class="modal-title">📝 Yeni Deneme Sınavı Ekle (Parametrik Giriş)</h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Kapat"></button>
                 </div>
                 <div class="modal-body">
                     <form id="deneme-form">
                         <div class="row">
-                            <div class="col-md-5 mb-3"><label class="form-label fw-bold">Deneme Adı</label><input type="text" id="deneme-adi" class="form-control" required></div>
+                            <div class="col-md-4 mb-3">
+                                <label class="form-label fw-bold">Deneme Adı</label>
+                                <input type="text" id="deneme-adi" class="form-control" placeholder="Örn: 3D Türkiye Geneli" required>
+                            </div>
                             <div class="col-md-3 mb-3">
                                 <label class="form-label fw-bold">Puan Türü</label>
                                 <select id="deneme-turu" class="form-select fw-bold text-primary" onchange="denemeTuruDegisti()" required>
-                                    <option value="TYT">TYT</option><option value="SAY">SAY</option><option value="EA">EA</option><option value="SOZ">SÖZ</option><option value="DIL">DİL</option>
+                                    <option value="TYT">TYT</option>
+                                    <option value="SAY">SAY (Sayısal)</option>
+                                    <option value="EA">EA (Eşit Ağırlık)</option>
+                                    <option value="SOZ">SÖZ (Sözel)</option>
+                                    <option value="DİL">DİL (Yabancı Dil)</option>
                                 </select>
                             </div>
-                            <div class="col-md-4 mb-3"><label class="form-label fw-bold text-success">Diploma Notu (Opsiyonel)</label><input type="number" id="ogrenci-obp" class="form-control border-success"></div>
-                        </div>
-
-                        <!-- TYT BRANŞ NETLERİ -->
-                        <div class="card p-3 mb-3 bg-light border-primary">
-                            <h6 class="text-primary fw-bold mb-2">📌 TYT Dersleri</h6>
-                            <div class="row text-center">
-                                <div class="col-3">
-                                    <div class="small fw-bold text-muted mb-1">Türkçe (40)</div>
-                                    <input type="number" id="dy-tyt-turkce-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-turkce', 40)"><input type="number" id="dy-tyt-turkce-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-turkce', 40)">
-                                    <span id="net-tyt-turkce" class="badge bg-primary net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3">
-                                    <div class="small fw-bold text-muted mb-1">Sosyal (20)</div>
-                                    <input type="number" id="dy-tyt-sosyal-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-sosyal', 20)"><input type="number" id="dy-tyt-sosyal-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-sosyal', 20)">
-                                    <span id="net-tyt-sosyal" class="badge bg-primary net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3">
-                                    <div class="small fw-bold text-muted mb-1">Matematik (40)</div>
-                                    <input type="number" id="dy-tyt-mat-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-mat', 40)"><input type="number" id="dy-tyt-mat-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-mat', 40)">
-                                    <span id="net-tyt-mat" class="badge bg-primary net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3">
-                                    <div class="small fw-bold text-muted mb-1">Fen (20)</div>
-                                    <input type="number" id="dy-tyt-fen-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('tyt-fen', 20)"><input type="number" id="dy-tyt-fen-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('tyt-fen', 20)">
-                                    <span id="net-tyt-fen" class="badge bg-primary net-badge mt-1">0.00</span>
+                            <div class="col-md-3 mb-3">
+                                <label class="form-label fw-bold text-success">Diploma Notu / OBP</label>
+                                <input type="number" id="ogrenci-obp" class="form-control border-success" placeholder="Örn: 85 veya 425" max="500">
+                            </div>
+                            <div class="col-md-2 mb-3 d-flex align-items-end">
+                                <div class="form-check form-switch mb-2">
+                                    <input class="form-check-input" type="checkbox" id="hizli-net-switch" onchange="toggleGirisModu()" style="width: 2.5em; height: 1.25em; cursor: pointer;">
+                                    <label class="form-check-label fw-bold small ms-1" for="hizli-net-switch" style="cursor: pointer;">Hızlı Net</label>
                                 </div>
                             </div>
                         </div>
 
-                        <!-- AYT DERSLERİ (Dinamik Gizlenen) -->
-                        <div id="deneme-fields-ayt" class="card p-3 mb-3 bg-light border-danger d-none">
-                            <h6 class="text-danger fw-bold mb-2">📌 Alan Dersleri</h6>
-                            <div class="row text-center">
-                                <div class="col-3 mb-3 d-none" id="box-ayt-mat">
-                                    <div class="small fw-bold text-muted mb-1">AYT Mat (40)</div><input type="number" id="dy-ayt-mat-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-mat', 40)"><input type="number" id="dy-ayt-mat-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-mat', 40)"><span id="net-ayt-mat" class="badge bg-danger net-badge mt-1">0.00</span>
+                        <!-- 1. DETAYLI D/Y GİRİŞ ALANI -->
+                        <div id="detayli-dy-container">
+                            <div class="card p-3 mb-3 bg-light border-primary">
+                                <h6 class="text-primary fw-bold mb-2">📌 TYT Dersleri (Doğru / Yanlış)</h6>
+                                <div class="row text-center">
+                                    <div class="col-3">
+                                        <div class="small fw-bold text-muted mb-1">Türkçe (40)</div>
+                                        <input type="number" id="dy-tyt-turkce-d" class="form-control dy-input border-success" placeholder="D" min="0" max="40" oninput="calcNet('tyt-turkce', 40)">
+                                        <input type="number" id="dy-tyt-turkce-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="40" oninput="calcNet('tyt-turkce', 40)"><br>
+                                        <span id="net-tyt-turkce" class="badge bg-primary net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="small fw-bold text-muted mb-1">Sosyal (20)</div>
+                                        <input type="number" id="dy-tyt-sosyal-d" class="form-control dy-input border-success" placeholder="D" min="0" max="20" oninput="calcNet('tyt-sosyal', 20)">
+                                        <input type="number" id="dy-tyt-sosyal-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="20" oninput="calcNet('tyt-sosyal', 20)"><br>
+                                        <span id="net-tyt-sosyal" class="badge bg-primary net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="small fw-bold text-muted mb-1">Matematik (40)</div>
+                                        <input type="number" id="dy-tyt-mat-d" class="form-control dy-input border-success" placeholder="D" min="0" max="40" oninput="calcNet('tyt-mat', 40)">
+                                        <input type="number" id="dy-tyt-mat-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="40" oninput="calcNet('tyt-mat', 40)"><br>
+                                        <span id="net-tyt-mat" class="badge bg-primary net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-3">
+                                        <div class="small fw-bold text-muted mb-1">Fen (20)</div>
+                                        <input type="number" id="dy-tyt-fen-d" class="form-control dy-input border-success" placeholder="D" min="0" max="20" oninput="calcNet('tyt-fen', 20)">
+                                        <input type="number" id="dy-tyt-fen-y" class="form-control dy-input border-danger" placeholder="Y" min="0" max="20" oninput="calcNet('tyt-fen', 20)"><br>
+                                        <span id="net-tyt-fen" class="badge bg-primary net-badge mt-1">0.00</span>
+                                    </div>
                                 </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-fizik">
-                                    <div class="small fw-bold text-muted mb-1">Fizik (14)</div><input type="number" id="dy-ayt-fizik-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fizik', 14)"><input type="number" id="dy-ayt-fizik-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fizik', 14)"><span id="net-ayt-fizik" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-kimya">
-                                    <div class="small fw-bold text-muted mb-1">Kimya (13)</div><input type="number" id="dy-ayt-kimya-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-kimya', 13)"><input type="number" id="dy-ayt-kimya-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-kimya', 13)"><span id="net-ayt-kimya" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-biyo">
-                                    <div class="small fw-bold text-muted mb-1">Biyoloji (13)</div><input type="number" id="dy-ayt-biyo-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-biyo', 13)"><input type="number" id="dy-ayt-biyo-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-biyo', 13)"><span id="net-ayt-biyo" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-tde">
-                                    <div class="small fw-bold text-muted mb-1">AYT TDE (24)</div><input type="number" id="dy-ayt-tde-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tde', 24)"><input type="number" id="dy-ayt-tde-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tde', 24)"><span id="net-ayt-tde" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-tar1">
-                                    <div class="small fw-bold text-muted mb-1">Tarih-1 (10)</div><input type="number" id="dy-ayt-tar1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar1', 10)"><input type="number" id="dy-ayt-tar1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar1', 10)"><span id="net-ayt-tar1" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-cog1">
-                                    <div class="small fw-bold text-muted mb-1">Coğrafya-1 (6)</div><input type="number" id="dy-ayt-cog1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog1', 6)"><input type="number" id="dy-ayt-cog1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog1', 6)"><span id="net-ayt-cog1" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-tar2">
-                                    <div class="small fw-bold text-muted mb-1">Tarih-2 (11)</div><input type="number" id="dy-ayt-tar2-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar2', 11)"><input type="number" id="dy-ayt-tar2-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar2', 11)"><span id="net-ayt-tar2" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-cog2">
-                                    <div class="small fw-bold text-muted mb-1">Coğrafya-2 (11)</div><input type="number" id="dy-ayt-cog2-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog2', 11)"><input type="number" id="dy-ayt-cog2-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog2', 11)"><span id="net-ayt-cog2" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-fels">
-                                    <div class="small fw-bold text-muted mb-1">Felsefe Grb (12)</div><input type="number" id="dy-ayt-fels-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fels', 12)"><input type="number" id="dy-ayt-fels-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fels', 12)"><span id="net-ayt-fels" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-3 mb-3 d-none" id="box-ayt-din">
-                                    <div class="small fw-bold text-muted mb-1">Din (6)</div><input type="number" id="dy-ayt-din-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-din', 6)"><input type="number" id="dy-ayt-din-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-din', 6)"><span id="net-ayt-din" class="badge bg-danger net-badge mt-1">0.00</span>
-                                </div>
-                                <div class="col-6 mb-3 d-none" id="box-ydt-dil">
-                                    <div class="small fw-bold text-muted mb-1">YDT Yabancı Dil (80)</div><input type="number" id="dy-ydt-dil-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ydt-dil', 80)"><input type="number" id="dy-ydt-dil-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ydt-dil', 80)"><span id="net-ydt-dil" class="badge bg-danger net-badge mt-1">0.00</span>
+                            </div>
+
+                            <div id="deneme-fields-ayt" class="card p-3 mb-3 bg-light border-danger d-none">
+                                <h6 class="text-danger fw-bold mb-2">📌 Alan Dersleri (Doğru / Yanlış)</h6>
+                                <div class="row text-center">
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-mat">
+                                        <div class="small fw-bold text-muted mb-1">AYT Mat (40)</div>
+                                        <input type="number" id="dy-ayt-mat-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-mat', 40)">
+                                        <input type="number" id="dy-ayt-mat-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-mat', 40)"><br>
+                                        <span id="net-ayt-mat" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-fizik">
+                                        <div class="small fw-bold text-muted mb-1">Fizik (14)</div>
+                                        <input type="number" id="dy-ayt-fizik-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-fizik', 14)">
+                                        <input type="number" id="dy-ayt-fizik-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-fizik', 14)"><br>
+                                        <span id="net-ayt-fizik" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-kimya">
+                                        <div class="small fw-bold text-muted mb-1">Kimya (13)</div>
+                                        <input type="number" id="dy-ayt-kimya-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-kimya', 13)">
+                                        <input type="number" id="dy-ayt-kimya-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-kimya', 13)"><br>
+                                        <span id="net-ayt-kimya" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-biyo">
+                                        <div class="small fw-bold text-muted mb-1">Biyoloji (13)</div>
+                                        <input type="number" id="dy-ayt-biyo-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-biyo', 13)">
+                                        <input type="number" id="dy-ayt-biyo-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-biyo', 13)"><br>
+                                        <span id="net-ayt-biyo" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tde">
+                                        <div class="small fw-bold text-muted mb-1">AYT TDE (24)</div>
+                                        <input type="number" id="dy-ayt-tde-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tde', 24)">
+                                        <input type="number" id="dy-ayt-tde-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tde', 24)"><br>
+                                        <span id="net-ayt-tde" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-tar1">
+                                        <div class="small fw-bold text-muted mb-1">Tarih-1 (10)</div>
+                                        <input type="number" id="dy-ayt-tar1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-tar1', 10)">
+                                        <input type="number" id="dy-ayt-tar1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-tar1', 10)"><br>
+                                        <span id="net-ayt-tar1" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
+                                    <div class="col-md-3 col-6 mb-3 d-none" id="box-ayt-cog1">
+                                        <div class="small fw-bold text-muted mb-1">Coğrafya-1 (6)</div>
+                                        <input type="number" id="dy-ayt-cog1-d" class="form-control dy-input border-success" placeholder="D" oninput="calcNet('ayt-cog1', 6)">
+                                        <input type="number" id="dy-ayt-cog1-y" class="form-control dy-input border-danger" placeholder="Y" oninput="calcNet('ayt-cog1', 6)"><br>
+                                        <span id="net-ayt-cog1" class="badge bg-danger net-badge mt-1">0.00</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
 
-                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Denemeyi Kaydet</button>
+                        <!-- 2. HIZLI NET GİRİŞ ALANI -->
+                        <div id="hizli-net-container" class="card p-3 mb-3 bg-light border-success d-none">
+                            <h6 class="text-success fw-bold mb-2">⚡ Hızlı Net Girişi (Direkt Net Değerlerini Girin)</h6>
+                            <div class="row">
+                                <div class="col-md-3 mb-2" id="hizli-box-turkce"><label class="form-label small fw-bold">TYT Türkçe Net</label><input type="number" step="0.25" id="hizli-turkce" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2" id="hizli-box-sosyal"><label class="form-label small fw-bold">TYT Sosyal Net</label><input type="number" step="0.25" id="hizli-sosyal" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2" id="hizli-box-mat"><label class="form-label small fw-bold">TYT Matematik Net</label><input type="number" step="0.25" id="hizli-mat" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2" id="hizli-box-fen"><label class="form-label small fw-bold">TYT Fen Net</label><input type="number" step="0.25" id="hizli-fen" class="form-control" value="0"></div>
+                                
+                                <div class="col-md-3 mb-2 d-none" id="hizli-box-ayt-mat"><label class="form-label small fw-bold text-danger">AYT Mat Net</label><input type="number" step="0.25" id="hizli-ayt-mat" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2 d-none" id="hizli-box-ayt-fizik"><label class="form-label small fw-bold text-danger">Fizik Net</label><input type="number" step="0.25" id="hizli-ayt-fizik" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2 d-none" id="hizli-box-ayt-kimya"><label class="form-label small fw-bold text-danger">Kimya Net</label><input type="number" step="0.25" id="hizli-ayt-kimya" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2 d-none" id="hizli-box-ayt-biyo"><label class="form-label small fw-bold text-danger">Biyoloji Net</label><input type="number" step="0.25" id="hizli-ayt-biyo" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2 d-none" id="box-hizli-tde"><label class="form-label small fw-bold text-danger">AYT TDE Net</label><input type="number" step="0.25" id="hizli-ayt-tde" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2 d-none" id="box-hizli-tar1"><label class="form-label small fw-bold text-danger">Tarih-1 Net</label><input type="number" step="0.25" id="hizli-ayt-tar1" class="form-control" value="0"></div>
+                                <div class="col-md-3 mb-2 d-none" id="box-hizli-cog1"><label class="form-label small fw-bold text-danger">Coğrafya-1 Net</label><input type="number" step="0.25" id="hizli-ayt-cog1" class="form-control" value="0"></div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Deneme Sonucunu Hesapla ve Kaydet</button>
                     </form>
                 </div>
             </div>
@@ -360,6 +376,12 @@
             document.getElementById('confirm-delete-btn').disabled = (val !== "SIL");
         }
 
+        function toggleGirisModu() {
+            const isHizli = document.getElementById('hizli-net-switch').checked;
+            document.getElementById('detayli-dy-container').classList.toggle('d-none', isHizli);
+            document.getElementById('hizli-net-container').classList.toggle('d-none', !isHizli);
+        }
+
         function calcNet(subject, maxQs) {
             const dVal = parseInt(document.getElementById('dy-' + subject + '-d').value) || 0;
             const yVal = parseInt(document.getElementById('dy-' + subject + '-y').value) || 0;
@@ -368,23 +390,29 @@
                 document.getElementById('dy-' + subject + '-d').value = ""; document.getElementById('dy-' + subject + '-y').value = "";
                 document.getElementById('net-' + subject).innerText = "0.00"; return 0;
             }
-            const net = dVal - (yVal / 4);
+            const net = dVal - (yVal / 4); // Küsürat yuvarlanmadan bırakılır
             document.getElementById('net-' + subject).innerText = net.toFixed(2); return net;
         }
 
         function denemeTuruDegisti() {
             const tur = document.getElementById('deneme-turu').value;
             const aytCard = document.getElementById('deneme-fields-ayt');
-            const ids = ['box-ayt-mat','box-ayt-fizik','box-ayt-kimya','box-ayt-biyo','box-ayt-tde','box-ayt-tar1','box-ayt-cog1','box-ayt-tar2','box-ayt-cog2','box-ayt-fels','box-ayt-din','box-ydt-dil'];
+            const ids = ['box-ayt-mat','box-ayt-fizik','box-ayt-kimya','box-ayt-biyo','box-ayt-tde','box-ayt-tar1','box-ayt-cog1'];
             ids.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('d-none'); });
 
-            if (tur === "TYT") { aytCard.classList.add('d-none'); } 
+            const hizliIds = ['hizli-box-ayt-mat','hizli-box-ayt-fizik','hizli-box-ayt-kimya','hizli-box-ayt-biyo','box-hizli-tde','box-hizli-tar1','box-hizli-cog1'];
+            hizliIds.forEach(id => { const el = document.getElementById(id); if(el) el.classList.add('d-none'); });
+
+            if (tur === "TYT") { if(aytCard) aytCard.classList.add('d-none'); } 
             else {
-                aytCard.classList.remove('d-none');
-                if (tur === "SAY") { ['box-ayt-mat','box-ayt-fizik','box-ayt-kimya','box-ayt-biyo'].forEach(id => document.getElementById(id).classList.remove('d-none')); }
-                else if (tur === "EA") { ['box-ayt-mat','box-ayt-tde','box-ayt-tar1','box-ayt-cog1'].forEach(id => document.getElementById(id).classList.remove('d-none')); }
-                else if (tur === "SOZ") { ['box-ayt-tde','box-ayt-tar1','box-ayt-cog1','box-ayt-tar2','box-ayt-cog2','box-ayt-fels','box-ayt-din'].forEach(id => document.getElementById(id).classList.remove('d-none')); }
-                else if (tur === "DIL") { document.getElementById('box-ydt-dil').classList.remove('d-none'); }
+                if(aytCard) aytCard.classList.remove('d-none');
+                if (tur === "SAY") {
+                    ['box-ayt-mat','box-ayt-fizik','box-ayt-kimya','box-ayt-biyo'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('d-none'); });
+                    ['hizli-box-ayt-mat','hizli-box-ayt-fizik','hizli-box-ayt-kimya','hizli-box-ayt-biyo'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('d-none'); });
+                } else if (tur === "EA") {
+                    ['box-ayt-mat','box-ayt-tde','box-ayt-tar1','box-ayt-cog1'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('d-none'); });
+                    ['hizli-box-ayt-mat','box-hizli-tde','box-hizli-tar1','box-hizli-cog1'].forEach(id => { const el = document.getElementById(id); if(el) el.classList.remove('d-none'); });
+                }
             }
         }
     </script>

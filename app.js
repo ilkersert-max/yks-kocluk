@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, updateDoc, serverTimestamp, query, orderBy, where } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, collection, addDoc, getDocs, deleteDoc, serverTimestamp, query, orderBy } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M",
@@ -15,22 +15,12 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-// YÖK Atlas Verileri
-const yokAtlasReferanslari = {
-    "boun-ceng": { yil: 2025, puanTuru: "SAY", katsayi: "0.12", obp: 485.50, netler: { "TYT Türkçe": 36.5, "TYT Sosyal": 15.2, "TYT Matematik": 38.5, "TYT Fen": 18.0, "AYT Matematik": 39.0, "AYT Fizik": 12.5, "AYT Kimya": 13.0, "AYT Biyoloji": 12.0 } },
-    "gs-hukuk": { yil: 2025, puanTuru: "EA", katsayi: "0.12", obp: 470.20, netler: { "TYT Türkçe": 35.0, "TYT Sosyal": 16.5, "TYT Matematik": 34.0, "TYT Fen": 10.0, "AYT Matematik": 35.5, "AYT TDE": 22.0, "AYT Tarih-1": 8.5, "AYT Coğrafya-1": 5.0 } },
-    "boun-tde": { yil: 2025, puanTuru: "SÖZ", katsayi: "0.12", obp: 460.00, netler: { "TYT Türkçe": 37.0, "TYT Sosyal": 17.5, "TYT Matematik": 25.0, "TYT Fen": 5.0, "AYT TDE": 23.0, "AYT Tarih-1": 9.0, "AYT Coğrafya-1": 6.0, "AYT Tarih-2": 9.5, "AYT Coğrafya-2": 10.0, "AYT Felsefe Grubu": 10.5, "AYT Din": 5.0 } },
-    "odtu-ing": { yil: 2025, puanTuru: "DİL", katsayi: "0.12", obp: 440.00, netler: { "TYT Türkçe": 33.0, "TYT Sosyal": 14.5, "TYT Matematik": 22.0, "TYT Fen": 6.0, "YDT Dil": 75.5 } }
-};
-
 let currentUserRole = "";
-let sonDenemeVerisi = null;
 let isStudentDetailedMode = false;
 let isMatrixInputEnabled = true;
 let mainGridState = [];
 let myChart = null;
 
-// ROL YÖNETİMİ VE ARAYÜZ GÖSTERİMİ
 onAuthStateChanged(auth, async (user) => {
     if (user) {
         document.getElementById('login-screen').classList.add('d-none');
@@ -75,26 +65,25 @@ function applyRoleBasedUI(role) {
 
     if (role === "Admin") {
         adminPnl.classList.remove('d-none'); teachPnl.classList.remove('d-none'); analizPnl.classList.remove('d-none');
-        yeniDenemeBtn.classList.remove('d-none');
+        if(yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none');
     } 
     else if (role === "Öğretmen" || role === "Koç" || role === "Ogretmen") {
         teachPnl.classList.remove('d-none'); analizPnl.classList.remove('d-none');
-        yeniDenemeBtn.classList.add('d-none'); 
+        if(yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none'); 
     } 
     else if (role === "Veli") {
         analizPnl.classList.remove('d-none'); studAssignPnl.classList.remove('d-none');
-        yeniDenemeBtn.classList.add('d-none');
+        if(yeniDenemeBtn) yeniDenemeBtn.classList.add('d-none');
     } 
     else {
         studPnl.classList.remove('d-none'); studAssignPnl.classList.remove('d-none');
-        yeniDenemeBtn.classList.remove('d-none');
+        if(yeniDenemeBtn) yeniDenemeBtn.classList.remove('d-none');
         document.getElementById('motivation-banner').classList.remove('d-none');
         if (isStudentDetailedMode) analizPnl.classList.remove('d-none');
         generateQuestionGrid(12);
     }
 }
 
-// AYARLAR VE MATRİS IZGARASI (HATA DEFTERİ)
 async function loadAdminSettings() {
     try {
         const snap = await getDoc(doc(db, "Settings", "SystemConfig"));
@@ -147,7 +136,6 @@ window.generateQuestionGrid = function(count) {
     }
 }
 
-// BİREYSEL TEST GİRİŞİ (ÖĞRENCİ)
 document.getElementById('test-entry-form').addEventListener('submit', async (e) => {
     e.preventDefault();
     const ders = document.getElementById('ders').value;
@@ -175,56 +163,118 @@ document.getElementById('test-entry-form').addEventListener('submit', async (e) 
     } catch(err) { alert("Test kaydedilemedi!"); }
 });
 
-// DENEME GİRİŞİ (D/Y)
+// DENEME KAYIT (Hızlı Net veya Detaylı D/Y Seçimine Göre Çalışır, Küsürat Korunur, OBP Şeffaf Gösterilir)
 document.getElementById('deneme-form').addEventListener('submit', async (e) => {
     e.preventDefault();
-    const denemeAdi = document.getElementById('deneme-adi').value;
+    const denemeAdi = document.getElementById('deneme-adi').value.trim();
     const denemeTuru = document.getElementById('deneme-turu').value;
-    const obpInput = document.getElementById('ogrenci-obp').value;
-    let obpPuani = obpInput ? (parseFloat(obpInput) <= 100 ? parseFloat(obpInput) * 5 : parseFloat(obpInput)) : 0;
+    const isHizli = document.getElementById('hizli-net-switch').checked;
 
-    const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
-    const tytPuan = (parseNet('tyt-turkce')*3.3) + (parseNet('tyt-sosyal')*3.4) + (parseNet('tyt-mat')*3.3) + (parseNet('tyt-fen')*3.4) + 100;
+    let ogrenciObpInput = document.getElementById('ogrenci-obp').value;
+    let obpPuani = 0;
+    if (ogrenciObpInput) {
+        let val = parseFloat(ogrenciObpInput);
+        obpPuani = val <= 100 ? val * 5 : val; 
+    }
+
+    let tytTurkce = 0, tytSosyal = 0, tytMat = 0, tytFen = 0;
+    let altNetler = {};
+
+    if (isHizli) {
+        tytTurkce = parseFloat(document.getElementById('hizli-turkce').value) || 0;
+        tytSosyal = parseFloat(document.getElementById('hizli-sosyal').value) || 0;
+        tytMat = parseFloat(document.getElementById('hizli-mat').value) || 0;
+        tytFen = parseFloat(document.getElementById('hizli-fen').value) || 0;
+    } else {
+        const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
+        tytTurkce = parseNet('tyt-turkce');
+        tytSosyal = parseNet('tyt-sosyal');
+        tytMat = parseNet('tyt-mat');
+        tytFen = parseNet('tyt-fen');
+    }
+
+    let toplamNet = tytTurkce + tytSosyal + tytMat + tytFen;
+    altNetler = { "TYT Türkçe": tytTurkce, "TYT Sosyal": tytSosyal, "TYT Matematik": tytMat, "TYT Fen": tytFen };
+
+    const tytPuan = (tytTurkce * 3.3) + (tytSosyal * 3.4) + (tytMat * 3.3) + (tytFen * 3.4) + 100;
+    let hamPuanStr = `${tytPuan.toFixed(2)} TYT`;
     
-    let toplamNet = parseNet('tyt-turkce') + parseNet('tyt-sosyal') + parseNet('tyt-mat') + parseNet('tyt-fen');
-    let altNetler = { "TYT Türkçe": parseNet('tyt-turkce'), "TYT Sosyal": parseNet('tyt-sosyal'), "TYT Matematik": parseNet('tyt-mat'), "TYT Fen": parseNet('tyt-fen') };
-    let ham = `${tytPuan.toFixed(2)} TYT`, yerl = obpPuani > 0 ? `${(tytPuan + (obpPuani * 0.12)).toFixed(2)} Y-TYT` : "-";
+    let yerlestirmePuanStr = obpPuani > 0 
+        ? `${(t => t.toFixed(2))(tytPuan + (obpPuani * 0.12))} Y-TYT <br><small class="text-muted">(OBP: ${obpPuani})</small>` 
+        : `Hesaplanamadı <br><small class="text-muted">(OBP Girilmedi)</small>`;
 
-    if(denemeTuru === "SAY") {
-        toplamNet += parseNet('ayt-mat') + parseNet('ayt-fizik') + parseNet('ayt-kimya') + parseNet('ayt-biyo');
-        altNetler["AYT Matematik"] = parseNet('ayt-mat'); altNetler["AYT Fizik"] = parseNet('ayt-fizik'); altNetler["AYT Kimya"] = parseNet('ayt-kimya'); altNetler["AYT Biyoloji"] = parseNet('ayt-biyo');
-        let p = (tytPuan*0.4) + (parseNet('ayt-mat')*3) + (parseNet('ayt-fizik')*2.8) + (parseNet('ayt-kimya')*2.8) + (parseNet('ayt-biyo')*2.8) + 100;
-        ham = `${p.toFixed(2)} SAY`; yerl = obpPuani > 0 ? `${(p + (obpPuani * 0.12)).toFixed(2)} Y-SAY` : "-";
-    } else if(denemeTuru === "EA") {
-        toplamNet += parseNet('ayt-mat') + parseNet('ayt-tde') + parseNet('ayt-tar1') + parseNet('ayt-cog1');
-        altNetler["AYT Matematik"] = parseNet('ayt-mat'); altNetler["AYT TDE"] = parseNet('ayt-tde'); altNetler["AYT Tarih-1"] = parseNet('ayt-tar1'); altNetler["AYT Coğrafya-1"] = parseNet('ayt-cog1');
-        let p = (tytPuan*0.4) + (parseNet('ayt-mat')*3) + (parseNet('ayt-tde')*3) + (parseNet('ayt-tar1')*2.8) + (parseNet('ayt-cog1')*2.8) + 100;
-        ham = `${p.toFixed(2)} EA`; yerl = obpPuani > 0 ? `${(p + (obpPuani * 0.12)).toFixed(2)} Y-EA` : "-";
+    if (denemeTuru === "SAY") {
+        let mat = 0, fiz = 0, kim = 0, biy = 0;
+        if (isHizli) {
+            mat = parseFloat(document.getElementById('hizli-ayt-mat').value) || 0;
+            fiz = parseFloat(document.getElementById('hizli-ayt-fizik').value) || 0;
+            kim = parseFloat(document.getElementById('hizli-ayt-kimya').value) || 0;
+            biy = parseFloat(document.getElementById('hizli-ayt-biyo').value) || 0;
+        } else {
+            const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
+            mat = parseNet('ayt-mat'); fiz = parseNet('ayt-fizik'); kim = parseNet('ayt-kimya'); biy = parseNet('ayt-biyo');
+        }
+        toplamNet += (mat + fiz + kim + biy);
+        altNetler["AYT Matematik"] = mat; altNetler["AYT Fizik"] = fiz; altNetler["AYT Kimya"] = kim; altNetler["AYT Biyoloji"] = biy;
+        let p = (tytPuan * 0.4) + (mat * 3.0) + (fiz * 2.8) + (kim * 2.8) + (biy * 2.8) + 100;
+        hamPuanStr = `${p.toFixed(2)} SAY`;
+        yerlestirmePuanStr = obpPuani > 0 ? `${(t => t.toFixed(2))(p + (obpPuani * 0.12))} Y-SAY <br><small class="text-muted">(OBP: ${obpPuani})</small>` : "Hesaplanamadı";
+
+    } else if (denemeTuru === "EA") {
+        let mat = 0, tde = 0, tar1 = 0, cog1 = 0;
+        if (isHizli) {
+            mat = parseFloat(document.getElementById('hizli-ayt-mat').value) || 0;
+            tde = parseFloat(document.getElementById('hizli-ayt-tde').value) || 0;
+            tar1 = parseFloat(document.getElementById('hizli-ayt-tar1').value) || 0;
+            cog1 = parseFloat(document.getElementById('hizli-ayt-cog1').value) || 0;
+        } else {
+            const parseNet = (subj) => parseFloat(document.getElementById('net-' + subj).innerText) || 0;
+            mat = parseNet('ayt-mat'); tde = parseNet('ayt-tde'); tar1 = parseNet('ayt-tar1'); cog1 = parseNet('ayt-cog1');
+        }
+        toplamNet += (mat + tde + tar1 + cog1);
+        altNetler["AYT Matematik"] = mat; altNetler["AYT TDE"] = tde; altNetler["AYT Tarih-1"] = tar1; altNetler["AYT Coğrafya-1"] = cog1;
+        let p = (tytPuan * 0.4) + (mat * 3.0) + (tde * 3.0) + (tar1 * 2.8) + (cog1 * 2.8) + 100;
+        hamPuanStr = `${p.toFixed(2)} EA`;
+        yerlestirmePuanStr = obpPuani > 0 ? `${(t => t.toFixed(2))(p + (obpPuani * 0.12))} Y-EA <br><small class="text-muted">(OBP: ${obpPuani})</small>` : "Hesaplanamadı";
     }
 
     try {
-        await addDoc(collection(db, "Denemeler"), { denemeAdi, denemeTuru, toplamNet: toplamNet.toFixed(2), altNetler, hamPuanStr: ham, yerlestirmePuanStr: yerl, tarih: serverTimestamp() });
-        document.getElementById('deneme-form').reset(); bootstrap.Modal.getInstance(document.getElementById('denemeModal')).hide(); loadDenemeler();
-    } catch(err) {}
+        await addDoc(collection(db, "Denemeler"), {
+            denemeAdi, denemeTuru, toplamNet: toplamNet.toFixed(2), altNetler, hamPuanStr, yerlestirmePuanStr, obpPuani, tarih: serverTimestamp()
+        });
+        document.getElementById('deneme-form').reset();
+        bootstrap.Modal.getInstance(document.getElementById('denemeModal')).hide();
+        loadDenemeler();
+    } catch(err) { alert("Kaydedilemedi."); }
 });
 
 async function loadDenemeler() {
     const tbody = document.getElementById('deneme-list-table');
-    const snap = await getDocs(query(collection(db, "Denemeler"), orderBy("tarih", "desc")));
-    tbody.innerHTML = "";
-    if(snap.empty) { tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Veri yok.</td></tr>"; return; }
-    
-    let isFirst = true;
-    snap.forEach(docSnap => {
-        const d = docSnap.data();
-        if(isFirst) { sonDenemeVerisi = d.altNetler; isFirst = false; }
-        let rozetler = "";
-        for(const [ders, net] of Object.entries(d.altNetler)) rozetler += `<span class="badge bg-light text-dark border deneme-badge">${ders}: <strong>${net}</strong></span> `;
-        tbody.innerHTML += `<tr><td class="fw-bold align-middle">${d.denemeAdi}<br><span class="badge bg-secondary mt-1">${d.denemeTuru}</span></td><td class="align-middle text-start">${rozetler}</td><td class="align-middle"><span class="badge bg-primary fs-6">${d.toplamNet}</span></td><td class="align-middle fw-bold text-primary">${d.hamPuanStr || '-'}</td><td class="align-middle fw-bold text-success">${d.yerlestirmePuanStr || '-'}</td></tr>`;
-    });
+    try {
+        const q = query(collection(db, "Denemeler"), orderBy("tarih", "desc"));
+        const snap = await getDocs(q);
+        tbody.innerHTML = "";
+        
+        if(snap.empty) { tbody.innerHTML = "<tr><td colspan='5' class='text-muted'>Henüz sınav girilmedi.</td></tr>"; return; }
+        
+        snap.forEach(docSnap => {
+            const d = docSnap.data();
+            let rozetler = "";
+            for (const [ders, net] of Object.entries(d.altNetler)) {
+                rozetler += `<span class="badge bg-light text-dark border deneme-badge">${ders}: <strong>${net}</strong></span> `;
+            }
+            tbody.innerHTML += `
+                <tr>
+                    <td class="fw-bold align-middle">${d.denemeAdi}<br><span class="badge bg-secondary mt-1">${d.denemeTuru}</span></td>
+                    <td class="align-middle text-start">${rozetler}</td>
+                    <td class="align-middle"><span class="badge bg-primary fs-6">${d.toplamNet}</span></td>
+                    <td class="align-middle text-primary fw-bold">${d.hamPuanStr || 'Hesaplanamadı'}</td>
+                    <td class="align-middle text-success fw-bold">${d.yerlestirmePuanStr || 'Hesaplanamadı'}</td>
+                </tr>`;
+        });
+    } catch(e) {}
 }
 
-// ÖDEV ATAMA & LİSTELEME
 document.getElementById('assignment-form')?.addEventListener('submit', async (e) => {
     e.preventDefault();
     try {
@@ -252,25 +302,6 @@ async function loadAssignments() {
     });
 }
 
-// YÖK ATLAS HEDEF KARŞILAŞTIRMA
-window.hedefKarsilastir = function() {
-    const secim = document.getElementById('hedef-program-select').value;
-    const tbody = document.getElementById('karsilastirma-body');
-    if (!secim || !sonDenemeVerisi) return alert("Lütfen hedef seçin ve en az 1 deneme girdiğinizden emin olun.");
-    const ref = yokAtlasReferanslari[secim];
-    document.getElementById('ref-yil-turu').innerText = `${ref.yil} - ${ref.puanTuru}`;
-    document.getElementById('ref-katsayi').innerText = ref.katsayi; document.getElementById('ref-obp').innerText = ref.obp;
-    document.getElementById('referans-bilgi-alani').classList.remove('d-none'); document.getElementById('karsilastirma-container').classList.remove('d-none');
-    tbody.innerHTML = "";
-    for (const [ders, refNet] of Object.entries(ref.netler)) {
-        const ogrenciNet = sonDenemeVerisi.hasOwnProperty(ders) ? sonDenemeVerisi[ders] : null; 
-        let fark = ogrenciNet !== null ? (ogrenciNet - refNet).toFixed(2) : null;
-        let durum = fark === null ? `<span class="badge bg-secondary">Tıraş/Null</span>` : (fark >= 0 ? `<span class="badge bg-success">+${fark}</span>` : `<span class="badge bg-danger">${fark}</span>`);
-        tbody.innerHTML += `<tr><td class="fw-bold">${ders}</td><td>${ogrenciNet !== null ? ogrenciNet : '-'}</td><td>${refNet}</td><td>${durum}</td></tr>`;
-    }
-}
-
-// ZAYIF KONU & GRAFİK ANALİZİ
 async function loadBireyselTestAnalizi() {
     const list = document.getElementById('zayif-konular-listesi');
     const snap = await getDocs(collection(db, "TestEntries"));
@@ -300,7 +331,6 @@ async function loadBireyselTestAnalizi() {
     }
 }
 
-// ADMIN İŞLEMLERİ
 window.tumTestVerileriniSil = async function() {
     document.getElementById('confirm-delete-btn').innerText = "Siliniyor...";
     try {
