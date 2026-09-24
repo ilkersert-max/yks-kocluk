@@ -732,7 +732,7 @@ window.tumTestVerileriniSil = async function() {
 }
 
 // -----------------------------------------------------------
-// GÜNCELLENEN DENEME KAYIT VE LİSTELEME (Ders Netleri Ekli)
+// DENEME KAYIT VE EKRANA BASMA (SÜTUN DETAYLI)
 // -----------------------------------------------------------
 if(denemeForm) {
     denemeForm.addEventListener('submit', async (e) => {
@@ -751,7 +751,7 @@ if(denemeForm) {
         let alanPuanMetni = `${tytPuan.toFixed(2)} TYT`;
         let toplamNet = tytToplamNet;
 
-        // Alan Netleri Objesi
+        // Alt Ders Netleri Haritası
         let altNetler = {
             "Türkçe": tytTurkce,
             "Sosyal": tytSosyal,
@@ -815,29 +815,29 @@ async function loadDenemeler() {
         const querySnapshot = await getDocs(collection(db, "Denemeler"));
         tbody.innerHTML = "";
         if(querySnapshot.empty) {
-            tbody.innerHTML = "<tr><td colspan='4' class='text-center text-muted'>Henüz girilmiş deneme sınavı yok.</td></tr>";
+            tbody.innerHTML = "<tr><td colspan='5' class='text-center text-muted py-3'>Henüz girilmiş deneme sınavı yok.</td></tr>";
             return;
         }
         querySnapshot.forEach(docSnap => {
             const d = docSnap.data();
             
-            // Netlerin görselleştirilmesi
+            // Ders Netleri Rozetleri
             let netRozetleri = "";
-            if (d.altNetler) {
+            if (d.altNetler && Object.keys(d.altNetler).length > 0) {
                 for (const [ders, netVal] of Object.entries(d.altNetler)) {
-                    netRozetleri += `<span class="badge bg-light text-dark border me-1 mb-1">${ders}: <strong>${netVal}</strong></span>`;
+                    netRozetleri += `<span class="badge bg-light text-dark border p-1 me-1 mb-1" style="font-size:0.85rem;">${ders}: <strong class="text-primary">${netVal}</strong></span> `;
                 }
+            } else {
+                netRozetleri = `<span class="text-muted small">Eski kayıt (Net detayı yok)</span>`;
             }
 
             tbody.innerHTML += `
                 <tr>
-                    <td class="fw-bold text-start ps-3">
-                        <div>${d.denemeAdi}</div>
-                        <div class="mt-1">${netRozetleri}</div>
-                    </td>
-                    <td><span class="badge bg-secondary">${d.denemeTuru || 'TYT'}</span></td>
-                    <td><span class="badge bg-primary fs-6">${d.toplamNet} Net</span></td>
-                    <td><span class="badge bg-success fs-6">${d.alanPuanMetni || '-'}</span></td>
+                    <td class="fw-bold text-start ps-3 align-middle">${d.denemeAdi}</td>
+                    <td class="align-middle"><span class="badge bg-secondary">${d.denemeTuru || 'TYT'}</span></td>
+                    <td class="align-middle text-start px-3">${netRozetleri}</td>
+                    <td class="align-middle"><span class="badge bg-primary fs-6">${d.toplamNet} Net</span></td>
+                    <td class="align-middle"><span class="badge bg-success fs-6">${d.alanPuanMetni || '-'}</span></td>
                 </tr>`;
         });
     } catch(e) {}
@@ -877,6 +877,74 @@ async function loadSonDenemelerAnalizi() {
                     </div>
                 </div>`;
         });
+    } catch(e) {}
+}
+
+async function loadKonuMatrisiAndAnaliz() {
+    const barlarContainer = document.getElementById('alan-basari-barlari');
+    const zayifList = document.getElementById('zayif-konular-listesi');
+    if(!barlarContainer || !zayifList) return;
+    try {
+        const testSnap = await getDocs(collection(db, "TestEntries"));
+        if (testSnap.empty) {
+            barlarContainer.innerHTML = `<div class="text-muted small p-2 bg-light rounded border">⚠️ Henüz çözülen test verisi bulunmuyor.</div>`;
+            zayifList.innerHTML = `<li class="list-group-item text-muted small py-2">⚠️ Analiz için henüz test girilmedi.</li>`;
+            return;
+        }
+        const alanlar = {
+            "Sayısal (Mat, Geo, Fiz, Kim, Biyo)": { dogru: 0, toplam: 0 },
+            "Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)": { dogru: 0, toplam: 0 },
+            "YDT / Yabancı Dil": { dogru: 0, toplam: 0 }
+        };
+        const konuIstatistik = {};
+        testSnap.forEach(docSnap => {
+            const d = docSnap.data();
+            const ders = dersIsminiTemizle(d.ders);
+            const konu = d.konu || "Genel";
+            const toplamSoru = (d.dogru || 0) + (d.yanlis || 0) + (d.bos || 0);
+
+            if (toplamSoru > 0) {
+                if (["Matematik", "Geometri", "Fizik", "Kimya", "Biyoloji"].includes(ders)) {
+                    alanlar["Sayısal (Mat, Geo, Fiz, Kim, Biyo)"].dogru += d.dogru || 0;
+                    alanlar["Sayısal (Mat, Geo, Fiz, Kim, Biyo)"].toplam += toplamSoru;
+                } else if (["Türkçe", "Tarih", "Coğrafya", "Edebiyat"].includes(ders)) {
+                    alanlar["Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)"].dogru += d.dogru || 0;
+                    alanlar["Eşit Ağırlık / Sözel (Tük, Edeb, Tar, Coğ)"].toplam += toplamSoru;
+                } else if (["İngilizce", "Dil", "YDT"].includes(ders)) {
+                    alanlar["YDT / Yabancı Dil"].dogru += d.dogru || 0;
+                    alanlar["YDT / Yabancı Dil"].toplam += toplamSoru;
+                }
+                if (!konuIstatistik[konu]) konuIstatistik[konu] = { ders: ders, dogru: 0, toplam: 0 };
+                konuIstatistik[konu].dogru += d.dogru || 0;
+                konuIstatistik[konu].toplam += toplamSoru;
+            }
+        });
+        barlarContainer.innerHTML = "";
+        for (const [alanAdi, stat] of Object.entries(alanlar)) {
+            if (stat.toplam > 0) {
+                const oran = Math.round((stat.dogru / stat.toplam) * 100);
+                let barColor = oran >= 75 ? "bg-success" : (oran >= 50 ? "bg-warning" : "bg-danger");
+                barlarContainer.innerHTML += `
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between small fw-bold mb-1">
+                            <span>${alanAdi}</span>
+                            <span>%${oran} Başarı (${stat.toplam} Soru Çözüldü)</span>
+                        </div>
+                        <div class="progress" style="height: 12px;"><div class="progress-bar ${barColor}" style="width: ${oran}%"></div></div>
+                    </div>`;
+            }
+        }
+        zayifList.innerHTML = "";
+        for (const [konu, stat] of Object.entries(konuIstatistik)) {
+            const oran = Math.round((stat.dogru / stat.toplam) * 100);
+            if (oran < 65) {
+                zayifList.innerHTML += `
+                    <li class="list-group-item d-flex justify-content-between align-items-center py-2">
+                        <div><strong class="text-dark">${konu}</strong><br><small class="text-muted">${stat.ders}</small></div>
+                        <span class="badge bg-danger rounded-pill">%${oran} Başarı</span>
+                    </li>`;
+            }
+        }
     } catch(e) {}
 }
 
