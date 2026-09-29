@@ -44,3 +44,9 @@
 - Yetki verilmemiş rapor menüde görünmez; doğrudan render/CSV/PDF de izin kontrolü yapılır. Tam JSON yedeği Admin'e özeldir.
 - ÖNEMLİ: Bu bir rapor-UI görünürlük kontrolüdür; mevcut uygulama tüm kayıtları istemciye getirdiğinden Firestore veri gizliliği / koleksiyon bazında rol izolasyonu sağlamaz. Gerçek veri gizliliği için sunucu taraflı yetkilendirme ve veri erişiminin ayrıştırılması gerekir. Firebase Security Rules ayrıca uygulanmalıdır.
 - v11 rapor hesapları, ödev tamamlanan/toplam sayısı, ödev sil/düzenle, haftalık tablo ve test temizliği korunur. Canlı Firebase/telefon testi yapılmadı.
+
+## v13 – Ödevler haftalık görünüm ve geçmiş hafta filtresi
+- Ödevler ekranı varsayılan olarak içinde bulunulan haftayı gösterir. Önceki hafta / Bu hafta / Sonraki hafta düğmeleri ve tarih seçici ile geçmiş veya gelecek haftalara gidilebilir.
+- Bir ödev, veriliş–bitiş tarih aralığı seçilen haftayla kesişiyorsa o haftada görünür. Böylece birden fazla haftaya yayılan ödevler yalnızca verildiği veya bittiği haftaya sıkışmaz.
+- “Tüm ödevler” seçeneği korunur; kullanıcı haftalık görünüm ile tüm geçmiş arasında geçiş yapabilir.
+- Seçili haftada tamamlanan / toplam ödev sayısı gösterilir. Mevcut `assignmentMetrics` hesabı aynen kullanılır; ödev sonucu, fazla/eksik soru, raporlar, rol yetkileri ve Firestore kayıt şeması değiştirilmez.
