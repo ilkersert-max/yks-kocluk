@@ -190,11 +190,10 @@ function taskWeekInfo(anchor=taskWeekAnchor){
  return {start,end,label:`${dateString(start)} – ${dateString(end)}`};
 }
 function assignmentActiveInWeek(t,start,end){
+ // Haftalık ödev görünümü yalnızca VERİLİŞ TARİHİNE göre çalışır.
+ // Bitiş tarihinin başka bir haftayla kesişmesi ödevi o haftaya taşımaz.
  const assigned=weeklyDate(t.assignedDate)||weeklyDate(t.atanmaTarihi)||weeklyDate(t.tarih);
- const due=weeklyDate(t.dueDate)||weeklyDate(t.tarih)||assigned;
- if(!assigned&&!due)return false;
- const from=assigned||due,to=due||assigned;
- return from<=end && to>=start;
+ return Boolean(assigned&&assigned>=start&&assigned<=end);
 }
 function shiftTaskWeek(days){
  const base=new Date((taskWeekAnchor||new Date().toLocaleDateString('sv-SE'))+'T12:00:00');
@@ -210,7 +209,7 @@ function renderTasks(){
  const list=assignmentFilter==='all'?all:all.filter(t=>assignmentActiveInWeek(t,week.start,week.end));
  const completed=completedAssignmentCount(list),activeTotal=list.filter(t=>!assignmentMetrics(t).cancelled).length;
  $('content').innerHTML=`<div class="card"><h1>Ödevler</h1><p class="muted">Öğretmen, veli ve koçun verdiği çalışmalar tek yerde. Sonuçlar bütün rollerce görülebilir.</p>
- <div class="task-week-filter"><div><strong>${assignmentFilter==='all'?'Tüm ödevler':'Haftalık görünüm'}</strong>${assignmentFilter==='week'?`<p class="muted">${esc(week.label)} · ${completed}/${activeTotal} tamamlandı</p>`:'<p class="muted">Geçmiş ve gelecek bütün ödevler.</p>'}</div><div class="buttons"><button type="button" id="task-prev-week" class="subtle">← Önceki hafta</button><button type="button" id="task-this-week" class="secondary">Bu hafta</button><button type="button" id="task-next-week" class="subtle">Sonraki hafta →</button><button type="button" id="task-all" class="subtle">${assignmentFilter==='all'?'Haftalık görünüm':'Tüm ödevler'}</button></div><label>Hafta içinden bir gün seç<input id="task-week-date" type="date" value="${esc(taskWeekAnchor)}"></label></div>
+ <div class="task-week-filter"><div><strong>${assignmentFilter==='all'?'Tüm ödevler':'Haftalık görünüm'}</strong>${assignmentFilter==='week'?`<p class="muted">${esc(week.label)} · veriliş tarihi bu haftada olan ödevler · ${completed}/${activeTotal} tamamlandı</p>`:'<p class="muted">Geçmiş ve gelecek bütün ödevler.</p>'}</div><div class="buttons"><button type="button" id="task-prev-week" class="subtle">← Önceki hafta</button><button type="button" id="task-this-week" class="secondary">Bu hafta</button><button type="button" id="task-next-week" class="subtle">Sonraki hafta →</button><button type="button" id="task-all" class="subtle">${assignmentFilter==='all'?'Haftalık görünüm':'Tüm ödevler'}</button></div><label>Hafta içinden bir gün seç<input id="task-week-date" type="date" value="${esc(taskWeekAnchor)}"></label></div>
  ${canAssign()?`<details><summary><strong>+ Yeni ödev ata</strong></summary><form id="assignment-form"><div class="grid"><label>Ders<select id="task-subject">${assignmentSubjectOptions()}</select></label><label>Toplam soru<input id="task-q" type="number" min="1" step="1" required></label><label>Hedef doğru (opsiyonel)<input id="task-target" type="number" min="0" step="1"></label><label>Veriliş tarihi<input id="task-assigned-date" type="date" required></label><label>Bitiş tarihi<input id="task-date" type="date" required></label></div><label>Not<textarea id="task-note" rows="2"></textarea></label><button class="primary">Ödev ata</button></form></details>`:''}</div><div id="task-list"></div>`;
  $('task-prev-week').onclick=()=>shiftTaskWeek(-7);
  $('task-next-week').onclick=()=>shiftTaskWeek(7);
@@ -219,7 +218,7 @@ function renderTasks(){
  $('task-week-date').onchange=e=>{if(e.target.value){taskWeekAnchor=e.target.value;assignmentFilter='week';renderTasks()}};
  if(canAssign()){ $('task-assigned-date').value=new Date().toLocaleDateString('sv-SE'); $('assignment-form').onsubmit=saveTask; }
  const listEl=$('task-list');
- if(!list.length){listEl.innerHTML=`<div class="card">${assignmentFilter==='all'?'Henüz ödev atanmadı.':'Bu haftada aktif ödev yok.'}</div>`;return}
+ if(!list.length){listEl.innerHTML=`<div class="card">${assignmentFilter==='all'?'Henüz ödev atanmadı.':'Bu hafta verilmiş ödev yok.'}</div>`;return}
  for(const t of list){
   const legacy=!t.schemaVersion,card=E('section',{className:'card'});
   card.innerHTML=`<div class="taskhead"><h3>${esc(assignmentSubjectName(t.ders))}${t.konu?' · '+esc(t.konu):''}</h3><span class="pill">${esc(assignmentStatus(t))}</span></div><p>${t.kitap?esc(t.kitap)+' · ':''}Veriliş: ${dateString(t.assignedDate||t.atanmaTarihi||t.tarih)} · Bitiş: ${dateString(t.dueDate||t.tarih)}</p><p class="muted">Atayan: ${esc(t.assignedByRole||'Eski kayıt')} ${t.questionCount?'· '+t.questionCount+' soru':''} ${t.targetCorrect!==null&&t.targetCorrect!==undefined?'· Hedef '+t.targetCorrect+' doğru':''}</p>${t.note?`<p>${esc(t.note)}</p>`:''}${t.result?`<div class="summary">${t.result.correct} doğru · ${t.result.wrong} yanlış · ${t.result.blank} boş · ${format(t.result.net)} net</div>${assignmentProgress(t)}`:''}${legacy?'<p class="warning">Eski ödev kaydı: soru sayısı ve sonuç alanları yok. Yeni formatta ödev oluşturabilirsiniz.</p>':''}`;
@@ -290,7 +289,7 @@ function showTaskResult(card,t){
  const existing=t.result||{};
  const priorActual=existing.attempted??(Number.isFinite(Number(existing.correct))&&Number.isFinite(Number(existing.wrong))&&Number.isFinite(Number(existing.blank))?Number(existing.correct)+Number(existing.wrong)+Number(existing.blank):'');
  editor.innerHTML=`<h3>Ödev sonucu</h3><p><strong>Atanan: ${esc(t.questionCount)} soru.</strong> Daha az veya daha çok çözebilirsin; atanan miktar üst sınır değildir. Çözülen, doğru + yanlış + boş toplamıdır. Eksik kalan ödev soruları “boş” sayılmaz.</p><div class="grid"><label>Çözülen toplam soru<input name="attempted" type="number" min="0" step="1" value="${esc(priorActual)}" required></label><label>Doğru<input name="correct" type="number" min="0" step="1" value="${esc(existing.correct??'')}" required></label><label>Yanlış<input name="wrong" type="number" min="0" step="1" value="${esc(existing.wrong??'')}" required></label></div><div class="summary" id="task-result-preview">Sonuç değerlerini gir.</div><label>Çözüm tarihi<input name="resultDate" type="date" required></label><button class="primary">Sonucu kaydet</button>`;
- editor.elements.resultDate.value=t.resultDate||dateISO(t.resultUpdatedAt)||new Date().toLocaleDateString('sv-SE');
+ editor.elements.resultDate.value=t.resultDate||(t.result?'':new Date().toLocaleDateString('sv-SE'));
  const read=()=>[parseNumber(editor.elements.attempted.value),parseNumber(editor.elements.correct.value),parseNumber(editor.elements.wrong.value)];
  const preview=()=>{
   const [a,d,w]=read(),message=validateAssignmentResult(a,d,w),host=editor.querySelector('#task-result-preview');
@@ -324,10 +323,10 @@ function weekBounds(value){const anchor=new Date(value+'T12:00:00');if(Number.is
 function weekRows(start,end){
  const sums=new Map();const add=(subject,q,d,w,b)=>{const name=assignmentSubjectName(subject);if(!name||![q,d,w,b].every(Number.isFinite)||q<0||d<0||w<0||b<0||d+w+b!==q)return;const r=sums.get(name)||{subject:name,q:0,d:0,w:0,b:0};r.q+=q;r.d+=d;r.w+=w;r.b+=b;sums.set(name,r);};
  for(const t of tests){const date=weeklyDate(t.studyDate||t.tarih);if(date&&date>=start&&date<=end){const d=Number(t.dogru),w=Number(t.yanlis),q=Number(t.questionCount??(d+w+Number(t.bos||0))),b=t.bos==null?q-d-w:Number(t.bos);add(t.ders,q,d,w,b);}}
- for(const t of tasks){if(!t.result)continue;const date=weeklyDate(t.resultDate||t.resultUpdatedAt);if(date&&date>=start&&date<=end){const d=Number(t.result.correct),w=Number(t.result.wrong),q=Number(t.result.attempted??(d+w+Number(t.result.blank||0))),b=t.result.blank==null?q-d-w:Number(t.result.blank);add(t.ders,q,d,w,b);}}
+ for(const t of tasks){if(!t.result)continue;const date=weeklyDate(t.resultDate);if(date&&date>=start&&date<=end){const d=Number(t.result.correct),w=Number(t.result.wrong),q=Number(t.result.attempted??(d+w+Number(t.result.blank||0))),b=t.result.blank==null?q-d-w:Number(t.result.blank);add(t.ders,q,d,w,b);}}
  return [...sums.values()].sort((a,b)=>{const ai=ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(a.subject),bi=ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(b.subject);return (ai<0?999:ai)-(bi<0?999:bi)||a.subject.localeCompare(b.subject,'tr');});
 }
-function renderWeeklyStats(date){const bounds=weekBounds(date);if(!bounds)return '<p>Geçersiz tarih.</p>';const [start,end]=bounds,rows=weekRows(start,end);const totals=rows.reduce((s,r)=>({q:s.q+r.q,d:s.d+r.d,w:s.w+r.w,b:s.b+r.b}),{q:0,d:0,w:0,b:0});return `<p class="muted">${dateString(start)} – ${dateString(end)} · Pazartesi–Pazar. Günlük çalışmalar ve sonuç girilmiş ödevler dahildir; deneme netleri dahil değildir. Ödevle aynı çözümü ayrıca günlük çalışma olarak kaydetmeyin.</p><div class="stats">${detail('Çözülen soru',totals.q)}${detail('Doğru',totals.d)}${detail('Yanlış',totals.w)}${detail('Boş',totals.b)}</div><div class="tablewrap"><table><thead><tr><th>Ders / Branş</th><th>Çözülen</th><th>Doğru</th><th>Yanlış</th><th>Boş</th><th>Net</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.subject)}</td><td>${r.q}</td><td>${r.d}</td><td>${r.w}</td><td>${r.b}</td><td>${format(r.d-r.w/4)}</td></tr>`).join('')||'<tr><td colspan="6">Bu haftaya ait sonuç bulunmuyor.</td></tr>'}</tbody><tfoot><tr><th scope="row">GENEL TOPLAM</th><th>${totals.q}</th><th>${totals.d}</th><th>${totals.w}</th><th>${totals.b}</th><th>${format(totals.d-totals.w/4)}</th></tr></tfoot></table></div>`;}
+function renderWeeklyStats(date){const bounds=weekBounds(date);if(!bounds)return '<p>Geçersiz tarih.</p>';const [start,end]=bounds,rows=weekRows(start,end);const totals=rows.reduce((s,r)=>({q:s.q+r.q,d:s.d+r.d,w:s.w+r.w,b:s.b+r.b}),{q:0,d:0,w:0,b:0});return `<p class="muted">${dateString(start)} – ${dateString(end)} · Pazartesi–Pazar. Günlük çalışmalar ve gerçek sonuç tarihi bulunan ödev sonuçları dahildir; deneme netleri dahil değildir. Sonuç tarihi olmayan eski ödevler yanlış haftaya taşınmaz ve bu tabloya katılmaz. Ödevle aynı çözümü ayrıca günlük çalışma olarak kaydetmeyin.</p><div class="stats">${detail('Çözülen soru',totals.q)}${detail('Doğru',totals.d)}${detail('Yanlış',totals.w)}${detail('Boş',totals.b)}</div><div class="tablewrap"><table><thead><tr><th>Ders / Branş</th><th>Çözülen</th><th>Doğru</th><th>Yanlış</th><th>Boş</th><th>Net</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r.subject)}</td><td>${r.q}</td><td>${r.d}</td><td>${r.w}</td><td>${r.b}</td><td>${format(r.d-r.w/4)}</td></tr>`).join('')||'<tr><td colspan="6">Bu haftaya ait sonuç bulunmuyor.</td></tr>'}</tbody><tfoot><tr><th scope="row">GENEL TOPLAM</th><th>${totals.q}</th><th>${totals.d}</th><th>${totals.w}</th><th>${totals.b}</th><th>${format(totals.d-totals.w/4)}</th></tr></tfoot></table></div>`;}
 function attachWeeklyStats(){const host=$('weekly-results'),input=$('weekly-date');if(!host||!input)return;input.value=new Date().toLocaleDateString('sv-SE');const update=()=>{host.innerHTML=renderWeeklyStats(input.value)};input.onchange=update;update();}
 
 function renderWeekly(){$('content').innerHTML='<div class="card"><h1>Haftalık ders / branş soru istatistiği</h1><label>Hafta içinden bir gün seç<input id="weekly-date" type="date"></label><div id="weekly-results"></div></div>';attachWeeklyStats();}
@@ -509,7 +508,7 @@ function reportTestResult(t){
 function reportRows(){
  const from=adminReportState.from,to=adminReportState.to;
  const assigned=tasks.filter(t=>reportBetween(reportDate(t.assignedDate||t.atanmaTarihi||t.tarih),from,to));
- const workTasks=tasks.filter(t=>reportBetween(reportDate(t.resultDate||t.resultUpdatedAt),from,to));
+ const workTasks=tasks.filter(t=>reportBetween(reportDate(t.resultDate),from,to));
  const daily=tests.filter(t=>reportBetween(reportDate(t.studyDate||t.tarih),from,to));
  const examRows=exams.filter(t=>reportBetween(reportDate(t.examDate||t.tarih),from,to));
  return {assigned,workTasks,daily,examRows};
@@ -520,7 +519,7 @@ function reportTable(headers,rows){
 function reportMetricTotals(rows){return rows.reduce((a,r)=>({q:a.q+r.q,d:a.d+r.d,w:a.w+r.w,b:a.b+r.b,net:a.net+r.net}),{q:0,d:0,w:0,b:0,net:0});}
 function reportWorkItems(data){
  const out=[];
- for(const t of data.workTasks){const r=reportResult(t);if(r)out.push({source:'Ödev',id:t.id,subject:assignmentSubjectName(t.ders),date:reportDate(t.resultDate||t.resultUpdatedAt),...r});}
+ for(const t of data.workTasks){const r=reportResult(t),date=reportDate(t.resultDate);if(r&&date)out.push({source:'Ödev',id:t.id,subject:assignmentSubjectName(t.ders),date,...r});}
  for(const t of data.daily){const r=reportTestResult(t);if(r)out.push({source:'Günlük çalışma',id:t.id,subject:assignmentSubjectName(t.ders),date:reportDate(t.studyDate||t.tarih),...r});}
  return out;
 }
@@ -535,7 +534,7 @@ function adminReportBuild(kind,data){
  const over=validated.filter(x=>!x.m.cancelled&&x.actual>x.q),under=validated.filter(x=>!x.m.cancelled&&x.actual<x.q);
  const sum=reportMetricTotals(items);
  const assignedQs=ar.filter(x=>x.q!==null).reduce((s,x)=>s+x.q,0);
- const heading=`<p class="muted">Tarih filtresi: Ödev envanterinde veriliş, çalışma raporunda sonuç/çalışma, denemelerde sınav tarihi esas alınır. Tüm ödevlerin tamamlanma oranı, veriliş tarihine göre seçilen kayıtlar içindir.</p>`;
+ const heading=`<p class="muted">Tarih filtresi: Ödev envanterinde veriliş tarihi; günlük çalışma + ödev dökümünde gerçek çalışma/sonuç tarihi; denemelerde sınav tarihi esas alınır. Ödevin sonradan düzenlendiği tarih çalışma tarihi olarak kullanılmaz.</p>`;
  const tableAssignments=(arr)=>reportTable(['Ders','Veriliş','Bitiş','Atanan','Gerçekleşen','Fark','Gerçekleşme','Durum'],arr.map(x=>[assignmentSubjectName(x.t.ders),dateString(x.t.assignedDate||x.t.atanmaTarihi||x.t.tarih),dateString(x.t.dueDate||x.t.tarih),emp(x.q),emp(x.actual),x.q===null||x.actual===null?'—':(x.actual-x.q>0?'+':'')+(x.actual-x.q),x.q&&x.actual!==null?fmt(100*x.actual/x.q)+'%':'—',assignmentStatus(x.t)]));
  const workTable=(list)=>reportTable(['Tarih','Kaynak','Ders','Toplam','Doğru','Yanlış','Boş','Net'],list.map(x=>[dateString(x.date),x.source,x.subject,x.q,x.d,x.w,x.b,fmt(x.net)]));
  if(kind==='overview')return heading+`<div class="stats">${detail('Toplam ödev',active.length)}${detail('Tamamlanan ödev',completed+'/'+active.length)}${detail('Eksik ödev',under.length)}${detail('Hedef üstü ödev',over.length)}${detail('Atanan soru',assignedQs)}${detail('Gerçekleşen ödev sorusu',reportTotal(items.filter(x=>x.source==='Ödev'),'q'))}${detail('Tüm çalışma sorusu',sum.q)}${detail('Toplam net',fmt(sum.net))}</div><p class="muted">Tamamlanan ödev sayısı, mevcut kartlar ve öğrenci analizindeki ortak hesaplamayla aynıdır. İptal edilenler paydaya alınmaz. Çalışmalar denemeleri kapsamaz.</p>`+tableAssignments(ar);
@@ -569,7 +568,7 @@ function adminReportBuild(kind,data){
   return heading+`<div class="stats">${detail('Deneme kaydı',data.examRows.length)}${detail('Sonuç bekleyen',pending)}${detail('Sonuçlu',data.examRows.length-pending)}</div>`+reportTable(['Deneme','Tarih','Tür','Kaynak','Net','Sonuç durumu'],data.examRows.map(x=>[x.denemeAdi||'—',dateString(x.examDate||x.tarih),x.denemeTuru||'—',x.examSource||'—',examNetText(x),x.resultStatus==='pending'?'Sonuç bekleniyor':x.complete?'Tam':'Kısmi / eski kayıt']));
  }
  if(kind==='quality'){
-  const bad=[];for(const x of reportAssignmentRows({assigned:tasks})){if(x.q===null)bad.push(['Ödev',x.t.id,'Atanan soru sayısı geçersiz veya yok']);if(x.t.result&&!reportResult(x.t))bad.push(['Ödev',x.t.id,'Sonuç D+Y+B toplamı veya sayılar geçersiz']);if(x.t.result&&!reportDate(x.t.resultDate||x.t.resultUpdatedAt))bad.push(['Ödev',x.t.id,'Sonuç tarihi yok; haftalık rapora giremez']);if(!x.date)bad.push(['Ödev',x.t.id,'Veriliş tarihi yok; filtrelenemez']);}
+  const bad=[];for(const x of reportAssignmentRows({assigned:tasks})){if(x.q===null)bad.push(['Ödev',x.t.id,'Atanan soru sayısı geçersiz veya yok']);if(x.t.result&&!reportResult(x.t))bad.push(['Ödev',x.t.id,'Sonuç D+Y+B toplamı veya sayılar geçersiz']);if(x.t.result&&!reportDate(x.t.resultDate))bad.push(['Ödev',x.t.id,'Gerçek çözüm/sonuç tarihi yok; düzenleme tarihi rapor tarihi olarak kullanılmaz']);if(!x.date)bad.push(['Ödev',x.t.id,'Veriliş tarihi yok; filtrelenemez']);}
   for(const t of tests){if(!reportTestResult(t))bad.push(['Günlük çalışma',t.id,'Soru sonuçları tutarsız']);if(!reportDate(t.studyDate||t.tarih))bad.push(['Günlük çalışma',t.id,'Çalışma tarihi yok']);}
   return `<p class="muted">Veri denetimi tarih filtresinden bağımsızdır; tüm mevcut kayıtları inceler. Eski sonuçsuz ödevlerde sonuç bulunmaması tek başına hata değildir.</p><div class="stats">${detail('Tespit edilen konu',bad.length)}</div>`+reportTable(['Kaynak','Kayıt kimliği','Açıklama'],bad);
  }

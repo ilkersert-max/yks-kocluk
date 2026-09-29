@@ -1,3 +1,13 @@
+# YKS Aile Koçluk Portalı v14
+
+## v14 düzeltmeleri
+- Ödevler > Haftalık görünüm yalnızca **ödevin veriliş tarihini** esas alır. Bitiş tarihinin başka haftaya uzanması ödevi o haftada göstermez.
+- Günlük çalışma + ödev dökümü ve haftalık soru istatistiğinde ödevler için yalnızca **gerçek sonuç/çözüm tarihi (`resultDate`)** kullanılır.
+- `resultUpdatedAt` artık çalışma tarihi sayılmaz; eski bir kaydın sonradan düzenlenmesi çalışmayı yanlış haftaya taşımaz.
+- Sonuç tarihi olmayan eski ödev sonuçları tarih filtreli raporlardan çıkarılır ve Admin > Veri denetimi raporunda işaretlenir.
+- Eski bir ödev sonucunda çözüm tarihi yoksa düzenleme ekranı tarihi uydurmaz; tarih kullanıcı tarafından seçilmeden kayıt yapılamaz.
+- v13 rapor rol yetkileri, ödev hesaplamaları, tamamlanan/toplam ödev gösterimi ve diğer özellikler korunmuştur.
+
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
 **Kurulum:** ZIP içindeki 7 dosyanın tamamını GitHub Pages deponuzun köküne yükleyin. Önce eski sürümün yedeğini alın. Firebase projesi/şeması göçü yapılmaz.
