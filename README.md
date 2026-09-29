@@ -1,13 +1,15 @@
-# YKS Aile Koçluk Portalı v15
+# YKS Aile Koçluk Portalı v16
 
-## v15 haftalık rapor düzeltmesi
-- Tüm haftalık gruplar **Pazartesi–Pazar** olarak hesaplanır.
-- Ödev kaynaklı haftalık soru istatistiği ve "Günlük çalışma + ödev dökümü" raporunda ödevin haftası artık **veriliş tarihine** göre belirlenir.
-- Bitiş tarihi, sonuç giriş tarihi ve sonradan düzenleme tarihi ödevi başka haftaya taşımaz.
-- Örnek: 21.09.2026 tarihinde verilen ve 27.09.2026 tarihinde biten DİL ve Matematik ödevleri yalnızca **21–27 Eylül 2026** haftasına aittir. 28 Eylül–4 Ekim haftasında görünmezler.
-- Eksik çözülmüş bir ödevde sonuç kaydı varsa çözülen gerçek soru sayıları kendi veriliş haftasına dahil edilir; sonuç kaydı yoksa soru istatistiğine doğal olarak katkı yapmaz.
-- Günlük çalışma kayıtları kendi gerçek çalışma tarihlerine göre haftalanmaya devam eder.
-- v14 ve önceki çalışan özellikler korunmuştur.
+## v16 Haftalık Çalışma ve ders kapsamı
+- "Haftalık Sorular" ekranı **Haftalık Çalışma** raporuna dönüştürüldü.
+- Önceki Hafta / Bu Hafta / Sonraki Hafta gezinmesi vardır; haftalar her zaman Pazartesi–Pazar'dır.
+- Haftalık rapor; atanan ödev, tamamlanan/toplam ödev, atanan soru, ödev sonucu girilen soru, sonucu beklenen soru yükü, günlük çalışma, doğru/yanlış/boş/net, ders bazlı performans, fazla/eksik çözüm ve doğru hedeflerini birlikte gösterir.
+- **Geometri** ve **Paragraf** ödev/günlük çalışma ders listesine ve ilgili istatistik/raporlara eklendi.
+- Haftalık ekranda ve Admin raporlarında **Denemeler Hariç / Dahil** seçeneği vardır. Denemeler dahil edilse de ödevde atanan soru, tamamlanma, hedef ve fazla/eksik hesapları değişmez.
+- Denemelerin mevcut ayrı ekranları ve Son 5 Deneme analizi aynen devam eder.
+- Denemede yalnız net girilmişse D/Y/B uydurulmaz; net ve soru kapsamı dahil edilir, D/Y/B yalnız bilinen kayıtlardan hesaplanır.
+- Mevcut deneme şemasında Geometri ve Paragraf ayrı test alanları olmadığı için denemeler bu iki dersi yapay olarak üretmez.
+- Admin Rapor Merkezi'ndeki ders/çalışma/haftalık raporlar aynı deneme dahil/hariç seçimini kullanır.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
