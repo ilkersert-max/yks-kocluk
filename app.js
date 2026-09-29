@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v17';
+const BUILD_VERSION='v18';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:true,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
@@ -51,18 +51,19 @@ function assignmentMetrics(t){
  const d=result?.correct==null?NaN:Number(result.correct);
  const w=result?.wrong==null?NaN:Number(result.wrong);
  const blank=result?.blank==null?NaN:Number(result.blank);
- // Older records may lack attempted or blank. Use stored attempted first, then D+Y+B.
+ // Tamamlanma yalnız gerçek çözülen/adanan sayısından belirlenir.
+ // D/Y/B aritmetiğindeki eski veri bozukluğu tamamlanma durumunu tersine çeviremez.
  const actual=result?.attempted!=null&&result.attempted!==''?Number(result.attempted):
   [d,w,blank].every(Number.isInteger)?d+w+blank:NaN;
- const valid=Boolean(result)&&Number.isInteger(assigned)&&assigned>0&&
-  Number.isInteger(actual)&&actual>=0&&
+ const countKnown=Number.isInteger(assigned)&&assigned>0&&Number.isInteger(actual)&&actual>=0;
+ const arithmeticValid=Boolean(result)&&countKnown&&
   (!Number.isFinite(d)||!Number.isFinite(w)||d+w<=actual)&&
   (!Number.isFinite(blank)||!Number.isFinite(d)||!Number.isFinite(w)||d+w+blank===actual);
- // Historical status is used only when numerical completion cannot be established.
- const legacyComplete=!valid&&['completed','reviewed','tamamlandı','değerlendirildi'].includes(state);
- return {assigned,actual,valid,cancelled,
-  complete:!cancelled&&(valid?actual>=assigned:legacyComplete),
-  over:valid&&actual>assigned,legacyComplete};
+ // Yalnız çözülen sayı gerçekten bilinmiyorsa eski durum alanına geri dön.
+ const legacyComplete=!countKnown&&['completed','reviewed','tamamlandı','değerlendirildi'].includes(state);
+ return {assigned,actual,valid:arithmeticValid,countKnown,cancelled,
+  complete:!cancelled&&(countKnown?actual>=assigned:legacyComplete),
+  over:!cancelled&&countKnown&&actual>assigned,legacyComplete};
 }
 function completedAssignmentCount(list){return list.filter(t=>assignmentMetrics(t).complete).length;}
 function assignmentStatus(t){
@@ -126,7 +127,7 @@ function notify(msg,error=false){const el=$('toast');el.textContent=msg;el.style
 function E(tag,attributes={},text){const el=document.createElement(tag);for(const[k,v]of Object.entries(attributes)){if(k==='className')el.className=v;else if(k==='value')el.value=v;else if(k==='type')el.type=v;else if(k==='checked')el.checked=v;else el.setAttribute(k,v)}if(text!==undefined)el.textContent=text;return el;}
 function detail(name,value){return `<div class="stat"><small>${esc(name)}</small><strong>${value}</strong></div>`}
 function dateString(value){if(!value)return '—';if(value.toDate)return value.toDate().toLocaleDateString('tr-TR');return String(value).slice(0,10).split('-').reverse().join('.');}
-function normalizedRole(r){if(r==='Ogretmen')return 'Öğretmen';return ['Admin','Öğretmen','Koç','Veli','Öğrenci'].includes(r)?r:'Öğrenci'}
+function normalizedRole(r){const raw=String(r||'').trim();const aliases={Ogretmen:'Öğretmen',Koc:'Koç',Ogrenci:'Öğrenci'};const value=aliases[raw]||raw;return ['Admin','Öğretmen','Koç','Veli','Öğrenci'].includes(value)?value:'Öğrenci'}
 function tearDown(){for(const f of unsubs)f();unsubs=[];exams=[];tasks=[];tests=[]}
 async function boot(u){tearDown();user=u;const us=await getDoc(doc(db,'Users',u.uid));const data=us.exists()?us.data():{};role=normalizedRole((data.Rol||'Öğrenci').trim());if(role==='Öğrenci')loginMotivation=nextMotivation();$('hello').textContent=`${data.AdSoyad||'Kullanıcı'} · ${role}`;
  try{const [s,p]=await Promise.all([getDoc(doc(db,'Settings','SystemConfig')),getDoc(doc(db,'StudentProfile','mainStudent'))]);settings={...defaultSettings,...(s.exists()?s.data():{})};profile={...profile,...(p.exists()?p.data():{})};}catch(err){notify('Ayarlar/profil alınamadı: '+err.message,true)}
@@ -157,7 +158,7 @@ function renderHome(){
  ${student?`<section class="card motivation"><div class="celebrate-icon" aria-hidden="true">👏 🎉</div><h1>Merhaba, bugün de buradasın!</h1><p class="motivation-quote">${esc(loginMotivation)}</p><div class="buttons"><button type="button" id="celebrate-btn" class="primary applause-button">👏 Alkış ve tezahürat</button><button type="button" id="next-quote" class="subtle">Başka bir söz</button></div><small>Ses yalnızca düğmeye basınca çalar; cihazın sesini kontrol et.</small></section>`:''}
  <section class="card"><h1>${student?'Bugün ne yaptın? 👋':'Öğrencinin genel durumu'}</h1><p class="muted">${student?'Kısa bir giriş yeterli; detaylara istediğinde bakarsın.':'Tek öğrencinin okul, kurs ve ev çalışmaları tek yerde.'}</p><div class="stats">${detail('Son deneme',last?`${esc(last.denemeTuru)} · ${examNetText(last)}`:'Henüz yok')}${detail('Deneme sayısı',exams.length)}${detail('Tamamlanan ödev',`${completed}/${tasks.filter(t=>!assignmentMetrics(t).cancelled).length}`)}${detail('Günlük test',tests.length)}</div></section>
  ${student?`<div class="grid"><section class="card"><h2>📝 Deneme girdim</h2><p>Okul, kurs veya ev denemesi.</p><button class="primary" data-nav="exam">Deneme ekle</button></section><section class="card"><h2>✏️ Soru çözdüm</h2><p>Kitabını seç, sonucunu gir.</p><button class="primary" data-nav="test">Çalışma ekle</button></section><section class="card"><h2>📚 Ödevlerim</h2><p>Bugünkü görevlerini tamamla.</p><button class="primary" data-nav="tasks">Ödevleri aç</button></section></div>`:`<div class="grid"><section class="card"><h2>📊 Deneme takibi</h2><p>Tüm sınavlar, netler ve kaynaklar.</p><button class="primary" data-nav="history">Denemeleri incele</button></section><section class="card"><h2>📚 Ödev yönetimi</h2><p>Ödev ata, sonucu değerlendir.</p><button class="primary" data-nav="tasks">Ödevleri aç</button></section><section class="card"><h2>📈 Detaylı analiz</h2><p>Çalışma ve gelişim sonuçları.</p><button class="primary" data-nav="analysis">Analizleri aç</button></section></div>`}
- ${last?`<section class="card"><h2>Son deneme</h2><p>${esc(last.denemeAdi)} · ${dateString(last.examDate||last.tarih)} · ${esc(last.examSource||'Kaynak belirtilmemiş')}</p><strong>${format(normalizedExamTotals(last)?.totalNet??Number(last.toplamNet))} net</strong></section>`:''}`;
+ ${last?`<section class="card"><h2>Son deneme</h2><p>${esc(last.denemeAdi)} · ${dateString(last.examDate||last.tarih)} · ${esc(last.examSource||'Kaynak belirtilmemiş')}</p><strong>${examNetText(last)}${examNet(last)===null?'':' net'}</strong></section>`:''}`;
  document.querySelectorAll('[data-nav]').forEach(b=>b.onclick=()=>{view=b.dataset.nav;render()});
  if(student){
   $('celebrate-btn').disabled=settings.studentCelebrationSound===false;
@@ -175,7 +176,7 @@ function updateExamSummary(){const box=$('exam-summary'),err=$('exam-err');try{c
 async function saveExam(e){e.preventDefault();saveDraftMeta();const error=$('exam-err');try{const computed=computeExam(draftType,draftMode,draft);const op=obpFromProfile(profile);const indicator=computed.any?successIndicator(draftType,computed):null;const altNetler={};for(const[id,r]of Object.entries(computed.results))if(r.entered)altNetler[TESTS[id].label]=r.net;const official=parseNumber($('exam-official').value);if($('exam-official').value.trim()!==''&&official===null)throw Error('Kurum puanı sayısal olmalıdır.');const payload={schemaVersion:2,studentKey:'mainStudent',createdBy:user.uid,createdByRole:role,denemeAdi:draftMeta.name,examDate:draftMeta.date,examSource:draftMeta.source,publisher:draftMeta.publisher,denemeTuru:draftType,entryMode:draftMode,results:computed.results,altNetler,tytNet:computed.tytNet,fieldNet:computed.fieldNet,toplamNet:computed.totalNet,complete:computed.complete,resultStatus:computed.any?(computed.complete?'complete':'partial'):'pending',indicator,indicatorLabel:'Net başarı göstergesi (ÖSYM puanı değildir)',reportedScore:official,obpSnapshot:op||null,obpVersion:'profile-at-entry'};if(editingExamId){payload.updatedAt=serverTimestamp();payload.updatedBy=user.uid;await updateDoc(doc(db,'Denemeler',editingExamId),payload)}else{payload.tarih=serverTimestamp();await addDoc(collection(db,'Denemeler'),payload)}draft={};draftMeta={};editingExamId=null;notify('Deneme kaydedildi.');view='history';render()}catch(err){error.textContent=err.message;notify('Deneme kaydedilemedi: '+err.message,true)}}
 function renderProfile(){$('content').innerHTML=`<div class="card"><h1>Diploma notu ve OBP</h1><p>Bir kere profilde tanımlanır; her denemede tekrar sorulmaz.</p><form id="profile-form"><label>Diploma notu durumu<select id="diploma-status"><option value="unknown">Henüz bilinmiyor</option><option value="estimated">Tahmini diploma notu</option><option value="final">Kesinleşmiş diploma notu</option></select></label><label>Diploma notu (50–100)<input id="diploma-note" inputmode="decimal" placeholder="Örn. 90,25" value="${profile.diplomaNote??''}"></label><label><input id="broken-obp" type="checkbox" style="width:auto" ${profile.brokenObp?'checked':''}> İlgili yılın kurallarına göre kırık OBP uygulanacak</label><div id="obp-preview" class="summary"></div><p class="muted">OBP = diploma notu × 5. Normal katkı × 0,12; uygun durumda kırık katkı × 0,06. Ek puan/istisnalar bu sürümde otomatik uygulanmaz.</p><button class="primary">Bilgileri kaydet</button></form></div>`;$('diploma-status').value=profile.diplomaStatus||'unknown';function preview(){const x=obpFromProfile({diplomaStatus:$('diploma-status').value,diplomaNote:$('diploma-note').value,brokenObp:$('broken-obp').checked});$('obp-preview').textContent=x?`OBP: ${format(x.obp)} · Katsayı: ${String(x.factor).replace('.',',')} · Yerleştirme katkısı: ${format(x.contribution)}${x.isEstimate?' (tahmini)':''}`:'OBP katkısı henüz hesaplanamıyor.'}$('diploma-status').onchange=preview;$('diploma-note').oninput=preview;$('broken-obp').onchange=preview;preview();$('profile-form').onsubmit=async e=>{e.preventDefault();const status=$('diploma-status').value,note=parseNumber($('diploma-note').value);if(status!=='unknown'&&(note===null||note<50||note>100)){notify('Diploma notu 50–100 arasında olmalıdır.',true);return}profile={diplomaStatus:status,diplomaNote:status==='unknown'?null:note,brokenObp:$('broken-obp').checked,updatedAt:serverTimestamp()};try{await setDoc(doc(db,'StudentProfile','mainStudent'),profile,{merge:true});notify('OBP bilgileri kaydedildi.');render()}catch(err){notify(err.message,true)}};}
 function examNet(x){if(x.resultStatus==='pending'||(x.schemaVersion>=2&&x.toplamNet===null))return null;const n=normalizedExamTotals(x)?.totalNet??parseNumber(x.toplamNet);return n===null?null:n;}
-function examNetText(x){const n=examNet(x);return n===null?'Sonuç bekleniyor':format(n);}
+function examNetText(x){const n=examNet(x);if(n===null)return 'Sonuç bekleniyor';return x.resultStatus==='partial'?format(n)+' · Kısmi':format(n);}
 function sortedExams(){return [...exams].sort((a,b)=>(b.examDate||b.tarih?.toDate?.()?.toISOString()||'').localeCompare(a.examDate||a.tarih?.toDate?.()?.toISOString()||''))}
 function openExamForEdit(id){const e=exams.find(x=>x.id===id);if(!e){notify('Deneme bulunamadı.',true);return;}
  editingExamId=id;draftType=e.denemeTuru||'TYT';draftMode=e.entryMode==='DY'?'DY':'NET';
@@ -265,7 +266,7 @@ async function saveTask(e){
  try{
   const subject=$('task-subject').value;
   const allowed=settings.assignmentSubjectMode==='detailed'
-   ?Object.values(TESTS).map(t=>t.label):ASSIGNMENT_SIMPLE_SUBJECTS;
+   ?[...Object.values(TESTS).map(t=>t.label),'Geometri','Paragraf']:ASSIGNMENT_SIMPLE_SUBJECTS;
   if(!allowed.includes(subject))throw Error('Geçerli bir ders seçin.');
   if($('task-date').value < $('task-assigned-date').value)throw Error('Bitiş tarihi veriliş tarihinden önce olamaz.');
   await addDoc(collection(db,'Assignments'),{
@@ -510,13 +511,13 @@ function wipeCounts(){
   return `Deneme: ${exams.length} · Günlük çalışma: ${tests.length} · Ödev: ${tasks.length}`;
 }
 function installTestCleanup(){
-  if(!canAdmin())return;
+  if(!canAdmin()||settings.testMode!==true)return;
   const content=$('content');
   const pane=document.createElement('section');
   pane.className='card cleanup-panel';
   pane.innerHTML=`
     <h2>🧹 Test verilerini temizle (tekrar kullanılabilir)</h2>
-    <p class="muted">Bu özellik test döneminde tekrar kullanılabilir. Temizlik gerçek kullanım moduna otomatik geçirmez. Kullanıcılar, diploma notu/OBP, kitaplar ve giriş parametreleri <strong>korunur.</strong></p>
+    <p class="muted">Bu özellik yalnız <strong>Test modu açıkken</strong> kullanılabilir. Kullanıcılar, diploma notu/OBP, kitaplar ve giriş parametreleri <strong>korunur.</strong></p>
     <p id="wipe-counts" class="summary">${wipeCounts()}</p>
     <p class="muted">Test kayıtlarını JSON olarak bilgisayarına al. Dosya indirmesini tarayıcında kontrol etmeden silme işlemine geçme.</p>
     <div class="buttons"><button type="button" id="test-backup" class="secondary">⬇ Test verilerini yedekle</button></div>
@@ -592,7 +593,7 @@ renderAdmin = function(){
 };
 
 // Build marker for verifying GitHub Pages/browser caching.
-document.title += ' · v12';
+document.title = document.title.replace(/\s·\sv\d+\s*$/,'')+' · '+BUILD_VERSION;
 
 
 /* ================ v11: ADMIN RAPOR MERKEZİ ================
@@ -692,9 +693,10 @@ function adminReportBuild(kind,data){
  if(kind==='assignments')return heading+tableAssignments(ar);
  if(kind==='overwork')return heading+`<div class="stats">${detail('Fazla çözülen soru',over.reduce((s,x)=>s+x.actual-x.q,0))}${detail('Eksik kalan soru',under.reduce((s,x)=>s+x.q-x.actual,0))}${detail('Hedef üstü ödev',over.length)}${detail('Eksik ödev',under.length)}</div><p class="muted">Eksik kalan sorular “Boş” kabul edilmez. Geçerli sonucu olmayan ödevler fark hesabına katılmaz.</p>`+tableAssignments([...over,...under]);
  if(kind==='subjects'){
-  const groups=new Map();for(const it of items){const row=groups.get(it.subject)||{subject:it.subject,q:0,d:0,w:0,b:0,net:0,records:0};for(const k of ['q','d','w','b','net'])row[k]+=it[k];row.records++;groups.set(it.subject,row);}
+  const groups=new Map();for(const it of items){const row=groups.get(it.subject)||{subject:it.subject,q:0,d:0,w:0,b:0,net:0,records:0,dyQ:0};row.q+=it.q;row.net+=it.net;row.records++;if(it.dyKnown!==false&&[it.d,it.w,it.b].every(Number.isFinite)){row.d+=it.d;row.w+=it.w;row.b+=it.b;row.dyQ+=it.q;}groups.set(it.subject,row);}
   const order=s=>{const i=ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(s);return i<0?999:i;};const rows=[...groups.values()].sort((a,b)=>order(a.subject)-order(b.subject)||a.subject.localeCompare(b.subject,'tr'));
-  const unknownDY=items.some(x=>x.dyKnown===false);return heading+reportTable(['Ders','Kayıt','Toplam','Doğru','Yanlış','Boş','Net','Doğru oranı'],rows.map(r=>[r.subject,r.records,r.q,r.d,r.w,r.b,fmt(r.net),r.q?fmt(100*r.d/r.q)+'%':'—']).concat(rows.length?[['GENEL TOPLAM',items.length,sum.q,sum.d,sum.w,sum.b,fmt(sum.net),sum.q?fmt(100*sum.d/sum.q)+'%':'—']]:[]))+(unknownDY?'<p class="muted">Not: Yalnız net girilmiş deneme derslerinde D/Y/B bilinmediği için bu üç sütundaki toplamlar yalnız D/Y/B bilgisi bulunan kayıtlara aittir; net toplamı deneme netini içerir.</p>':'');
+  const dyTotals=rows.reduce((a,r)=>({q:a.q+r.dyQ,d:a.d+r.d,w:a.w+r.w,b:a.b+r.b}),{q:0,d:0,w:0,b:0});
+  const unknownDY=items.some(x=>x.dyKnown===false);return heading+reportTable(['Ders','Kayıt','Toplam','Doğru','Yanlış','Boş','Net','Doğru oranı'],rows.map(r=>[r.subject,r.records,r.q,r.dyQ?r.d:'—',r.dyQ?r.w:'—',r.dyQ?r.b:'—',fmt(r.net),r.dyQ?fmt(100*r.d/r.dyQ)+'%':'—']).concat(rows.length?[['GENEL TOPLAM',items.length,sum.q,dyTotals.q?dyTotals.d:'—',dyTotals.q?dyTotals.w:'—',dyTotals.q?dyTotals.b:'—',fmt(sum.net),dyTotals.q?fmt(100*dyTotals.d/dyTotals.q)+'%':'—']]:[]))+(unknownDY?'<p class="muted">Not: Yalnız net girilmiş deneme derslerinde D/Y/B bilinmediği için doğruluk oranı yalnız D/Y/B bilgisi bulunan soru sayısı üzerinden hesaplanır; net toplamı deneme netini içerir.</p>':'');
  }
  if(kind==='work'){const unknownDY=items.some(x=>x.dyKnown===false);return heading+`<div class="stats">${detail('Toplam soru / kapsam',sum.q)}${detail('Doğru',sum.d)}${detail('Yanlış',sum.w)}${detail('Boş',sum.b)}${detail('Net',fmt(sum.net))}</div>`+workTable(items)+(unknownDY?'<p class="muted">Not: Yalnız net girilmiş deneme derslerinde doğru/yanlış/boş bilinmez; bu alanlarda 0 varsayılmaz. Net ve soru kapsamı yine rapora dahildir.</p>':'');}
  if(kind==='weekly'){
