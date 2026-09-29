@@ -5,12 +5,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
-    function userDoc() {
-      return get(/databases/$(database)/documents/Users/$(request.auth.uid));
+    function userPath() {
+      return /databases/$(database)/documents/Users/$(request.auth.uid);
     }
 
     function role() {
-      return signedIn() && userDoc().exists() ? userDoc().data.Rol : null;
+      return signedIn() && exists(userPath()) ? get(userPath()).data.Rol : null;
     }
 
     function isAdmin() {
