@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v16';
+const BUILD_VERSION='v17';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:true,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
@@ -416,7 +416,62 @@ function renderWeekly(){
  $('weekly-this').onclick=()=>{weeklyReportAnchor=new Date().toLocaleDateString('sv-SE');renderWeekly();};
  draw();
 }
-function renderAnalysis(){const ordered=[...exams].sort((a,b)=>(a.examDate||'').localeCompare(b.examDate||''));const unique=[...new Set(ordered.map(x=>x.denemeTuru||'TYT'))];const totals=ordered.map(examNet).filter(v=>v!==null);const avg=totals.length?totals.reduce((a,b)=>a+b,0)/totals.length:null;const topics={};for(const t of tests){const k=(t.ders||'')+' / '+(t.konu||'');const q=Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0)));if(!topics[k])topics[k]={correct:0,total:0,tests:0};topics[k].correct+=Number(t.dogru||0);topics[k].total+=q;topics[k].tests++}const cards=Object.entries(topics).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.tests}</td><td>${v.total?format(100*v.correct/v.total)+'%':'—'}</td></tr>`).join('');const trend=unique.map(type=>{const data=ordered.filter(x=>(x.denemeTuru||'TYT')===type);const vals=data.map(examNet).filter(v=>v!==null);const last=vals.at(-1),first=vals[0];return `<tr><td>${esc(type)}</td><td>${data.length}</td><td>${format(last)}</td><td>${format(vals.length>=2?last-first:null)}</td></tr>`}).join('');$('content').innerHTML=`<div class="card"><h1>Öğrenci analizi</h1><p class="muted">Tek öğrencinin deneme, test ve ödev kayıtları. Farklı puan türlerinin netleri birbiriyle karıştırılmaz.</p><div class="stats">${detail('Deneme sayısı',exams.length)}${detail('Toplam çözülen günlük soru',tests.reduce((a,t)=>a+Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0))),0))}${detail('Tamamlanan ödev',`${completedAssignmentCount(tasks)}/${tasks.filter(t=>!assignmentMetrics(t).cancelled).length}`)}${detail('Kaydedilmiş test',tests.length)}</div></div><div class="card"><h2>Puan türüne göre net ilerleme</h2><div class="tablewrap"><table><thead><tr><th>Tür</th><th>Deneme</th><th>Son net</th><th>İlk-son farkı</th></tr></thead><tbody>${trend||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><p class="muted">Farklı zorluktaki denemeler birebir eşdeğer kabul edilmez.</p></div><div class="card"><h2>Günlük çalışma: konu doğru oranı</h2><div class="tablewrap"><table><thead><tr><th>Ders / Konu</th><th>Test sayısı</th><th>Doğru oranı</th></tr></thead><tbody>${cards||'<tr><td colspan="3">Henüz çalışma yok</td></tr>'}</tbody></table></div></div><div class="card"><h2>Ödev sonuçları</h2>${tasks.map(t=>`<div class="task"><strong>${esc(assignmentSubjectName(t.ders))}${t.konu?' · '+esc(t.konu):''}</strong><p class="muted">${esc(t.assignedByRole||'Eski kayıt')} · ${esc(assignmentStatus(t))}</p>${t.result?`${t.result.correct} doğru · ${t.result.wrong} yanlış · ${format(t.result.net)} net`: 'Sonuç girilmedi'}${t.review?`<p>${esc(t.review)}</p>`:''}</div>`).join('')||'Henüz ödev yok'}</div><div class="card"><h2>Haftalık ders / branş soru istatistiği</h2><label>Hafta içinden bir gün seç<input id="weekly-date" type="date"></label><div id="weekly-results"></div></div>`;attachWeeklyStats();}
+let analysisIncludeExams=false;
+function lastThreeWeeksData(includeExams=false){
+ const current=weekBounds(new Date().toLocaleDateString('sv-SE'));
+ if(!current)return [];
+ const weeks=[];
+ for(let offset=2;offset>=0;offset--){
+  const d=new Date(current[0]+'T12:00:00');d.setDate(d.getDate()-offset*7);
+  const anchor=d.toLocaleDateString('sv-SE');
+  const data=weeklyStudyData(anchor,includeExams);if(data)weeks.push(data);
+ }
+ return weeks;
+}
+function lastThreeWeeksHtml(includeExams=false){
+ const weeks=lastThreeWeeksData(includeExams);
+ if(!weeks.length)return '<p>Haftalık veri oluşturulamadı.</p>';
+ const today=new Date().toLocaleDateString('sv-SE');
+ const rows=weeks.map((d,i)=>[
+  dateString(d.start)+' – '+dateString(d.end),
+  d.assignedQs,
+  d.taskSolved,
+  d.completed+'/'+d.assignmentRows.length,
+  d.total.q,
+  format(d.total.net),
+  today>=d.start&&today<=d.end?'Hafta devam ediyor':'Tamamlanan hafta'
+ ]);
+ const subjects=new Set();for(const d of weeks)for(const r of d.subjectRows)subjects.add(r.subject);
+ const ordered=[...subjects].sort((a,b)=>{const ai=ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(a),bi=ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(b);return (ai<0?999:ai)-(bi<0?999:bi)||a.localeCompare(b,'tr');});
+ const subjectRows=ordered.map(subject=>{
+  const values=weeks.map(d=>d.subjectRows.find(r=>r.subject===subject)?.q||0);
+  return [subject,...values,values.reduce((a,b)=>a+b,0)];
+ });
+ const totalQ=weeks.reduce((s,d)=>s+d.total.q,0),totalAssigned=weeks.reduce((s,d)=>s+d.assignedQs,0),totalSolved=weeks.reduce((s,d)=>s+d.taskSolved,0);
+ const allRows=weeks.flatMap(d=>d.subjectRows);
+ const bySubject=new Map();for(const r of allRows){const x=bySubject.get(r.subject)||{q:0,d:0,dyQ:0};x.q+=r.q;x.d+=r.d;x.dyQ+=r.dyQ;bySubject.set(r.subject,x);}
+ let topSubject='—',topQ=0,bestAccuracy='—',bestPct=-1;
+ for(const [subject,x] of bySubject){if(x.q>topQ){topQ=x.q;topSubject=subject;}if(x.dyQ>0){const p=100*x.d/x.dyQ;if(p>bestPct){bestPct=p;bestAccuracy=subject+' · '+format(p)+'%';}}}
+ return `<section class="card"><div class="grid"><div><h2>Son 3 Haftalık Durum</h2><p class="muted">Haftalar Pazartesi–Pazar. ${includeExams?'Denemeler dahil.':'Denemeler hariç.'}</p></div><label>Denemeler<select id="analysis-exams"><option value="0">Hariç</option><option value="1">Dahil</option></select></label></div>
+ <div class="stats">${detail('3 hafta çalışma',totalQ)}${detail('3 hafta atanan',totalAssigned)}${detail('Ödev sonucu girilen',totalSolved)}${detail('En çok çalışılan ders',topSubject+' · '+topQ)}${detail('En yüksek doğruluk',bestAccuracy)}</div>
+ ${reportTable(['Hafta','Atanan soru','Ödev sonucu','Tamamlanan ödev','Toplam çalışma','Net','Durum'],rows)}
+ <h3>Ders bazında son 3 hafta</h3>
+ ${reportTable(['Ders',...weeks.map(d=>dateString(d.start)+'–'+dateString(d.end)),'3 Hafta Toplam'],subjectRows)}
+ <p class="muted">Devam eden hafta geçmiş haftalarla “başarılı/başarısız” olarak derecelendirilmez; yalnız gerçekleşen değerler gösterilir.</p></section>`;
+}
+function renderAnalysis(){
+ const ordered=[...exams].sort((a,b)=>(a.examDate||'').localeCompare(b.examDate||''));
+ const unique=[...new Set(ordered.map(x=>x.denemeTuru||'TYT'))];
+ const topics={};for(const t of tests){const k=(t.ders||'')+' / '+(t.konu||'');const q=Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0)));if(!topics[k])topics[k]={correct:0,total:0,tests:0};topics[k].correct+=Number(t.dogru||0);topics[k].total+=q;topics[k].tests++}
+ const cards=Object.entries(topics).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${v.tests}</td><td>${v.total?format(100*v.correct/v.total)+'%':'—'}</td></tr>`).join('');
+ const trend=unique.map(type=>{const data=ordered.filter(x=>(x.denemeTuru||'TYT')===type);const vals=data.map(examNet).filter(v=>v!==null);const last=vals.at(-1),first=vals[0];return `<tr><td>${esc(type)}</td><td>${data.length}</td><td>${format(last)}</td><td>${format(vals.length>=2?last-first:null)}</td></tr>`}).join('');
+ $('content').innerHTML=`${lastThreeWeeksHtml(analysisIncludeExams)}
+ <div class="card"><h1>Öğrenci analizi</h1><p class="muted">Tek öğrencinin deneme, günlük çalışma ve ödev kayıtları. Son 3 hafta bölümü ortak haftalık hesap motorunu kullanır.</p><div class="stats">${detail('Deneme sayısı',exams.length)}${detail('Toplam çözülen günlük soru',tests.reduce((a,t)=>a+Number(t.questionCount??(Number(t.dogru||0)+Number(t.yanlis||0)+Number(t.bos||0))),0))}${detail('Tamamlanan ödev',`${completedAssignmentCount(tasks)}/${tasks.filter(t=>!assignmentMetrics(t).cancelled).length}`)}${detail('Kaydedilmiş test',tests.length)}</div></div>
+ <div class="card"><h2>Puan türüne göre net ilerleme</h2><div class="tablewrap"><table><thead><tr><th>Tür</th><th>Deneme</th><th>Son net</th><th>İlk-son farkı</th></tr></thead><tbody>${trend||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><p class="muted">Farklı zorluktaki denemeler birebir eşdeğer kabul edilmez.</p></div>
+ <div class="card"><h2>Günlük çalışma: konu doğru oranı</h2><div class="tablewrap"><table><thead><tr><th>Ders / Konu</th><th>Test sayısı</th><th>Doğru oranı</th></tr></thead><tbody>${cards||'<tr><td colspan="3">Henüz çalışma yok</td></tr>'}</tbody></table></div></div>
+ <div class="card"><h2>Ödev sonuçları</h2>${tasks.map(t=>`<div class="task"><strong>${esc(assignmentSubjectName(t.ders))}${t.konu?' · '+esc(t.konu):''}</strong><p class="muted">${esc(t.assignedByRole||'Eski kayıt')} · ${esc(assignmentStatus(t))}</p>${t.result?`${t.result.correct} doğru · ${t.result.wrong} yanlış · ${format(t.result.net)} net`: 'Sonuç girilmedi'}${t.review?`<p>${esc(t.review)}</p>`:''}</div>`).join('')||'Henüz ödev yok'}</div>`;
+ const toggle=$('analysis-exams');if(toggle){toggle.value=analysisIncludeExams?'1':'0';toggle.onchange=()=>{analysisIncludeExams=toggle.value==='1';renderAnalysis();};}
+}
 function renderReports(){const op=obpFromProfile(profile);$('content').innerHTML=`<div class="card"><h1>Öğrenci durum raporu</h1><p class="muted">Tarayıcının Yazdır → PDF olarak kaydet seçeneğiyle bilgisayarda PDF oluşturulabilir.</p><div class="buttons noprint"><button id="print-report" class="primary">Yazdır / PDF</button><button id="export-json" class="secondary">JSON yedeği</button></div><hr><h2>Diploma / OBP</h2><p>${op?`Diploma notu: ${format(op.diploma)} · OBP: ${format(op.obp)} · Katkı: ${format(op.contribution)} ${op.isEstimate?'(tahmini)':''}`:'Diploma notu / OBP henüz bilinmiyor.'}</p><h2>Denemeler</h2><div class="tablewrap"><table><thead><tr><th>Deneme</th><th>Tür</th><th>Tarih</th><th>Net</th></tr></thead><tbody>${sortedExams().map(x=>`<tr><td>${esc(x.denemeAdi)}</td><td>${esc(x.denemeTuru)}</td><td>${dateString(x.examDate||x.tarih)}</td><td>${examNetText(x)}</td></tr>`).join('')||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><h2>Ödevler</h2>${tasks.map(t=>`<p>${esc(t.ders)} – ${esc(t.konu)} · ${esc(assignmentStatus(t))} ${t.result?'· '+format(t.result.net)+' net':''}</p>`).join('')||'<p>Henüz ödev yok.</p>'}</div>`;$('print-report').onclick=()=>window.print();$('export-json').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),profile,exams,tasks,tests},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='YKS-Ogrenci-Yedek-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};}
 function renderAdmin(){$('content').innerHTML=`<div class="card"><h1>Admin · Giriş parametreleri</h1><p class="muted">Tek öğrencinin deneme giriş yöntemi tüm kullanıcılara uygulanır. Daha önce kaydedilmiş denemeler değişmez.</p><form id="admin-form"><label>Deneme sonuç giriş yöntemi<select id="setting-mode"><option value="BOTH">Her iki yöntem</option><option value="NET">Yalnızca net</option><option value="DY">Yalnızca doğru / yanlış</option></select></label><label>Her iki yöntem açıkken varsayılan<select id="setting-default"><option value="NET">Hızlı net</option><option value="DY">Doğru / yanlış</option></select></label><label><input type="checkbox" id="setting-details" style="width:auto"> Öğrencinin detaylı analiz sekmesini göster</label><label><input type="checkbox" id="setting-sound" style="width:auto"> Öğrencinin alkış/tezahürat ses düğmesini göster</label><label>Ödev ders görünümü<select id="setting-assignment-subjects"><option value="simple">Sade (10 ders; TYT/AYT ayrımı yok)</option><option value="detailed">Ayrıntılı (TYT/AYT ve 1–2 ayrımı)</option></select></label><button class="primary">Ayarları kaydet</button></form></div>`;$('setting-mode').value=settings.examEntryMode||'BOTH';$('setting-default').value=settings.defaultEntryMode||'NET';$('setting-details').checked=settings.studentDetailedMode===true;$('setting-sound').checked=settings.studentCelebrationSound!==false;$('setting-assignment-subjects').value=settings.assignmentSubjectMode==='detailed'?'detailed':'simple';$('admin-form').onsubmit=async e=>{e.preventDefault();const patch={examEntryMode:$('setting-mode').value,defaultEntryMode:$('setting-default').value,studentDetailedMode:$('setting-details').checked,studentCelebrationSound:$('setting-sound').checked,assignmentSubjectMode:$('setting-assignment-subjects').value};try{await setDoc(doc(db,'Settings','SystemConfig'),patch,{merge:true});settings={...settings,...patch};draftMode=patch.examEntryMode==='BOTH'?patch.defaultEntryMode:patch.examEntryMode;draft={};notify('Admin parametreleri güncellendi.');render()}catch(err){notify(err.message,true)}};}
 
@@ -677,21 +732,59 @@ function reportCSV(kind,data){
   [['Ders','Veriliş','Bitiş','Atanan','Gerçekleşen','Fark','Durum','Doğru','Yanlış','Boş','Net'],...ar.map(x=>[assignmentSubjectName(x.t.ders),x.date,reportDate(x.t.dueDate||x.t.tarih),x.q??'',x.actual??'',x.q===null||x.actual===null?'':x.actual-x.q,assignmentStatus(x.t),x.r?.d??'',x.r?.w??'',x.r?.b??'',x.r?.net??''])];
  return '\uFEFF'+rows.map(row=>row.map(v=>'"'+String(v??'').replace(/"/g,'""')+'"').join(';')).join('\r\n');
 }
+function weeklyExcelSheets(anchor,includeExams=false){
+ const d=weeklyStudyData(anchor,includeExams);if(!d)return null;
+ const source=n=>d.sourceTotals[n]||{q:0,d:0,w:0,b:0,net:0,dyQ:0};
+ const task=source('Ödev'),daily=source('Günlük çalışma'),exam=source('Deneme');
+ const summary=[
+  ['YKS Haftalık Çalışma Raporu'],['Hafta',dateString(d.start)+' – '+dateString(d.end)],['Denemeler',includeExams?'Dahil':'Hariç'],[],
+  ['Gösterge','Değer'],['Atanan ödev',d.assignmentRows.length],['Tamamlanan ödev',d.completed+'/'+d.assignmentRows.length],
+  ['Atanan soru',d.assignedQs],['Ödev sonucu girilen',task.q],['Sonucu beklenen soru yükü',d.pendingLoad],
+  ['Günlük çalışma',daily.q],['Deneme soru kapsamı',includeExams?exam.q:0],['Toplam çalışma',d.total.q],['Net',d.total.net]
+ ];
+ const assignments=[['Ders','Atanan','Çözülen','Fark','Gerçekleşme %','Durum'],...d.assignmentRows.map(x=>[assignmentSubjectName(x.t.ders),x.q??'',x.actual??'',x.q===null||x.actual===null?'':x.actual-x.q,x.q&&x.actual!==null?100*x.actual/x.q:'',assignmentStatus(x.t)])];
+ const subjects=[['Ders','Kaynak','Toplam','Doğru','Yanlış','Boş','Net','Doğruluk %'],...d.subjectRows.map(r=>[r.subject,[...r.sources].join(' + '),r.q,r.dyQ?r.d:'',r.dyQ?r.w:'',r.dyQ?r.b:'',r.net,r.dyQ?100*r.d/r.dyQ:''])];
+ const targets=[['Ders','Hedef doğru','Gerçek doğru','Durum'],...d.assignmentRows.filter(x=>x.t.targetCorrect!==null&&x.t.targetCorrect!==undefined&&x.t.targetCorrect!=='').map(x=>[assignmentSubjectName(x.t.ders),Number(x.t.targetCorrect),x.r?.d??'',!x.r?'Sonuç bekleniyor':x.r.d>=Number(x.t.targetCorrect)?'Hedefe ulaşıldı':'Hedefe ulaşılamadı'])];
+ const overunder=[['Ders','Atanan','Çözülen','Fark','Durum'],...[...d.over,...d.under].map(x=>[assignmentSubjectName(x.t.ders),x.q,x.actual,x.actual-x.q,assignmentStatus(x.t)])];
+ const sourceRows=[['Kaynak','Soru','Doğru','Yanlış','Boş','Net'],['Ödev',task.q,task.d,task.w,task.b,task.net],['Günlük çalışma',daily.q,daily.d,daily.w,daily.b,daily.net],...(includeExams?[['Deneme',exam.q,exam.dyQ?exam.d:'',exam.dyQ?exam.w:'',exam.dyQ?exam.b:'',exam.net]]:[])];
+ return {'Hafta Özeti':summary,'Ödevler':assignments,'Ders Performansı':subjects,'Hedefler':targets,'Fazla Eksik':overunder,'Kaynak Dağılımı':sourceRows};
+}
+function exportWeeklyExcel(anchor,includeExams=false){
+ if(!window.XLSX){notify('Excel bileşeni yüklenemedi. İnternet bağlantısını kontrol edip tekrar dene.',true);return;}
+ const sheets=weeklyExcelSheets(anchor,includeExams);if(!sheets){notify('Haftalık rapor oluşturulamadı.',true);return;}
+ const wb=XLSX.utils.book_new();
+ for(const [name,rows] of Object.entries(sheets)){const ws=XLSX.utils.aoa_to_sheet(rows);ws['!cols']=rows[0]?.map((_,i)=>({wch:Math.min(35,Math.max(12,...rows.map(r=>String(r[i]??'').length+2)))}));XLSX.utils.book_append_sheet(wb,ws,name);}
+ const d=weeklyStudyData(anchor,includeExams);XLSX.writeFile(wb,`YKS-Haftalik-Calisma-${d.start}-${d.end}.xlsx`);
+}
 function reportDownload(content,name,type){const blob=new Blob([content],{type});const a=document.createElement('a');const url=URL.createObjectURL(blob);a.href=url;a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);}
 const previousRenderReports=renderReports;
 renderReports=function(){
  if(!canAccessAnyReport()){view='home';render();return;}
  const accessible=allowedReportKinds();
  if(!canAccessReport(adminReportState.kind))adminReportState.kind=accessible[0][0];
- $('content').innerHTML=`<section class="card"><h1>${canAdmin()?'Admin · Rapor merkezi':'Paylaşılan raporlar'}</h1><p class="muted">Tek öğrenci · tarih aralığı ve rapor türüne göre rapor. PDF için yazdır; CSV bilgisayarında Excel ile açılabilir. Kayıtları değiştirmez.</p><div class="grid"><label>Rapor türü<select id="admin-report-kind">${accessible.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label><label>Denemeler<select id="admin-report-exams"><option value="0">Hariç</option><option value="1">Dahil</option></select></label></div><div class="buttons"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-csv">CSV indir</button>${canAdmin()?'<button class="secondary" id="admin-report-json">JSON yedeği</button>':''}<button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
- const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to'),examToggle=$('admin-report-exams');kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;examToggle.value=adminReportState.includeExams?'1':'0';
- const draw=()=>{adminReportState.kind=kind.value;adminReportState.from=from.value;adminReportState.to=to.value;adminReportState.includeExams=examToggle.value==='1';
+ $('content').innerHTML=`<section class="card"><h1>${canAdmin()?'Admin · Rapor merkezi':'Paylaşılan raporlar'}</h1><p class="muted">Rapor yetkileri Admin tarafından belirlenir. Haftalık Çalışma Raporu PDF ve gerçek Excel (.xlsx) çıktısı üretir.</p>
+ <div class="grid"><label>Rapor türü<select id="admin-report-kind">${accessible.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label><label>Denemeler<select id="admin-report-exams"><option value="0">Hariç</option><option value="1">Dahil</option></select></label></div>
+ <div id="weekly-report-nav" class="buttons noprint"><button id="report-week-prev" class="subtle">← Önceki Hafta</button><button id="report-week-this" class="secondary">Bu Hafta</button><button id="report-week-next" class="subtle">Sonraki Hafta →</button></div>
+ <div class="buttons noprint"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-xlsx">Excel indir (.xlsx)</button><button class="secondary" id="admin-report-csv">CSV indir</button>${canAdmin()?'<button class="secondary" id="admin-report-json">JSON yedeği</button>':''}<button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
+ const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to'),examToggle=$('admin-report-exams'),weekNav=$('weekly-report-nav'),xlsxBtn=$('admin-report-xlsx');
+ kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;examToggle.value=adminReportState.includeExams?'1':'0';
+ const setWeek=(anchor)=>{const b=weekBounds(anchor);if(!b)return;from.value=b[0];to.value=b[1];};
+ const draw=()=>{
+  adminReportState.kind=kind.value;adminReportState.includeExams=examToggle.value==='1';
+  const weekly=kind.value==='weekly';
+  if(weekly){setWeek(from.value||new Date().toLocaleDateString('sv-SE'));adminReportState.from=from.value;adminReportState.to=to.value;}else{adminReportState.from=from.value;adminReportState.to=to.value;}
+  weekNav.style.display=weekly?'flex':'none';xlsxBtn.style.display=weekly?'inline-flex':'none';
   if(!canAccessReport(kind.value)){$('admin-report-output').textContent='Bu rapor için yetkiniz yok.';return false;}
   if(from.value&&to.value&&from.value>to.value){$('admin-report-output').innerHTML='<p class="error">Başlangıç tarihi bitiş tarihinden sonra olamaz.</p>';return false;}
-  $('admin-report-output').innerHTML=`<h2>${esc(ADMIN_REPORT_KINDS.find(x=>x[0]===kind.value)?.[1])}</h2><p class="muted">${from.value?dateString(from.value):'Tüm geçmiş'} – ${to.value?dateString(to.value):'Bugün ve sonrası dahil'}</p>`+adminReportBuild(kind.value,reportRows());return true;};
+  $('admin-report-output').innerHTML=`<h2>${esc(ADMIN_REPORT_KINDS.find(x=>x[0]===kind.value)?.[1])}</h2><p class="muted">${from.value?dateString(from.value):'Tüm geçmiş'} – ${to.value?dateString(to.value):'Bugün ve sonrası dahil'}</p>`+adminReportBuild(kind.value,reportRows());return true;
+ };
  for(const inp of [kind,from,to,examToggle])inp.onchange=draw;
+ $('report-week-prev').onclick=()=>{const b=weekBounds(from.value||new Date().toLocaleDateString('sv-SE'));const d=new Date(b[0]+'T12:00:00');d.setDate(d.getDate()-7);setWeek(d.toLocaleDateString('sv-SE'));draw();};
+ $('report-week-next').onclick=()=>{const b=weekBounds(from.value||new Date().toLocaleDateString('sv-SE'));const d=new Date(b[0]+'T12:00:00');d.setDate(d.getDate()+7);setWeek(d.toLocaleDateString('sv-SE'));draw();};
+ $('report-week-this').onclick=()=>{setWeek(new Date().toLocaleDateString('sv-SE'));draw();};
  $('admin-report-reset').onclick=()=>{from.value='';to.value='';draw();};
  $('admin-report-pdf').onclick=()=>{if(draw())window.print();};
+ xlsxBtn.onclick=()=>{if(draw()&&kind.value==='weekly')exportWeeklyExcel(from.value,adminReportState.includeExams);};
  $('admin-report-csv').onclick=()=>{if(draw())reportDownload(reportCSV(kind.value,reportRows()),'YKS-Admin-'+kind.value+'-'+new Date().toLocaleDateString('sv-SE')+'.csv','text/csv;charset=utf-8')};
  if(canAdmin())$('admin-report-json').onclick=()=>reportDownload(JSON.stringify({exportedAt:new Date().toISOString(),exams,tasks,tests,profile},null,2),'YKS-Admin-Yedek-'+new Date().toLocaleDateString('sv-SE')+'.json','application/json;charset=utf-8');
  draw();
