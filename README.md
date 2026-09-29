@@ -1,14 +1,16 @@
-# YKS Aile Koçluk Portalı v17
+# YKS Aile Koçluk Portalı v18
 
-## v17 rapor ve analiz geliştirmeleri
-- Raporlar menüsündeki **Haftalık Çalışma Raporu** önceki / bu / sonraki hafta gezinmesiyle çalışır.
-- Haftalık Çalışma Raporu **Yazdır / PDF** ve gerçek **Excel (.xlsx)** çıktısı verir.
-- Excel dosyası ayrı sekmeler içerir: Hafta Özeti, Ödevler, Ders Performansı, Hedefler, Fazla Eksik, Kaynak Dağılımı.
-- Haftalık rapor, mevcut Admin rapor izin tablosundan Öğrenci / Veli / Öğretmen / Koç rollerine atanabilir; Admin her zaman erişebilir.
-- Detaylı Analize **Son 3 Haftalık Durum** eklendi. Atanan soru, ödev sonucu, tamamlanan ödev, toplam çalışma, net ve ders bazlı üç haftalık karşılaştırma gösterilir.
-- Son 3 hafta analizinde **Denemeler Hariç / Dahil** seçeneği vardır ve ortak haftalık hesap motorunu kullanır.
-- Devam eden hafta geçmiş haftalara göre başarı etiketiyle derecelendirilmez; yalnız gerçekleşen değerler gösterilir.
-- v16 Geometri, Paragraf, hedef, fazla/eksik ve deneme dahil/hariç kuralları korunmuştur.
+## v18 bütünlük ve güvenlik düzeltmeleri
+- Geometri ve Paragraf ayrıntılı ödev modunda hem listelenir hem de yeni ödev kaydında kabul edilir.
+- Ödev tamamlanması artık D/Y/B aritmetiği bozuk eski kayıtlarda stale `completed` durumuna güvenmez; çözülen/adanan sayısı biliniyorsa tamamlanma yalnız bu sayılardan hesaplanır.
+- Admin Ders / Branş raporunda net-only denemelerin doğruluk oranı yalnız D/Y/B bilgisi bulunan soru sayısı üzerinden hesaplanır.
+- Sonucu olmayan deneme ana sayfada artık 0,00 net görünmez; “Sonuç bekleniyor” gösterilir. Kısmi denemeler “Kısmi” olarak işaretlenir.
+- Eski rol adları `Ogretmen`, `Koc`, `Ogrenci` normalize edilir.
+- Gerçek zamanlı Firestore güncellemeleri kullanıcı bir form alanında yazarken ekranı zorla yeniden çizmez.
+- Admin ayarlarına açık **Test modu** anahtarı eklendi. Toplu test verisi silme aracı yalnız Test modu açıkken görünür; varsayılan kapalıdır.
+- PDF çıktısında rapor filtre kontrolleri gizlenir.
+- Eski v12 tarayıcı başlık eki kaldırıldı; başlık tek v18 sürümü gösterir.
+- Repo'ya rol bazlı `firestore.rules` güvenlik temeli eklendi. **Canlı Firebase projesinde ayrıca yayınlanması gerekir.**
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
