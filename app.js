@@ -85,7 +85,7 @@ function assignmentProgress(t){
 }
 function assignmentSubjectOptions(){
  const entries=settings.assignmentSubjectMode==='detailed'
-  ? Object.values(TESTS).map(t=>t.label)
+  ? [...Object.values(TESTS).map(t=>t.label),'Geometri','Paragraf']
   : ASSIGNMENT_SIMPLE_SUBJECTS;
  return entries.map(name=>`<option value="${esc(name)}">${esc(name)}</option>`).join('');
 }
@@ -633,15 +633,15 @@ function adminReportBuild(kind,data){
  const heading=`<p class="muted">Tarih filtresi: Ödev envanteri ve ödev kaynaklı çalışma sonuçlarında ödevin veriliş tarihi; günlük çalışmalarda gerçek çalışma tarihi; denemelerde sınav tarihi esas alınır. Haftalık gruplar her zaman Pazartesi–Pazar'dır. Bitiş, sonuç giriş veya sonradan düzenleme tarihi ödevi başka haftaya taşımaz.</p>`;
  const tableAssignments=(arr)=>reportTable(['Ders','Veriliş','Bitiş','Atanan','Gerçekleşen','Fark','Gerçekleşme','Durum'],arr.map(x=>[assignmentSubjectName(x.t.ders),dateString(x.t.assignedDate||x.t.atanmaTarihi||x.t.tarih),dateString(x.t.dueDate||x.t.tarih),emp(x.q),emp(x.actual),x.q===null||x.actual===null?'—':(x.actual-x.q>0?'+':'')+(x.actual-x.q),x.q&&x.actual!==null?fmt(100*x.actual/x.q)+'%':'—',assignmentStatus(x.t)]));
  const workTable=(list)=>reportTable(['Tarih','Kaynak','Ders','Toplam','Doğru','Yanlış','Boş','Net'],list.map(x=>[dateString(x.date),x.source,x.subject,x.q,x.d,x.w,x.b,fmt(x.net)]));
- if(kind==='overview')return heading+`<div class="stats">${detail('Toplam ödev',active.length)}${detail('Tamamlanan ödev',completed+'/'+active.length)}${detail('Eksik ödev',under.length)}${detail('Hedef üstü ödev',over.length)}${detail('Atanan soru',assignedQs)}${detail('Gerçekleşen ödev sorusu',reportTotal(items.filter(x=>x.source==='Ödev'),'q'))}${detail('Tüm çalışma sorusu',sum.q)}${detail('Toplam net',fmt(sum.net))}</div><p class="muted">Tamamlanan ödev sayısı, mevcut kartlar ve öğrenci analizindeki ortak hesaplamayla aynıdır. İptal edilenler paydaya alınmaz. Çalışmalar denemeleri kapsamaz.</p>`+tableAssignments(ar);
+ if(kind==='overview')return heading+`<div class="stats">${detail('Toplam ödev',active.length)}${detail('Tamamlanan ödev',completed+'/'+active.length)}${detail('Eksik ödev',under.length)}${detail('Hedef üstü ödev',over.length)}${detail('Atanan soru',assignedQs)}${detail('Gerçekleşen ödev sorusu',reportTotal(items.filter(x=>x.source==='Ödev'),'q'))}${detail('Tüm çalışma sorusu',sum.q)}${detail('Toplam net',fmt(sum.net))}</div><p class="muted">Tamamlanan ödev sayısı, mevcut kartlar ve öğrenci analizindeki ortak hesaplamayla aynıdır. İptal edilenler paydaya alınmaz. ${adminReportState.includeExams?'Denemeler çalışma toplamlarına dahildir; ödev atama/tamamlama hesaplarını etkilemez.':'Denemeler çalışma toplamlarına dahil değildir.'}</p>`+tableAssignments(ar);
  if(kind==='assignments')return heading+tableAssignments(ar);
  if(kind==='overwork')return heading+`<div class="stats">${detail('Fazla çözülen soru',over.reduce((s,x)=>s+x.actual-x.q,0))}${detail('Eksik kalan soru',under.reduce((s,x)=>s+x.q-x.actual,0))}${detail('Hedef üstü ödev',over.length)}${detail('Eksik ödev',under.length)}</div><p class="muted">Eksik kalan sorular “Boş” kabul edilmez. Geçerli sonucu olmayan ödevler fark hesabına katılmaz.</p>`+tableAssignments([...over,...under]);
  if(kind==='subjects'){
   const groups=new Map();for(const it of items){const row=groups.get(it.subject)||{subject:it.subject,q:0,d:0,w:0,b:0,net:0,records:0};for(const k of ['q','d','w','b','net'])row[k]+=it[k];row.records++;groups.set(it.subject,row);}
-  const rows=[...groups.values()].sort((a,b)=>ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(a.subject)-ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(b.subject));
-  return heading+reportTable(['Ders','Kayıt','Toplam','Doğru','Yanlış','Boş','Net','Doğru oranı'],rows.map(r=>[r.subject,r.records,r.q,r.d,r.w,r.b,fmt(r.net),r.q?fmt(100*r.d/r.q)+'%':'—']).concat(rows.length?[['GENEL TOPLAM',items.length,sum.q,sum.d,sum.w,sum.b,fmt(sum.net),sum.q?fmt(100*sum.d/sum.q)+'%':'—']]:[]));
+  const order=s=>{const i=ASSIGNMENT_SIMPLE_SUBJECTS.indexOf(s);return i<0?999:i;};const rows=[...groups.values()].sort((a,b)=>order(a.subject)-order(b.subject)||a.subject.localeCompare(b.subject,'tr'));
+  const unknownDY=items.some(x=>x.dyKnown===false);return heading+reportTable(['Ders','Kayıt','Toplam','Doğru','Yanlış','Boş','Net','Doğru oranı'],rows.map(r=>[r.subject,r.records,r.q,r.d,r.w,r.b,fmt(r.net),r.q?fmt(100*r.d/r.q)+'%':'—']).concat(rows.length?[['GENEL TOPLAM',items.length,sum.q,sum.d,sum.w,sum.b,fmt(sum.net),sum.q?fmt(100*sum.d/sum.q)+'%':'—']]:[]))+(unknownDY?'<p class="muted">Not: Yalnız net girilmiş deneme derslerinde D/Y/B bilinmediği için bu üç sütundaki toplamlar yalnız D/Y/B bilgisi bulunan kayıtlara aittir; net toplamı deneme netini içerir.</p>':'');
  }
- if(kind==='work')return heading+`<div class="stats">${detail('Toplam soru',sum.q)}${detail('Doğru',sum.d)}${detail('Yanlış',sum.w)}${detail('Boş',sum.b)}${detail('Net',fmt(sum.net))}</div>`+workTable(items);
+ if(kind==='work'){const unknownDY=items.some(x=>x.dyKnown===false);return heading+`<div class="stats">${detail('Toplam soru / kapsam',sum.q)}${detail('Doğru',sum.d)}${detail('Yanlış',sum.w)}${detail('Boş',sum.b)}${detail('Net',fmt(sum.net))}</div>`+workTable(items)+(unknownDY?'<p class="muted">Not: Yalnız net girilmiş deneme derslerinde doğru/yanlış/boş bilinmez; bu alanlarda 0 varsayılmaz. Net ve soru kapsamı yine rapora dahildir.</p>':'');}
  if(kind==='weekly'){
   const anchor=adminReportState.from||new Date().toLocaleDateString('sv-SE');
   return heading+weeklyReportHtml(anchor,adminReportState.includeExams);
