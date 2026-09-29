@@ -1,12 +1,13 @@
-# YKS Aile Koçluk Portalı v14
+# YKS Aile Koçluk Portalı v15
 
-## v14 düzeltmeleri
-- Ödevler > Haftalık görünüm yalnızca **ödevin veriliş tarihini** esas alır. Bitiş tarihinin başka haftaya uzanması ödevi o haftada göstermez.
-- Günlük çalışma + ödev dökümü ve haftalık soru istatistiğinde ödevler için yalnızca **gerçek sonuç/çözüm tarihi (`resultDate`)** kullanılır.
-- `resultUpdatedAt` artık çalışma tarihi sayılmaz; eski bir kaydın sonradan düzenlenmesi çalışmayı yanlış haftaya taşımaz.
-- Sonuç tarihi olmayan eski ödev sonuçları tarih filtreli raporlardan çıkarılır ve Admin > Veri denetimi raporunda işaretlenir.
-- Eski bir ödev sonucunda çözüm tarihi yoksa düzenleme ekranı tarihi uydurmaz; tarih kullanıcı tarafından seçilmeden kayıt yapılamaz.
-- v13 rapor rol yetkileri, ödev hesaplamaları, tamamlanan/toplam ödev gösterimi ve diğer özellikler korunmuştur.
+## v15 haftalık rapor düzeltmesi
+- Tüm haftalık gruplar **Pazartesi–Pazar** olarak hesaplanır.
+- Ödev kaynaklı haftalık soru istatistiği ve "Günlük çalışma + ödev dökümü" raporunda ödevin haftası artık **veriliş tarihine** göre belirlenir.
+- Bitiş tarihi, sonuç giriş tarihi ve sonradan düzenleme tarihi ödevi başka haftaya taşımaz.
+- Örnek: 21.09.2026 tarihinde verilen ve 27.09.2026 tarihinde biten DİL ve Matematik ödevleri yalnızca **21–27 Eylül 2026** haftasına aittir. 28 Eylül–4 Ekim haftasında görünmezler.
+- Eksik çözülmüş bir ödevde sonuç kaydı varsa çözülen gerçek soru sayıları kendi veriliş haftasına dahil edilir; sonuç kaydı yoksa soru istatistiğine doğal olarak katkı yapmaz.
+- Günlük çalışma kayıtları kendi gerçek çalışma tarihlerine göre haftalanmaya devam eder.
+- v14 ve önceki çalışan özellikler korunmuştur.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
