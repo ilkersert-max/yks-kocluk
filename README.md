@@ -1,15 +1,14 @@
-# YKS Aile Koçluk Portalı v16
+# YKS Aile Koçluk Portalı v17
 
-## v16 Haftalık Çalışma ve ders kapsamı
-- "Haftalık Sorular" ekranı **Haftalık Çalışma** raporuna dönüştürüldü.
-- Önceki Hafta / Bu Hafta / Sonraki Hafta gezinmesi vardır; haftalar her zaman Pazartesi–Pazar'dır.
-- Haftalık rapor; atanan ödev, tamamlanan/toplam ödev, atanan soru, ödev sonucu girilen soru, sonucu beklenen soru yükü, günlük çalışma, doğru/yanlış/boş/net, ders bazlı performans, fazla/eksik çözüm ve doğru hedeflerini birlikte gösterir.
-- **Geometri** ve **Paragraf** ödev/günlük çalışma ders listesine ve ilgili istatistik/raporlara eklendi.
-- Haftalık ekranda ve Admin raporlarında **Denemeler Hariç / Dahil** seçeneği vardır. Denemeler dahil edilse de ödevde atanan soru, tamamlanma, hedef ve fazla/eksik hesapları değişmez.
-- Denemelerin mevcut ayrı ekranları ve Son 5 Deneme analizi aynen devam eder.
-- Denemede yalnız net girilmişse D/Y/B uydurulmaz; net ve soru kapsamı dahil edilir, D/Y/B yalnız bilinen kayıtlardan hesaplanır.
-- Mevcut deneme şemasında Geometri ve Paragraf ayrı test alanları olmadığı için denemeler bu iki dersi yapay olarak üretmez.
-- Admin Rapor Merkezi'ndeki ders/çalışma/haftalık raporlar aynı deneme dahil/hariç seçimini kullanır.
+## v17 rapor ve analiz geliştirmeleri
+- Raporlar menüsündeki **Haftalık Çalışma Raporu** önceki / bu / sonraki hafta gezinmesiyle çalışır.
+- Haftalık Çalışma Raporu **Yazdır / PDF** ve gerçek **Excel (.xlsx)** çıktısı verir.
+- Excel dosyası ayrı sekmeler içerir: Hafta Özeti, Ödevler, Ders Performansı, Hedefler, Fazla Eksik, Kaynak Dağılımı.
+- Haftalık rapor, mevcut Admin rapor izin tablosundan Öğrenci / Veli / Öğretmen / Koç rollerine atanabilir; Admin her zaman erişebilir.
+- Detaylı Analize **Son 3 Haftalık Durum** eklendi. Atanan soru, ödev sonucu, tamamlanan ödev, toplam çalışma, net ve ders bazlı üç haftalık karşılaştırma gösterilir.
+- Son 3 hafta analizinde **Denemeler Hariç / Dahil** seçeneği vardır ve ortak haftalık hesap motorunu kullanır.
+- Devam eden hafta geçmiş haftalara göre başarı etiketiyle derecelendirilmez; yalnız gerçekleşen değerler gösterilir.
+- v16 Geometri, Paragraf, hedef, fazla/eksik ve deneme dahil/hariç kuralları korunmuştur.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
