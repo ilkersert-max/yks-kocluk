@@ -1,0 +1,78 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/Users/$(request.auth.uid));
+    }
+
+    function role() {
+      return signedIn() && userDoc().exists() ? userDoc().data.Rol : null;
+    }
+
+    function isAdmin() {
+      return role() == 'Admin';
+    }
+
+    function isStaff() {
+      return role() in ['Admin', 'Öğretmen', 'Ogretmen', 'Koç', 'Koc', 'Veli'];
+    }
+
+    function isStudent() {
+      return role() in ['Öğrenci', 'Ogrenci'];
+    }
+
+    match /Users/{uid} {
+      allow read: if signedIn() && (request.auth.uid == uid || isAdmin());
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /Settings/{docId} {
+      allow read: if signedIn();
+      allow create, update, delete: if isAdmin();
+    }
+
+    match /StudentProfile/{docId} {
+      allow read: if signedIn();
+      // Mevcut uygulamada Diploma/OBP ekranı tüm oturum açmış rollerde görünebildiği için
+      // yazma davranışı geriye dönük korunur. İstenirse yalnız Admin/Öğrenci ile daraltılabilir.
+      allow create, update: if signedIn();
+      allow delete: if isAdmin();
+    }
+
+    match /Denemeler/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if isStaff()
+        || (signedIn() && resource.data.createdBy == request.auth.uid);
+      allow delete: if isAdmin();
+    }
+
+    match /Assignments/{id} {
+      allow read: if signedIn();
+      allow create: if isStaff();
+      allow delete: if isStaff();
+
+      // Öğrenci yalnız sonuç alanlarını güncelleyebilir; ödev tanımını değiştiremez.
+      allow update: if isStaff()
+        || (isStudent()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+            'result', 'status', 'resultDate', 'resultUpdatedAt'
+          ]));
+    }
+
+    match /TestEntries/{id} {
+      allow read: if signedIn();
+      allow create: if signedIn();
+      allow update: if signedIn() && resource.data.createdBy == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
