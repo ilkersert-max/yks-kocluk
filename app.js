@@ -140,8 +140,8 @@ $('logout').addEventListener('click',()=>signOut(auth));
 function render(){
  if(!user)return;
  const tabs=role==='Öğrenci'
-   ? [['home','Ana sayfam'],['exam','Deneme gir'],['test','Soru çözdüm'],['tasks','Ödevlerim'],['history','Denemelerim'],['weekly','Haftalık sorularım']]
-   : [['home','Genel durum'],['history','Denemeler'],['test','Günlük çalışmalar'],['tasks','Ödev yönetimi'],['weekly','Haftalık sorular']];
+   ? [['home','Ana sayfam'],['exam','Deneme gir'],['test','Soru çözdüm'],['tasks','Ödevlerim'],['history','Denemelerim'],['weekly','Haftalık Çalışma']]
+   : [['home','Genel durum'],['history','Denemeler'],['test','Günlük çalışmalar'],['tasks','Ödev yönetimi'],['weekly','Haftalık Çalışma']];
  if(staff()||settings.studentDetailedMode)tabs.push(['analysis',role==='Öğrenci'?'Gelişimim':'Detaylı analiz']);
  if(canAccessAnyReport())tabs.push(['reports','Raporlar']);
  if(canAdmin())tabs.push(['admin','Admin']);
@@ -551,7 +551,7 @@ const ADMIN_REPORT_KINDS=[
  ['overwork','Fazla / eksik çözülen sorular'],
  ['subjects','Ders / branş performansı'],
  ['work','Günlük çalışma ve ödev soru dökümü'],
- ['weekly','Haftalık çalışma özeti'],
+ ['weekly','Haftalık çalışma raporu'],
  ['deadlines','Veriliş, bitiş ve gecikme'],
  ['targets','Doğru hedefleri ve başarı'],
  ['assigners','Ödevi atayan role göre dağılım'],
@@ -573,7 +573,7 @@ function safeReportAccess(acl){
  const result={};for(const [kind] of ADMIN_REPORT_KINDS){const roles=Array.isArray(acl?.[kind])?acl[kind]:[];result[kind]=REPORT_SHARE_ROLES.filter(r=>roles.includes(r));}
  return result;
 }
-const adminReportState={kind:'overview',from:'',to:''};
+const adminReportState={kind:'overview',from:'',to:'',includeExams:false};
 const reportDate=x=>weeklyDate(x);
 const reportBetween=(d,from,to)=>Boolean(d)&&(!from||d>=from)&&(!to||d<=to);
 const reportNum=n=>Number.isFinite(n)?format(n):'—';
@@ -605,8 +605,18 @@ function reportTable(headers,rows){
 function reportMetricTotals(rows){return rows.reduce((a,r)=>({q:a.q+r.q,d:a.d+r.d,w:a.w+r.w,b:a.b+r.b,net:a.net+r.net}),{q:0,d:0,w:0,b:0,net:0});}
 function reportWorkItems(data){
  const out=[];
- for(const t of data.workTasks){const r=reportResult(t),date=assignmentWeeklyDate(t);if(r&&date)out.push({source:'Ödev',id:t.id,subject:assignmentSubjectName(t.ders),date,...r});}
- for(const t of data.daily){const r=reportTestResult(t);if(r)out.push({source:'Günlük çalışma',id:t.id,subject:assignmentSubjectName(t.ders),date:reportDate(t.studyDate||t.tarih),...r});}
+ for(const t of data.workTasks){const r=reportResult(t),date=assignmentWeeklyDate(t);if(r&&date)out.push({source:'Ödev',id:t.id,subject:assignmentSubjectName(t.ders),date,...r,dyKnown:true});}
+ for(const t of data.daily){const r=reportTestResult(t);if(r)out.push({source:'Günlük çalışma',id:t.id,subject:assignmentSubjectName(t.ders),date:reportDate(t.studyDate||t.tarih),...r,dyKnown:true});}
+ if(adminReportState.includeExams){
+  for(const e of data.examRows){
+   const date=reportDate(e.examDate||e.tarih);if(!date)continue;
+   for(const [id,r] of Object.entries(e.results||{})){
+    if(!r?.entered)continue;const q=Number(r.questionCount??TESTS[id]?.q),net=Number(r.net);if(!Number.isFinite(q)||!Number.isFinite(net))continue;
+    const d=Number(r.correct),w=Number(r.wrong),dyKnown=Number.isInteger(d)&&d>=0&&Number.isInteger(w)&&w>=0,b=dyKnown?(r.blank==null?q-d-w:Number(r.blank)):null;
+    out.push({source:'Deneme',id:e.id+'|'+id,subject:examSubjectName(id),date,q,d:dyKnown?d:null,w:dyKnown?w:null,b:dyKnown&&Number.isFinite(b)?b:null,net,dyKnown});
+   }
+  }
+ }
  return out;
 }
 function reportAssignmentRows(data){
@@ -633,8 +643,8 @@ function adminReportBuild(kind,data){
  }
  if(kind==='work')return heading+`<div class="stats">${detail('Toplam soru',sum.q)}${detail('Doğru',sum.d)}${detail('Yanlış',sum.w)}${detail('Boş',sum.b)}${detail('Net',fmt(sum.net))}</div>`+workTable(items);
  if(kind==='weekly'){
-  const groups=new Map();for(const it of items){const bounds=weekBounds(it.date);if(!bounds)continue;const key=bounds[0],r=groups.get(key)||{start:key,end:bounds[1],q:0,d:0,w:0,b:0,net:0};for(const k of ['q','d','w','b','net'])r[k]+=it[k];groups.set(key,r);}
-  return heading+reportTable(['Hafta','Toplam soru','Doğru','Yanlış','Boş','Net'],[...groups.values()].sort((a,b)=>a.start.localeCompare(b.start)).map(r=>[dateString(r.start)+' – '+dateString(r.end),r.q,r.d,r.w,r.b,fmt(r.net)]));
+  const anchor=adminReportState.from||new Date().toLocaleDateString('sv-SE');
+  return heading+weeklyReportHtml(anchor,adminReportState.includeExams);
  }
  if(kind==='deadlines'){
   const today=new Date().toLocaleDateString('sv-SE');const late=ar.filter(x=>!x.m.cancelled&&!x.m.complete&&reportDate(x.t.dueDate||x.t.tarih)&&reportDate(x.t.dueDate||x.t.tarih)<today);
@@ -673,13 +683,13 @@ renderReports=function(){
  if(!canAccessAnyReport()){view='home';render();return;}
  const accessible=allowedReportKinds();
  if(!canAccessReport(adminReportState.kind))adminReportState.kind=accessible[0][0];
- $('content').innerHTML=`<section class="card"><h1>${canAdmin()?'Admin · Rapor merkezi':'Paylaşılan raporlar'}</h1><p class="muted">Tek öğrenci · tarih aralığı ve rapor türüne göre rapor. PDF için yazdır; CSV bilgisayarında Excel ile açılabilir. Kayıtları değiştirmez.</p><div class="grid"><label>Rapor türü<select id="admin-report-kind">${accessible.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label></div><div class="buttons"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-csv">CSV indir</button>${canAdmin()?'<button class="secondary" id="admin-report-json">JSON yedeği</button>':''}<button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
- const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to');kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;
- const draw=()=>{adminReportState.kind=kind.value;adminReportState.from=from.value;adminReportState.to=to.value;
+ $('content').innerHTML=`<section class="card"><h1>${canAdmin()?'Admin · Rapor merkezi':'Paylaşılan raporlar'}</h1><p class="muted">Tek öğrenci · tarih aralığı ve rapor türüne göre rapor. PDF için yazdır; CSV bilgisayarında Excel ile açılabilir. Kayıtları değiştirmez.</p><div class="grid"><label>Rapor türü<select id="admin-report-kind">${accessible.map(([v,l])=>`<option value="${v}">${esc(l)}</option>`).join('')}</select></label><label>Başlangıç<input id="admin-report-from" type="date"></label><label>Bitiş<input id="admin-report-to" type="date"></label><label>Denemeler<select id="admin-report-exams"><option value="0">Hariç</option><option value="1">Dahil</option></select></label></div><div class="buttons"><button class="primary" id="admin-report-pdf">Yazdır / PDF</button><button class="secondary" id="admin-report-csv">CSV indir</button>${canAdmin()?'<button class="secondary" id="admin-report-json">JSON yedeği</button>':''}<button class="subtle" id="admin-report-reset">Tarih filtresini kaldır</button></div></section><section class="card" id="admin-report-output"></section>`;
+ const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to'),examToggle=$('admin-report-exams');kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;examToggle.value=adminReportState.includeExams?'1':'0';
+ const draw=()=>{adminReportState.kind=kind.value;adminReportState.from=from.value;adminReportState.to=to.value;adminReportState.includeExams=examToggle.value==='1';
   if(!canAccessReport(kind.value)){$('admin-report-output').textContent='Bu rapor için yetkiniz yok.';return false;}
   if(from.value&&to.value&&from.value>to.value){$('admin-report-output').innerHTML='<p class="error">Başlangıç tarihi bitiş tarihinden sonra olamaz.</p>';return false;}
   $('admin-report-output').innerHTML=`<h2>${esc(ADMIN_REPORT_KINDS.find(x=>x[0]===kind.value)?.[1])}</h2><p class="muted">${from.value?dateString(from.value):'Tüm geçmiş'} – ${to.value?dateString(to.value):'Bugün ve sonrası dahil'}</p>`+adminReportBuild(kind.value,reportRows());return true;};
- for(const inp of [kind,from,to])inp.onchange=draw;
+ for(const inp of [kind,from,to,examToggle])inp.onchange=draw;
  $('admin-report-reset').onclick=()=>{from.value='';to.value='';draw();};
  $('admin-report-pdf').onclick=()=>{if(draw())window.print();};
  $('admin-report-csv').onclick=()=>{if(draw())reportDownload(reportCSV(kind.value,reportRows()),'YKS-Admin-'+kind.value+'-'+new Date().toLocaleDateString('sv-SE')+'.csv','text/csv;charset=utf-8')};
