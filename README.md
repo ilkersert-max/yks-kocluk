@@ -1,16 +1,12 @@
-# YKS Aile Koçluk Portalı v21
+# YKS Aile Koçluk Portalı v22
 
-## v21 Genel durum ve ödev gerçekleşmesi raporu özel deneme toplamı
-- Deneme-sanal-ödev rollup yalnız **Genel durum ve ödev gerçekleşmesi** raporuna uygulanır.
-- **Denemeler Dahil** seçildiğinde deneme; toplam ödev/çalışma sayısına, tamamlanan sayısına ve atanan ödev sorusu toplamına eklenir.
-- Girilmiş deneme soru sayısı **Ödev / deneme çözülen** metriğine eklenir.
-- Kısmi denemeler eksik çalışma sayısına eklenir; tamamlanmış denemeler tamamlanan sayısına eklenir.
-- Deneme sorusu ayrıca ayrı kartta gösterilmeye devam eder.
-- Toplam çözülen soru ve toplam net mevcut çalışma motorundan gelir.
-- Haftalık Çalışma ve diğer raporların ödev toplam mantığı değiştirilmemiştir.
-- Geri dönüş noktaları:
-  - `backup-v19-before-weekly-deneme-rollup`
-  - `backup-v20-weekly-rollup-misapplied`
+## v22 Genel durum raporunda otomatik hafta
+- **Genel durum ve ödev gerçekleşmesi** raporu açıldığında içinde bulunulan Pazartesi–Pazar haftası otomatik seçilir.
+- Bu raporda **← Önceki Hafta / Bu Hafta / Sonraki Hafta →** gezinmesi aktiftir.
+- Önceki/Sonraki düğmeleri tarih aralığını 7 gün kaydırır ve raporu anında yeniden hesaplar.
+- **Bu Hafta** düğmesi güncel haftaya döner.
+- Bu davranış yalnız Genel durum raporuna ve mevcut Haftalık Çalışma raporuna uygulanır; diğer raporların tarih filtreleri değişmez.
+- Geri dönüş noktası: `backup-v21-before-overview-week-nav`.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
