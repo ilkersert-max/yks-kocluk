@@ -780,19 +780,40 @@ function reportCSV(kind,data){
 }
 function weeklyExcelSheets(anchor,includeExams=false){
  const d=weeklyStudyData(anchor,includeExams);if(!d)return null;
+ const roll=weeklyReportRollup(d);
  const source=n=>d.sourceTotals[n]||{q:0,d:0,w:0,b:0,net:0,dyQ:0};
  const task=source('Ödev'),daily=source('Günlük çalışma'),exam=source('Deneme');
  const summary=[
   ['YKS Haftalık Çalışma Raporu'],['Hafta',dateString(d.start)+' – '+dateString(d.end)],['Denemeler',includeExams?'Dahil':'Hariç'],[],
-  ['Gösterge','Değer'],['Atanan ödev',d.assignmentRows.length],['Tamamlanan ödev',d.completed+'/'+d.assignmentRows.length],
-  ['Atanan soru',d.assignedQs],['Ödev sonucu girilen',task.q],['Sonucu beklenen soru yükü',d.pendingLoad],
-  ['Günlük çalışma',daily.q],['Deneme sorusu',includeExams?exam.q:'Hariç'],['Toplam çözülen soru',d.total.q],['Toplam net',d.total.net]
+  ['Gösterge','Değer'],
+  ['Atanan ödev / çalışma',roll.assignedCount],
+  ['Tamamlanan',roll.completedCount+'/'+roll.assignedCount],
+  ['Tamamlanma %',roll.assignedCount?100*roll.completedCount/roll.assignedCount:0],
+  ['Atanan soru',roll.assignedQs],
+  ['Ödev / deneme sonucu girilen',roll.solvedAgainstAssigned],
+  ['Sonucu beklenen soru yükü',roll.pendingLoad],
+  ['Günlük çalışma',daily.q],
+  ['Deneme sorusu',includeExams?roll.examAssigned:'Hariç'],
+  ['Toplam çözülen soru',d.total.q],
+  ['Soru gerçekleşme %',roll.assignedQs?100*roll.solvedAgainstAssigned/roll.assignedQs:0],
+  ['Toplam net',d.total.net]
  ];
- const assignments=[['Ders','Atanan','Çözülen','Fark','Gerçekleşme %','Durum'],...d.assignmentRows.map(x=>[assignmentSubjectName(x.t.ders),x.q??'',x.actual??'',x.q===null||x.actual===null?'':x.actual-x.q,x.q&&x.actual!==null?100*x.actual/x.q:'',assignmentStatus(x.t)])];
+ const assignments=[
+  ['Ders / Çalışma','Atanan','Çözülen','Fark','Gerçekleşme %','Durum'],
+  ...d.assignmentRows.map(x=>[assignmentSubjectName(x.t.ders),x.q??'',x.actual??'',x.q===null||x.actual===null?'':x.actual-x.q,x.q&&x.actual!==null?100*x.actual/x.q:'',assignmentStatus(x.t)]),
+  ...roll.examRows.map(x=>['DENEME · '+x.label,x.assigned,x.actual,x.actual-x.assigned,x.assigned?100*x.actual/x.assigned:'',x.status]),
+  ['TOPLAM',roll.assignedQs,roll.solvedAgainstAssigned,'',roll.assignedQs?100*roll.solvedAgainstAssigned/roll.assignedQs:'',roll.completedCount+'/'+roll.assignedCount+' tamamlandı']
+ ];
  const subjects=[['Ders','Kaynak','Toplam','Doğru','Yanlış','Boş','Net','Doğruluk %'],...d.subjectRows.map(r=>[r.subject,[...r.sources].join(' + '),r.q,r.dyQ?r.d:'',r.dyQ?r.w:'',r.dyQ?r.b:'',r.net,r.dyQ?100*r.d/r.dyQ:''])];
  const targets=[['Ders','Hedef doğru','Gerçek doğru','Durum'],...d.assignmentRows.filter(x=>x.t.targetCorrect!==null&&x.t.targetCorrect!==undefined&&x.t.targetCorrect!=='').map(x=>[assignmentSubjectName(x.t.ders),Number(x.t.targetCorrect),x.r?.d??'',!x.r?'Sonuç bekleniyor':x.r.d>=Number(x.t.targetCorrect)?'Hedefe ulaşıldı':'Hedefe ulaşılamadı'])];
  const overunder=[['Ders','Atanan','Çözülen','Fark','Durum'],...[...d.over,...d.under].map(x=>[assignmentSubjectName(x.t.ders),x.q,x.actual,x.actual-x.q,assignmentStatus(x.t)])];
- const sourceRows=[['Kaynak','Çözülen soru','Doğru','Yanlış','Boş','Net'],['Ödev',task.q,task.d,task.w,task.b,task.net],['Günlük çalışma',daily.q,daily.d,daily.w,daily.b,daily.net],...(includeExams?[['Deneme',exam.q,exam.dyQ?exam.d:'',exam.dyQ?exam.w:'',exam.dyQ?exam.b:'',exam.net]]:[]),['TOPLAM',d.total.q,d.total.dyQ===d.total.q?d.total.d:(d.total.dyQ?String(d.total.d)+'*':''),d.total.dyQ===d.total.q?d.total.w:(d.total.dyQ?String(d.total.w)+'*':''),d.total.dyQ===d.total.q?d.total.b:(d.total.dyQ?String(d.total.b)+'*':''),d.total.net]];
+ const sourceRows=[
+  ['Kaynak','Atanan / Yük','Çözülen soru','Doğru','Yanlış','Boş','Net'],
+  ['Ödev',d.assignedQs,task.q,task.d,task.w,task.b,task.net],
+  ['Günlük çalışma','',daily.q,daily.d,daily.w,daily.b,daily.net],
+  ...(includeExams?[['Deneme',roll.examAssigned,exam.q,exam.dyQ?exam.d:'',exam.dyQ?exam.w:'',exam.dyQ?exam.b:'',exam.net]]:[]),
+  ['GENEL TOPLAM',roll.assignedQs,d.total.q,d.total.dyQ===d.total.q?d.total.d:(d.total.dyQ?String(d.total.d)+'*':''),d.total.dyQ===d.total.q?d.total.w:(d.total.dyQ?String(d.total.w)+'*':''),d.total.dyQ===d.total.q?d.total.b:(d.total.dyQ?String(d.total.b)+'*':''),d.total.net]
+ ];
  return {'Hafta Özeti':summary,'Ödevler':assignments,'Ders Performansı':subjects,'Hedefler':targets,'Fazla Eksik':overunder,'Kaynak Dağılımı':sourceRows};
 }
 function exportWeeklyExcel(anchor,includeExams=false){
