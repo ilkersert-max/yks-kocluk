@@ -1,12 +1,17 @@
-# YKS Aile Koçluk Portalı v19
+# YKS Aile Koçluk Portalı v20
 
-## v19 toplam çözülen soru ve deneme dahil/hariç mantığı
-- Haftalık Çalışma, Raporlar ve Son 3 Hafta analizinde **Toplam çözülen soruya denemeler: Hariç / Dahil** seçimi vardır.
-- **Toplam çözülen soru = ödevde çözülen + günlük çalışma + (Dahil seçiliyse deneme soru kapsamı)**.
-- Deneme dahil edilse bile **atanan ödev sorusu, tamamlanan ödev, hedef doğru, fazla/eksik ödev ve ödev gerçekleşme oranı değişmez**.
-- Haftalık rapor ve Excel çıktısında **Çalışma Kaynak Dağılımı**; Ödev, Günlük çalışma, Deneme ve TOPLAM satırlarıyla gösterilir.
-- Admin Genel Durum ve Günlük/Ödev çalışma raporlarında da **Toplam çözülen soru** aynı mantıkla hesaplanır.
-- Net-only denemeler toplam çözülen soru ve toplam nete dahil edilir; D/Y/B bilinmediği için uydurulmaz ve kısmi D/Y/B toplamları yıldızla belirtilir.
+## v20 Haftalık Çalışma raporu özel deneme rollup
+- Bu değişiklik **yalnız Haftalık Çalışma raporu ve onun Excel/PDF çıktısı** için geçerlidir.
+- **Denemeler Dahil** seçildiğinde haftadaki denemeler rapor içinde sanal ödev/görev gibi sayılır.
+- Deneme sayısı, **Atanan ödev / çalışma** ve **Tamamlanan** metriklerine eklenir.
+- Denemenin soru kapasitesi **Atanan soru** toplamına eklenir.
+- Girilmiş deneme soru kapsamı **Ödev / deneme sonucu girilen** toplamına eklenir.
+- Eksik/kısmi deneme soru kapasitesi **Sonucu beklenen soru yükü** toplamına eklenir.
+- **Tamamlanma %** ve **Soru gerçekleşme %** bu birleşik rapor toplamları üzerinden hesaplanır.
+- Ödev / Deneme Gerçekleşme Durumu tablosuna her deneme ayrı satır olarak eklenir.
+- Günlük çalışma toplam çözülen soruya eklenir; atanmış bir yük olmadığı için atanan soru paydasına eklenmez.
+- Diğer ekranların, Son 3 Hafta analizinin ve Admin genel raporlarının ödev hesap mantığı değiştirilmemiştir.
+- Geri dönüş noktası: `backup-v19-before-weekly-deneme-rollup`.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
