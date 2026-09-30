@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v21';
+const BUILD_VERSION='v22';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:false,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
@@ -805,20 +805,24 @@ renderReports=function(){
  const kind=$('admin-report-kind'),from=$('admin-report-from'),to=$('admin-report-to'),examToggle=$('admin-report-exams'),weekNav=$('weekly-report-nav'),xlsxBtn=$('admin-report-xlsx');
  kind.value=adminReportState.kind;from.value=adminReportState.from;to.value=adminReportState.to;examToggle.value=adminReportState.includeExams?'1':'0';
  const setWeek=(anchor)=>{const b=weekBounds(anchor);if(!b)return;from.value=b[0];to.value=b[1];};
+ if(kind.value==='overview'&&!from.value&&!to.value)setWeek(new Date().toLocaleDateString('sv-SE'));
  const draw=()=>{
   adminReportState.kind=kind.value;adminReportState.includeExams=examToggle.value==='1';
   const weekly=kind.value==='weekly';
-  if(weekly){setWeek(from.value||new Date().toLocaleDateString('sv-SE'));adminReportState.from=from.value;adminReportState.to=to.value;}else{adminReportState.from=from.value;adminReportState.to=to.value;}
-  weekNav.style.display=weekly?'flex':'none';xlsxBtn.style.display=weekly?'inline-flex':'none';
+  const overview=kind.value==='overview';
+  const weekScoped=weekly||overview;
+  if(weekScoped){setWeek(from.value||new Date().toLocaleDateString('sv-SE'));adminReportState.from=from.value;adminReportState.to=to.value;}else{adminReportState.from=from.value;adminReportState.to=to.value;}
+  weekNav.style.display=weekScoped?'flex':'none';xlsxBtn.style.display=weekly?'inline-flex':'none';
   if(!canAccessReport(kind.value)){$('admin-report-output').textContent='Bu rapor için yetkiniz yok.';return false;}
   if(from.value&&to.value&&from.value>to.value){$('admin-report-output').innerHTML='<p class="error">Başlangıç tarihi bitiş tarihinden sonra olamaz.</p>';return false;}
   $('admin-report-output').innerHTML=`<h2>${esc(ADMIN_REPORT_KINDS.find(x=>x[0]===kind.value)?.[1])}</h2><p class="muted">${from.value?dateString(from.value):'Tüm geçmiş'} – ${to.value?dateString(to.value):'Bugün ve sonrası dahil'}</p>`+adminReportBuild(kind.value,reportRows());return true;
  };
- for(const inp of [kind,from,to,examToggle])inp.onchange=draw;
+ kind.onchange=()=>{if(kind.value==='overview'&&!from.value&&!to.value)setWeek(new Date().toLocaleDateString('sv-SE'));draw();};
+ for(const inp of [from,to,examToggle])inp.onchange=draw;
  $('report-week-prev').onclick=()=>{const b=weekBounds(from.value||new Date().toLocaleDateString('sv-SE'));const d=new Date(b[0]+'T12:00:00');d.setDate(d.getDate()-7);setWeek(d.toLocaleDateString('sv-SE'));draw();};
  $('report-week-next').onclick=()=>{const b=weekBounds(from.value||new Date().toLocaleDateString('sv-SE'));const d=new Date(b[0]+'T12:00:00');d.setDate(d.getDate()+7);setWeek(d.toLocaleDateString('sv-SE'));draw();};
  $('report-week-this').onclick=()=>{setWeek(new Date().toLocaleDateString('sv-SE'));draw();};
- $('admin-report-reset').onclick=()=>{from.value='';to.value='';draw();};
+ $('admin-report-reset').onclick=()=>{if(kind.value==='overview'){setWeek(new Date().toLocaleDateString('sv-SE'));}else{from.value='';to.value='';}draw();};
  $('admin-report-pdf').onclick=()=>{if(draw())window.print();};
  xlsxBtn.onclick=()=>{if(draw()&&kind.value==='weekly')exportWeeklyExcel(from.value,adminReportState.includeExams);};
  $('admin-report-csv').onclick=()=>{if(draw())reportDownload(reportCSV(kind.value,reportRows()),'YKS-Admin-'+kind.value+'-'+new Date().toLocaleDateString('sv-SE')+'.csv','text/csv;charset=utf-8')};
