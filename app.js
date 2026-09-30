@@ -381,7 +381,7 @@ function weeklyReportExamRollup(data){
   const ids=idsFor(e.denemeTuru||'TYT').filter(id=>TESTS[id]);
   const assigned=ids.reduce((s,id)=>s+Number(TESTS[id]?.q||0),0);
   let actual=0;
-  for(const id of ids){const r=e.results?.[id];if(r?.entered)actual+=Number(r.questionCount??TESTS[id]?.q||0);}
+  for(const id of ids){const r=e.results?.[id];if(r?.entered)actual+=Number((r.questionCount??TESTS[id]?.q)||0);}
   actual=Math.min(actual,assigned);
   const complete=assigned>0&&actual>=assigned;
   rows.push({
