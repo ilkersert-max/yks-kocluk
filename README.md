@@ -1,17 +1,16 @@
-# YKS Aile Koçluk Portalı v20
+# YKS Aile Koçluk Portalı v21
 
-## v20 Haftalık Çalışma raporu özel deneme rollup
-- Bu değişiklik **yalnız Haftalık Çalışma raporu ve onun Excel/PDF çıktısı** için geçerlidir.
-- **Denemeler Dahil** seçildiğinde haftadaki denemeler rapor içinde sanal ödev/görev gibi sayılır.
-- Deneme sayısı, **Atanan ödev / çalışma** ve **Tamamlanan** metriklerine eklenir.
-- Denemenin soru kapasitesi **Atanan soru** toplamına eklenir.
-- Girilmiş deneme soru kapsamı **Ödev / deneme sonucu girilen** toplamına eklenir.
-- Eksik/kısmi deneme soru kapasitesi **Sonucu beklenen soru yükü** toplamına eklenir.
-- **Tamamlanma %** ve **Soru gerçekleşme %** bu birleşik rapor toplamları üzerinden hesaplanır.
-- Ödev / Deneme Gerçekleşme Durumu tablosuna her deneme ayrı satır olarak eklenir.
-- Günlük çalışma toplam çözülen soruya eklenir; atanmış bir yük olmadığı için atanan soru paydasına eklenmez.
-- Diğer ekranların, Son 3 Hafta analizinin ve Admin genel raporlarının ödev hesap mantığı değiştirilmemiştir.
-- Geri dönüş noktası: `backup-v19-before-weekly-deneme-rollup`.
+## v21 Genel durum ve ödev gerçekleşmesi raporu özel deneme toplamı
+- Deneme-sanal-ödev rollup yalnız **Genel durum ve ödev gerçekleşmesi** raporuna uygulanır.
+- **Denemeler Dahil** seçildiğinde deneme; toplam ödev/çalışma sayısına, tamamlanan sayısına ve atanan ödev sorusu toplamına eklenir.
+- Girilmiş deneme soru sayısı **Ödev / deneme çözülen** metriğine eklenir.
+- Kısmi denemeler eksik çalışma sayısına eklenir; tamamlanmış denemeler tamamlanan sayısına eklenir.
+- Deneme sorusu ayrıca ayrı kartta gösterilmeye devam eder.
+- Toplam çözülen soru ve toplam net mevcut çalışma motorundan gelir.
+- Haftalık Çalışma ve diğer raporların ödev toplam mantığı değiştirilmemiştir.
+- Geri dönüş noktaları:
+  - `backup-v19-before-weekly-deneme-rollup`
+  - `backup-v20-weekly-rollup-misapplied`
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
