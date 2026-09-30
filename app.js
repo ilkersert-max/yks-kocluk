@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v19';
+const BUILD_VERSION='v20';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:false,assignmentSubjectMode:'simple'};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
@@ -373,9 +373,50 @@ function weeklyStudyData(anchor,includeExams=false){
  const total={q:0,d:0,w:0,b:0,net:0,dyQ:0};for(const it of items){total.q+=it.q;total.net+=it.net;if(it.dyKnown!==false&&[it.d,it.w,it.b].every(Number.isFinite)){total.d+=it.d;total.w+=it.w;total.b+=it.b;total.dyQ+=it.q;}}
  return {start,end,weekTasks,assignmentRows,items,subjectRows,sourceTotals,assignedQs,taskSolved,pendingLoad,completed,over,under,total,includeExams,examItems,dailyItems,taskItems};
 }
+function weeklyReportExamRollup(data){
+ if(!data?.includeExams)return [];
+ const rows=[];
+ for(const e of exams){
+  const date=weeklyDate(e.examDate||e.tarih);if(!date||date<data.start||date>data.end)continue;
+  const ids=idsFor(e.denemeTuru||'TYT').filter(id=>TESTS[id]);
+  const assigned=ids.reduce((s,id)=>s+Number(TESTS[id]?.q||0),0);
+  let actual=0;
+  for(const id of ids){const r=e.results?.[id];if(r?.entered)actual+=Number(r.questionCount??TESTS[id]?.q||0);}
+  actual=Math.min(actual,assigned);
+  const complete=assigned>0&&actual>=assigned;
+  rows.push({
+   id:e.id,
+   label:(e.denemeAdi||'Deneme')+(e.denemeTuru?' · '+e.denemeTuru:''),
+   assigned,
+   actual,
+   pending:Math.max(0,assigned-actual),
+   complete,
+   status:complete?'Tamamlandı':actual>0?'Kısmi / Eksik':'Sonuç bekleniyor'
+  });
+ }
+ return rows;
+}
+function weeklyReportRollup(data){
+ const examRows=weeklyReportExamRollup(data);
+ const examAssigned=examRows.reduce((s,x)=>s+x.assigned,0);
+ const examSolved=examRows.reduce((s,x)=>s+x.actual,0);
+ const examPending=examRows.reduce((s,x)=>s+x.pending,0);
+ const examCompleted=examRows.filter(x=>x.complete).length;
+ return {
+  examRows,examAssigned,examSolved,examPending,examCompleted,
+  assignedCount:data.assignmentRows.length+examRows.length,
+  completedCount:data.completed+examCompleted,
+  assignedQs:data.assignedQs+examAssigned,
+  solvedAgainstAssigned:data.taskSolved+examSolved,
+  pendingLoad:data.pendingLoad+examPending
+ };
+}
 function weeklyAssignmentTable(data){
+ const roll=weeklyReportRollup(data);
  const rows=data.assignmentRows.map(x=>[assignmentSubjectName(x.t.ders),x.q??'—',x.actual??'—',x.q===null||x.actual===null?'—':(x.actual-x.q>0?'+':'')+(x.actual-x.q),x.q&&x.actual!==null?format(100*x.actual/x.q)+'%':'—',assignmentStatus(x.t)]);
- return reportTable(['Ders','Atanan','Çözülen','Fark','Gerçekleşme','Durum'],rows.concat(rows.length?[['TOPLAM',data.assignedQs,data.taskSolved,'—',data.assignedQs?format(100*data.taskSolved/data.assignedQs)+'%':'—',data.completed+'/'+data.assignmentRows.length+' tamamlandı']]:[]));
+ for(const x of roll.examRows)rows.push(['DENEME · '+x.label,x.assigned,x.actual,x.actual-x.assigned, x.assigned?format(100*x.actual/x.assigned)+'%':'—',x.status]);
+ if(rows.length)rows.push(['TOPLAM',roll.assignedQs,roll.solvedAgainstAssigned,'—',roll.assignedQs?format(100*roll.solvedAgainstAssigned/roll.assignedQs)+'%':'—',roll.completedCount+'/'+roll.assignedCount+' tamamlandı']);
+ return reportTable(['Ders / Çalışma','Atanan','Çözülen','Fark','Gerçekleşme','Durum'],rows);
 }
 function weeklySubjectTable(data){
  const rows=data.subjectRows.map(r=>[r.subject,[...r.sources].join(' + '),r.q,r.dyQ===r.q?r.d:(r.dyQ?r.d+'*':'—'),r.dyQ===r.q?r.w:(r.dyQ?r.w+'*':'—'),r.dyQ===r.q?r.b:(r.dyQ?r.b+'*':'—'),format(r.net),r.dyQ?format(100*r.d/r.dyQ)+'%':'—']);
@@ -384,6 +425,7 @@ function weeklySubjectTable(data){
 }
 function weeklyReportHtml(anchor,includeExams=false){
  const d=weeklyStudyData(anchor,includeExams);if(!d)return '<p class="error">Geçersiz hafta.</p>';
+ const roll=weeklyReportRollup(d);
  const source=(name)=>d.sourceTotals[name]||{q:0,d:0,w:0,b:0,net:0,dyQ:0};
  const exam=source('Deneme'),daily=source('Günlük çalışma'),task=source('Ödev');
  const waiting=d.assignmentRows.filter(x=>x.actual===null);
@@ -392,18 +434,19 @@ function weeklyReportHtml(anchor,includeExams=false){
  const overUnder=[...d.over,...d.under];
  const overHtml=overUnder.length?reportTable(['Ders','Atanan','Çözülen','Fark','Durum'],overUnder.map(x=>[assignmentSubjectName(x.t.ders),x.q,x.actual,(x.actual-x.q>0?'+':'')+(x.actual-x.q),assignmentStatus(x.t)])):'<p class="muted">Sonucu girilmiş ödevlerde fazla/eksik çözüm yok.</p>';
  const dyWarn=d.examItems.some(x=>!x.dyKnown)?'<p class="muted">* Bazı deneme derslerinde yalnız net girilmiş. Bu kayıtların neti ve soru kapsamı toplama dahildir; doğru/yanlış/boş uydurulmaz. Yıldızlı D/Y/B değerleri yalnız D/Y/B bilgisi bulunan kayıtların toplamıdır.</p>':'';
- const waitingText=waiting.length?waiting.map(x=>assignmentSubjectName(x.t.ders)+' '+x.q+' soru').join(' · '):'Sonucu beklenen ödev yok.';
- const note=d.includeExams?'Denemeler bu görünüme dahil. Deneme soruları ödevde “atanan soru”, hedef veya fazla/eksik hesaplarını değiştirmez.':'Denemeler bu görünüme dahil değil.';
+ const waitingExam=roll.examRows.filter(x=>x.pending>0);
+ const waitingText=[...waiting.map(x=>assignmentSubjectName(x.t.ders)+' '+x.q+' soru'),...waitingExam.map(x=>x.label+' '+x.pending+' soru')].join(' · ')||'Sonucu beklenen çalışma yok.';
+ const note=d.includeExams?'Bu raporda denemeler sanal ödev/görev gibi toplam metriklere dahildir. Diğer ekranların ödev hesapları değişmez.':'Denemeler bu rapor toplamlarına dahil değil.';
  return `<p class="muted">${dateString(d.start)} – ${dateString(d.end)} · Pazartesi–Pazar. ${note}</p>
- <div class="stats">${detail('Atanan ödev',d.assignmentRows.length)}${detail('Tamamlanan ödev',d.completed+'/'+d.assignmentRows.length)}${detail('Atanan ödev sorusu',d.assignedQs)}${detail('Ödevde çözülen',task.q)}${detail('Sonucu beklenen soru yükü',d.pendingLoad)}${detail('Günlük çalışma',daily.q)}${detail('Deneme sorusu',d.includeExams?exam.q:'Hariç')}${detail('Toplam çözülen soru',d.total.q)}${detail('Toplam net',format(d.total.net))}</div>
- <p><strong>Ödev tamamlanma:</strong> ${d.assignmentRows.length?format(100*d.completed/d.assignmentRows.length):'0,00'}% · <strong>Soru gerçekleşme:</strong> ${d.assignedQs?format(100*d.taskSolved/d.assignedQs):'0,00'}%</p>
- <h2>Ödev gerçekleşme durumu</h2>${weeklyAssignmentTable(d)}
+ <div class="stats">${detail('Atanan ödev / çalışma',roll.assignedCount)}${detail('Tamamlanan',roll.completedCount+'/'+roll.assignedCount)}${detail('Atanan soru',roll.assignedQs)}${detail('Ödev / deneme sonucu girilen',roll.solvedAgainstAssigned)}${detail('Sonucu beklenen soru yükü',roll.pendingLoad)}${detail('Günlük çalışma',daily.q)}${detail('Deneme sorusu',d.includeExams?roll.examAssigned:'Hariç')}${detail('Toplam çözülen soru',d.total.q)}${detail('Toplam net',format(d.total.net))}</div>
+ <p><strong>Tamamlanma:</strong> ${roll.assignedCount?format(100*roll.completedCount/roll.assignedCount):'0,00'}% · <strong>Soru gerçekleşme:</strong> ${roll.assignedQs?format(100*roll.solvedAgainstAssigned/roll.assignedQs):'0,00'}%</p>
+ <h2>Ödev / Deneme Gerçekleşme Durumu</h2>${weeklyAssignmentTable(d)}
  <h2>Ders bazında performans</h2>${weeklySubjectTable(d)}${dyWarn}
- <h2>Çalışma Kaynak Dağılımı</h2>${reportTable(['Kaynak','Çözülen soru','Doğru','Yanlış','Boş','Net'],[['Ödev',task.q,task.d,task.w,task.b,format(task.net)],['Günlük çalışma',daily.q,daily.d,daily.w,daily.b,format(daily.net)],...(d.includeExams?[['Deneme',exam.q,exam.dyQ?exam.d:'—',exam.dyQ?exam.w:'—',exam.dyQ?exam.b:'—',format(exam.net)]]:[]),['TOPLAM',d.total.q,d.total.dyQ===d.total.q?d.total.d:(d.total.dyQ?d.total.d+'*':'—'),d.total.dyQ===d.total.q?d.total.w:(d.total.dyQ?d.total.w+'*':'—'),d.total.dyQ===d.total.q?d.total.b:(d.total.dyQ?d.total.b+'*':'—'),format(d.total.net)]])}
+ <h2>Çalışma Kaynak Dağılımı</h2>${reportTable(['Kaynak','Atanan / Yük','Çözülen soru','Doğru','Yanlış','Boş','Net'],[['Ödev',d.assignedQs,task.q,task.d,task.w,task.b,format(task.net)],['Günlük çalışma','—',daily.q,daily.d,daily.w,daily.b,format(daily.net)],...(d.includeExams?[['Deneme',roll.examAssigned,exam.q,exam.dyQ?exam.d:'—',exam.dyQ?exam.w:'—',exam.dyQ?exam.b:'—',format(exam.net)]]:[]),['GENEL TOPLAM',roll.assignedQs,d.total.q,d.total.dyQ===d.total.q?d.total.d:(d.total.dyQ?d.total.d+'*':'—'),d.total.dyQ===d.total.q?d.total.w:(d.total.dyQ?d.total.w+'*':'—'),d.total.dyQ===d.total.q?d.total.b:(d.total.dyQ?d.total.b+'*':'—'),format(d.total.net)]])}
  <h2>Fazla / eksik çözüm</h2>${overHtml}
  <h2>Doğru hedefleri</h2>${targetHtml}
- <h2>Sonucu beklenen ödevler</h2><p>${esc(waitingText)}</p>
- <h2>Haftalık değerlendirme</h2><p>Bu hafta ${d.assignmentRows.length} ödevde toplam <strong>${d.assignedQs}</strong> soru atanmış; <strong>${task.q}</strong> ödev sorusunun sonucu girilmiş. ${daily.q?'Günlük çalışmalarda '+daily.q+' soru kaydedilmiş. ':''}${d.includeExams&&exam.q?'Denemelerden '+exam.q+' soruluk kapsam rapora eklenmiş. ':''}Toplam çözülen soru göstergesi <strong>${d.total.q}</strong> ve toplam net <strong>${format(d.total.net)}</strong> olarak hesaplandı.</p>`;
+ <h2>Sonucu beklenen çalışmalar</h2><p>${esc(waitingText)}</p>
+ <h2>Haftalık değerlendirme</h2><p>Bu raporda toplam <strong>${roll.assignedCount}</strong> ödev/çalışma ve <strong>${roll.assignedQs}</strong> atanmış/yük soru bulunmaktadır. Bunların <strong>${roll.solvedAgainstAssigned}</strong> soruluk sonucu sisteme yansımıştır. ${daily.q?'Ek olarak '+daily.q+' günlük çalışma sorusu kaydedilmiştir. ':''}Toplam çözülen soru <strong>${d.total.q}</strong>, toplam net <strong>${format(d.total.net)}</strong> olarak hesaplandı.</p>`;
 }
 let weeklyReportAnchor=new Date().toLocaleDateString('sv-SE'),weeklyIncludeExams=false;
 function shiftWeeklyReport(days){const base=new Date(weeklyReportAnchor+'T12:00:00');base.setDate(base.getDate()+days);weeklyReportAnchor=base.toLocaleDateString('sv-SE');renderWeekly();}
