@@ -1,16 +1,12 @@
-# YKS Aile Koçluk Portalı v18
+# YKS Aile Koçluk Portalı v19
 
-## v18 bütünlük ve güvenlik düzeltmeleri
-- Geometri ve Paragraf ayrıntılı ödev modunda hem listelenir hem de yeni ödev kaydında kabul edilir.
-- Ödev tamamlanması artık D/Y/B aritmetiği bozuk eski kayıtlarda stale `completed` durumuna güvenmez; çözülen/adanan sayısı biliniyorsa tamamlanma yalnız bu sayılardan hesaplanır.
-- Admin Ders / Branş raporunda net-only denemelerin doğruluk oranı yalnız D/Y/B bilgisi bulunan soru sayısı üzerinden hesaplanır.
-- Sonucu olmayan deneme ana sayfada artık 0,00 net görünmez; “Sonuç bekleniyor” gösterilir. Kısmi denemeler “Kısmi” olarak işaretlenir.
-- Eski rol adları `Ogretmen`, `Koc`, `Ogrenci` normalize edilir.
-- Gerçek zamanlı Firestore güncellemeleri kullanıcı bir form alanında yazarken ekranı zorla yeniden çizmez.
-- Admin ayarlarına açık **Test modu** anahtarı eklendi. Toplu test verisi silme aracı yalnız Test modu açıkken görünür; varsayılan kapalıdır.
-- PDF çıktısında rapor filtre kontrolleri gizlenir.
-- Eski v12 tarayıcı başlık eki kaldırıldı; başlık tek v18 sürümü gösterir.
-- Repo'ya rol bazlı `firestore.rules` güvenlik temeli eklendi. **Canlı Firebase projesinde ayrıca yayınlanması gerekir.**
+## v19 toplam çözülen soru ve deneme dahil/hariç mantığı
+- Haftalık Çalışma, Raporlar ve Son 3 Hafta analizinde **Toplam çözülen soruya denemeler: Hariç / Dahil** seçimi vardır.
+- **Toplam çözülen soru = ödevde çözülen + günlük çalışma + (Dahil seçiliyse deneme soru kapsamı)**.
+- Deneme dahil edilse bile **atanan ödev sorusu, tamamlanan ödev, hedef doğru, fazla/eksik ödev ve ödev gerçekleşme oranı değişmez**.
+- Haftalık rapor ve Excel çıktısında **Çalışma Kaynak Dağılımı**; Ödev, Günlük çalışma, Deneme ve TOPLAM satırlarıyla gösterilir.
+- Admin Genel Durum ve Günlük/Ödev çalışma raporlarında da **Toplam çözülen soru** aynı mantıkla hesaplanır.
+- Net-only denemeler toplam çözülen soru ve toplam nete dahil edilir; D/Y/B bilinmediği için uydurulmaz ve kısmi D/Y/B toplamları yıldızla belirtilir.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
