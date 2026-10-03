@@ -51,3 +51,16 @@ button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-vis
 .task-week-filter{display:grid;gap:12px;margin:16px 0;padding:14px;border:1px solid var(--line,#d9dee7);border-radius:12px}
 .task-week-filter label{max-width:320px}
 @media (max-width:700px){.task-week-filter .buttons{display:grid;grid-template-columns:1fr 1fr}.task-week-filter .buttons button{width:100%}}
+
+
+.header-main{display:flex;align-items:center;gap:18px;min-width:0}
+.header-main>div:first-child{display:flex;flex-direction:column;gap:2px}
+.yks-countdown{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;padding:8px 12px;border:1px solid #d7e2ef;border-radius:12px;background:#f8fbff;line-height:1.2}
+.yks-countdown-label{font-weight:700}
+.yks-countdown strong{font-size:20px}
+.yks-countdown small{opacity:.72}
+@media(max-width:800px){
+  .header-main{align-items:flex-start;flex-direction:column;gap:8px}
+  .yks-countdown{width:100%;gap:6px 8px}
+  .yks-countdown strong{font-size:18px}
+}
