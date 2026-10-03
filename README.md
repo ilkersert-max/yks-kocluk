@@ -1,27 +1,13 @@
-# YKS Aile Koçluk Portalı v18.1
+# YKS Aile Koçluk Portalı v18.2
 
-## v18.1 — Birleşik Çalışma Analizi
-- Taban sürüm **v18**'dir.
-- Yeni **Birleşik Analiz** ekranı eklendi.
-- Bu ekran yalnız seçilen haftadaki **Ödev + Deneme** kayıtlarını birleştirir.
-- Denemeler yalnız bu ekranda sanal ödev/görev gibi değerlendirilir.
-- Toplam görev, tamamlanan, toplam soru yükü, çözülen, bekleyen, gerçekleşme ve toplam net hesaplanır.
-- Günlük çalışma bu özel birleşik hesaba dahil edilmez.
-- Normal Ödev, Deneme, Haftalık Çalışma, Detaylı Analiz ve Rapor hesapları v18 davranışında kalır.
-- Haftalar Pazartesi–Pazar; Önceki Hafta / Bu Hafta / Sonraki Hafta gezinmesi vardır.
-- Önceki v22 main dalı `backup-v22-before-v18-combined-analysis` dalında korunmuştur.
-
-## v18 bütünlük ve güvenlik düzeltmeleri
-- Geometri ve Paragraf ayrıntılı ödev modunda hem listelenir hem de yeni ödev kaydında kabul edilir.
-- Ödev tamamlanması artık D/Y/B aritmetiği bozuk eski kayıtlarda stale `completed` durumuna güvenmez; çözülen/adanan sayısı biliniyorsa tamamlanma yalnız bu sayılardan hesaplanır.
-- Admin Ders / Branş raporunda net-only denemelerin doğruluk oranı yalnız D/Y/B bilgisi bulunan soru sayısı üzerinden hesaplanır.
-- Sonucu olmayan deneme ana sayfada artık 0,00 net görünmez; “Sonuç bekleniyor” gösterilir. Kısmi denemeler “Kısmi” olarak işaretlenir.
-- Eski rol adları `Ogretmen`, `Koc`, `Ogrenci` normalize edilir.
-- Gerçek zamanlı Firestore güncellemeleri kullanıcı bir form alanında yazarken ekranı zorla yeniden çizmez.
-- Admin ayarlarına açık **Test modu** anahtarı eklendi. Toplu test verisi silme aracı yalnız Test modu açıkken görünür; varsayılan kapalıdır.
-- PDF çıktısında rapor filtre kontrolleri gizlenir.
-- Eski v12 tarayıcı başlık eki kaldırıldı; başlık tek v18 sürümü gösterir.
-- Repo'ya rol bazlı `firestore.rules` güvenlik temeli eklendi. **Canlı Firebase projesinde ayrıca yayınlanması gerekir.**
+## v18.2 — Tüm roller için YKS geri sayımı
+- Admin ekranına **YKS hedef tarihi (ilk sınav günü / TYT)** ayarı eklendi.
+- Tarih `Settings/SystemConfig.yksExamDate` alanında saklanır.
+- Tarih girildiğinde Öğrenci, Veli, Öğretmen, Koç ve Admin ortak üst başlıkta **YKS'ye X gün · Y hafta Z gün kaldı** bilgisini görür.
+- Tarih girilmemişse yalnız Admin'e **Tarih ayarlanmadı** uyarısı gösterilir.
+- Resmî 2027 YKS tarihi doğrulanmadan varsayılan/tahmini tarih gömülmez.
+- Birleşik Analiz ve v18 tabanındaki diğer hesaplar değiştirilmemiştir.
+- Geri dönüş noktası: `backup-v18-1-before-yks-countdown`.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
