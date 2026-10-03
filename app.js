@@ -5,13 +5,42 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v18.1';
+const BUILD_VERSION='v18.2';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:false,assignmentSubjectMode:'simple'};
+const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:false,assignmentSubjectMode:'simple',yksExamDate:''};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
 const staff=()=>['Admin','Öğretmen','Koç','Veli'].includes(role);
 const canAssign=()=>['Admin','Öğretmen','Koç','Veli'].includes(role);
 const canAdmin=()=>role==='Admin';
+
+function yksCountdownData(){
+ const raw=String(settings.yksExamDate||'').trim();
+ if(!/^\d{4}-\d{2}-\d{2}$/.test(raw))return null;
+ const target=new Date(raw+'T00:00:00');
+ if(Number.isNaN(target.getTime()))return null;
+ const now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate());
+ const days=Math.ceil((target-today)/86400000);
+ return {raw,target,days,weeks:days>0?Math.floor(days/7):0,remainingDays:days>0?days%7:0};
+}
+function renderYksCountdown(){
+ const el=$('yks-countdown');if(!el)return;
+ const d=yksCountdownData();
+ if(!d){
+  el.innerHTML=canAdmin()?'<span class="yks-countdown-label">🎯 YKS geri sayımı</span><strong>Tarih ayarlanmadı</strong><small>Admin → YKS hedef tarihi</small>':'';
+  el.hidden=!canAdmin();
+  return;
+ }
+ el.hidden=false;
+ const targetLabel=dateString(d.raw);
+ if(d.days>0){
+  el.innerHTML='<span class="yks-countdown-label">🎯 YKS’ye kalan</span><strong>'+d.days+' gün</strong><span>'+d.weeks+' hafta '+d.remainingDays+' gün</span><small>Hedef: '+targetLabel+'</small>';
+ }else if(d.days===0){
+  el.innerHTML='<span class="yks-countdown-label">🎯 YKS</span><strong>BUGÜN</strong><small>'+targetLabel+'</small>';
+ }else{
+  el.innerHTML='<span class="yks-countdown-label">🎯 YKS</span><strong>Sınav tarihi geçti</strong><small>'+targetLabel+'</small>';
+ }
+}
+
 // Motivasyon, her başarılı öğrenci oturumunda bir sonraki söze geçer.
 const MOTIVATION=[
   'Bugünkü küçük adımlar, yarının büyük ilerlemesi.',
@@ -141,6 +170,7 @@ $('login-form').addEventListener('submit',async e=>{e.preventDefault();$('login-
 $('logout').addEventListener('click',()=>signOut(auth));
 function render(){
  if(!user)return;
+ renderYksCountdown();
  const tabs=role==='Öğrenci'
    ? [['home','Ana sayfam'],['exam','Deneme gir'],['test','Soru çözdüm'],['tasks','Ödevlerim'],['history','Denemelerim'],['weekly','Haftalık Çalışma'],['combined','Birleşik Analiz']]
    : [['home','Genel durum'],['history','Denemeler'],['test','Günlük çalışmalar'],['tasks','Ödev yönetimi'],['weekly','Haftalık Çalışma'],['combined','Birleşik Analiz']];
@@ -610,7 +640,7 @@ function renderAnalysis(){
  const toggle=$('analysis-exams');if(toggle){toggle.value=analysisIncludeExams?'1':'0';toggle.onchange=()=>{analysisIncludeExams=toggle.value==='1';renderAnalysis();};}
 }
 function renderReports(){const op=obpFromProfile(profile);$('content').innerHTML=`<div class="card"><h1>Öğrenci durum raporu</h1><p class="muted">Tarayıcının Yazdır → PDF olarak kaydet seçeneğiyle bilgisayarda PDF oluşturulabilir.</p><div class="buttons noprint"><button id="print-report" class="primary">Yazdır / PDF</button><button id="export-json" class="secondary">JSON yedeği</button></div><hr><h2>Diploma / OBP</h2><p>${op?`Diploma notu: ${format(op.diploma)} · OBP: ${format(op.obp)} · Katkı: ${format(op.contribution)} ${op.isEstimate?'(tahmini)':''}`:'Diploma notu / OBP henüz bilinmiyor.'}</p><h2>Denemeler</h2><div class="tablewrap"><table><thead><tr><th>Deneme</th><th>Tür</th><th>Tarih</th><th>Net</th></tr></thead><tbody>${sortedExams().map(x=>`<tr><td>${esc(x.denemeAdi)}</td><td>${esc(x.denemeTuru)}</td><td>${dateString(x.examDate||x.tarih)}</td><td>${examNetText(x)}</td></tr>`).join('')||'<tr><td colspan="4">Veri yok</td></tr>'}</tbody></table></div><h2>Ödevler</h2>${tasks.map(t=>`<p>${esc(t.ders)} – ${esc(t.konu)} · ${esc(assignmentStatus(t))} ${t.result?'· '+format(t.result.net)+' net':''}</p>`).join('')||'<p>Henüz ödev yok.</p>'}</div>`;$('print-report').onclick=()=>window.print();$('export-json').onclick=()=>{const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),profile,exams,tasks,tests},null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='YKS-Ogrenci-Yedek-'+new Date().toISOString().slice(0,10)+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};}
-function renderAdmin(){$('content').innerHTML=`<div class="card"><h1>Admin · Giriş parametreleri</h1><p class="muted">Tek öğrencinin deneme giriş yöntemi tüm kullanıcılara uygulanır. Daha önce kaydedilmiş denemeler değişmez.</p><form id="admin-form"><label>Deneme sonuç giriş yöntemi<select id="setting-mode"><option value="BOTH">Her iki yöntem</option><option value="NET">Yalnızca net</option><option value="DY">Yalnızca doğru / yanlış</option></select></label><label>Her iki yöntem açıkken varsayılan<select id="setting-default"><option value="NET">Hızlı net</option><option value="DY">Doğru / yanlış</option></select></label><label><input type="checkbox" id="setting-details" style="width:auto"> Öğrencinin detaylı analiz sekmesini göster</label><label><input type="checkbox" id="setting-sound" style="width:auto"> Öğrencinin alkış/tezahürat ses düğmesini göster</label><label>Ödev ders görünümü<select id="setting-assignment-subjects"><option value="simple">Sade (12 ders; TYT/AYT ayrımı yok)</option><option value="detailed">Ayrıntılı (TYT/AYT + Geometri + Paragraf)</option></select></label><label class="checkline"><input type="checkbox" id="setting-test-mode"> Test modu — toplu test verisi temizleme aracını etkinleştir</label><p class="muted">Test modu kapalıyken toplu silme paneli Admin ekranında gösterilmez. Gerçek kullanımda kapalı tut.</p><button class="primary">Ayarları kaydet</button></form></div>`;$('setting-mode').value=settings.examEntryMode||'BOTH';$('setting-default').value=settings.defaultEntryMode||'NET';$('setting-details').checked=settings.studentDetailedMode===true;$('setting-sound').checked=settings.studentCelebrationSound!==false;$('setting-assignment-subjects').value=settings.assignmentSubjectMode==='detailed'?'detailed':'simple';$('setting-test-mode').checked=settings.testMode===true;$('admin-form').onsubmit=async e=>{e.preventDefault();const patch={examEntryMode:$('setting-mode').value,defaultEntryMode:$('setting-default').value,studentDetailedMode:$('setting-details').checked,studentCelebrationSound:$('setting-sound').checked,assignmentSubjectMode:$('setting-assignment-subjects').value,testMode:$('setting-test-mode').checked};try{await setDoc(doc(db,'Settings','SystemConfig'),patch,{merge:true});settings={...settings,...patch};draftMode=patch.examEntryMode==='BOTH'?patch.defaultEntryMode:patch.examEntryMode;draft={};notify('Admin parametreleri güncellendi.');render()}catch(err){notify(err.message,true)}};}
+function renderAdmin(){$('content').innerHTML=`<div class="card"><h1>Admin · Giriş parametreleri</h1><p class="muted">Tek öğrencinin deneme giriş yöntemi tüm kullanıcılara uygulanır. Daha önce kaydedilmiş denemeler değişmez.</p><form id="admin-form"><label>YKS hedef tarihi (ilk sınav günü / TYT)<input type="date" id="setting-yks-date"></label><p class="muted">ÖSYM resmî tarihi açıklandığında buradan güncelle. Bu tarih tüm rollerde YKS geri sayımında kullanılır.</p><label>Deneme sonuç giriş yöntemi<select id="setting-mode"><option value="BOTH">Her iki yöntem</option><option value="NET">Yalnızca net</option><option value="DY">Yalnızca doğru / yanlış</option></select></label><label>Her iki yöntem açıkken varsayılan<select id="setting-default"><option value="NET">Hızlı net</option><option value="DY">Doğru / yanlış</option></select></label><label><input type="checkbox" id="setting-details" style="width:auto"> Öğrencinin detaylı analiz sekmesini göster</label><label><input type="checkbox" id="setting-sound" style="width:auto"> Öğrencinin alkış/tezahürat ses düğmesini göster</label><label>Ödev ders görünümü<select id="setting-assignment-subjects"><option value="simple">Sade (12 ders; TYT/AYT ayrımı yok)</option><option value="detailed">Ayrıntılı (TYT/AYT + Geometri + Paragraf)</option></select></label><label class="checkline"><input type="checkbox" id="setting-test-mode"> Test modu — toplu test verisi temizleme aracını etkinleştir</label><p class="muted">Test modu kapalıyken toplu silme paneli Admin ekranında gösterilmez. Gerçek kullanımda kapalı tut.</p><button class="primary">Ayarları kaydet</button></form></div>`;$('setting-yks-date').value=settings.yksExamDate||'';$('setting-mode').value=settings.examEntryMode||'BOTH';$('setting-default').value=settings.defaultEntryMode||'NET';$('setting-details').checked=settings.studentDetailedMode===true;$('setting-sound').checked=settings.studentCelebrationSound!==false;$('setting-assignment-subjects').value=settings.assignmentSubjectMode==='detailed'?'detailed':'simple';$('setting-test-mode').checked=settings.testMode===true;$('admin-form').onsubmit=async e=>{e.preventDefault();const patch={yksExamDate:$('setting-yks-date').value,examEntryMode:$('setting-mode').value,defaultEntryMode:$('setting-default').value,studentDetailedMode:$('setting-details').checked,studentCelebrationSound:$('setting-sound').checked,assignmentSubjectMode:$('setting-assignment-subjects').value,testMode:$('setting-test-mode').checked};try{await setDoc(doc(db,'Settings','SystemConfig'),patch,{merge:true});settings={...settings,...patch};draftMode=patch.examEntryMode==='BOTH'?patch.defaultEntryMode:patch.examEntryMode;draft={};notify('Admin parametreleri güncellendi.');render()}catch(err){notify(err.message,true)}};}
 
 /* ================ TEKRARLANABİLİR TEST VERİSİ TEMİZLİĞİ ================
    Yalnızca çalışma koleksiyonları silinir. Kullanıcılar, öğrenci
