@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v18.5';
+const BUILD_VERSION='v18.6';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:false,assignmentSubjectMode:'simple',yksExamDate:''};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
@@ -445,8 +445,13 @@ function combinedExamRows(start,end){
  for(const e of exams){
   const date=weeklyDate(e.examDate||e.tarih);
   if(!date||date<start||date>end)continue;
-  const ids=idsFor(e.denemeTuru||'TYT').filter(id=>TESTS[id]);
-  const assigned=ids.reduce((s,id)=>s+Number(TESTS[id]?.q||0),0);
+  const examType=e.denemeTuru||'TYT';
+  const defaultIds=idsFor(examType).filter(id=>TESTS[id]);
+  const onlyYdtEntered=examType==='DIL' &&
+    Boolean(e.results?.['ydt-dil']?.entered) &&
+    !['tyt-turkce','tyt-sosyal','tyt-mat','tyt-fen'].some(id=>e.results?.[id]?.entered);
+  const ids=onlyYdtEntered?['ydt-dil']:defaultIds;
+  const assigned=ids.reduce((s,id)=>s+Number((e.results?.[id]?.questionCount??TESTS[id]?.q)||0),0);
   let solved=0,d=0,w=0,b=0,net=0,dyQ=0,any=false;
   for(const id of ids){
    const r=e.results?.[id];
