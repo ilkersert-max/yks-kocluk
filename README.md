@@ -1,13 +1,12 @@
-# YKS Aile Koçluk Portalı v18.2
+# YKS Aile Koçluk Portalı v18.3
 
-## v18.2 — Tüm roller için YKS geri sayımı
-- Admin ekranına **YKS hedef tarihi (ilk sınav günü / TYT)** ayarı eklendi.
-- Tarih `Settings/SystemConfig.yksExamDate` alanında saklanır.
-- Tarih girildiğinde Öğrenci, Veli, Öğretmen, Koç ve Admin ortak üst başlıkta **YKS'ye X gün · Y hafta Z gün kaldı** bilgisini görür.
-- Tarih girilmemişse yalnız Admin'e **Tarih ayarlanmadı** uyarısı gösterilir.
-- Resmî 2027 YKS tarihi doğrulanmadan varsayılan/tahmini tarih gömülmez.
-- Birleşik Analiz ve v18 tabanındaki diğer hesaplar değiştirilmemiştir.
-- Geri dönüş noktası: `backup-v18-1-before-yks-countdown`.
+## v18.3 — Son 5 Deneme görünümü düzeltmesi
+- Son 5 modülü artık ilk açılışta sabit DİL yerine **en son kaydedilmiş denemenin türünü** seçer.
+- Seçili tür için toplam kayıt, analize uygun tam kayıt ve dışlanan eksik/kısmi kayıt sayıları görünür.
+- Deneme tablosunda son beş kayıt zaten tek tek listelenir; branş tablosu da artık yalnız İlk/Son değil **1., 2., 3., 4., 5. denemelerin tüm branş netlerini** ayrı sütunlarda gösterir.
+- İlk–son farkı ayrıca korunur.
+- Son 5 hesabı hâlâ yalnız aynı puan türündeki tam kayıtları karşılaştırır; farklı türler tek seride karıştırılmaz.
+- Geri dönüş noktası: `backup-v18-2-before-last5-fix`.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
