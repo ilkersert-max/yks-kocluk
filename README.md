@@ -1,12 +1,11 @@
-# YKS Aile Koçluk Portalı v18.4
+# YKS Aile Koçluk Portalı v18.5
 
-## v18.4 — YDT/DİL Son 5 hesap düzeltmesi
-- Son 5 YDT analizinde yalnız **80 soruluk YDT Yabancı Dil neti** kullanılır.
-- YDT kaydının Son 5 analizine girmesi için TYT Türkçe/Sosyal/Matematik/Fen sonuçlarının dolu olması gerekmez.
-- TYT sonucu mevcutsa tabloda yardımcı bilgi olarak gösterilir; YDT netine eklenmez.
-- YDT Son 5 ortalaması, en yüksek net, son net, grafik ve ilk–son farkı yalnız YDT netlerinden hesaplanır.
-- Ana DİL/YKS puan türü hesap motoru değiştirilmemiştir; bu düzeltme yalnız Son 5 YDT analizine özeldir.
-- Geri dönüş noktası: `backup-v18-3-before-ydt-last5-fix`.
+## v18.5 — Son 5 YDT geriye dönük tür uyumluluğu
+- Son 5 analizinde eski deneme türü değerleri normalize edilir.
+- `DIL`, `DİL`, `YDT`, `YDT DİL` ve `Yabancı Dil` benzeri eski kayıtlar aynı **YDT Dil** türünde değerlendirilir.
+- SAY / EA / SÖZ için de yaygın eski etiket varyasyonları normalize edilir.
+- YDT Son 5 hesabı v18.4'teki gibi yalnız 80 soruluk YDT netini kullanmaya devam eder.
+- Bu değişiklik veri tabanındaki eski kayıtları değiştirmez; yalnız okuma/analiz katmanında uyumluluk sağlar.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
