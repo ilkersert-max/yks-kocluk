@@ -45,6 +45,13 @@ function netOf(exam,id) {
 }
 
 function reconciled(exam,type){
+ if(type==='DIL'){
+  const ydtNet=netOf(exam,'ydt-dil');
+  if(ydtNet===null)return null;
+  const tytValues=TYT.map(id=>netOf(exam,id));
+  const tytNet=tytValues.every(n=>n!==null)?tytValues.reduce((s,n)=>s+n,0):null;
+  return {tytNet,fieldNet:ydtNet,totalNet:ydtNet};
+ }
  const ids=[...TYT,...TYPES[type]];
  const all=ids.map(id=>[id,netOf(exam,id)]);
  if(all.some(([,n])=>n===null))return null;
@@ -54,11 +61,11 @@ function reconciled(exam,type){
 }
 /* Yalnızca tam kayıtlar, aynı puan türü ve azami son beş. */
 export function analyzeLastFive(exams,type) {
-  const ids = [...TYT,...TYPES[type]];
   if (!TYPES[type]) throw Error('Geçersiz sınav türü');
+  const ids = type==='DIL'?[...TYPES.DIL]:[...TYT,...TYPES[type]];
   const matching = exams.filter(e => e.denemeTuru === type);
   const eligible = matching.filter(e => {
-    if (e.complete === false) return false;
+    if (type!=='DIL' && e.complete === false) return false;
     return reconciled(e,type)!==null;
   });
   eligible.sort((a,b)=>dateKey(a).localeCompare(dateKey(b))||timeKey(a)-timeKey(b)||String(a.id||'').localeCompare(String(b.id||'')));
@@ -111,7 +118,7 @@ function mount() {
   if (home && !content.querySelector('#last5-home')) {
     const card=document.createElement('section');
     card.id='last5-home';card.className='card';
-    card.innerHTML=`<h2>📈 Son 5 Deneme · v5</h2><p>TYT, SAY, EA, SÖZ ve DİL ayrı ayrı izlenir.</p>
+    card.innerHTML=`<h2>📈 Son 5 Deneme · v7</h2><p>TYT, SAY, EA, SÖZ ve YDT ayrı ayrı izlenir. YDT analizi yalnız 80 soruluk YDT netini kullanır.</p>
       <button type="button" class="primary" id="l5-open">Son 5 Deneme Analizini Aç</button>`;
     content.append(card);
     card.querySelector('#l5-open').onclick=()=>{
@@ -131,7 +138,7 @@ function mount() {
     const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[e.denemeTuru]);
     selectedType=latest?.denemeTuru||'TYT';
   }
-  const signature='v6|'+selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
+  const signature='v7|'+selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
   if (section.dataset.signature===signature) return;
   section.dataset.signature=signature;
   const a=analyzeLastFive(records,selectedType);
@@ -143,15 +150,16 @@ function mount() {
       Math.abs(number(e.toplamNet)-2*x.totalNet)<1e-7&&Math.abs(x.totalNet)>1e-7;})
     :[];
   const examColumns=a.records.map((e,i)=>'<th>'+(i+1)+'. Deneme<br><small>'+esc(dateKey(e)||'—')+'</small></th>').join('');
-  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v6</h2><p>Aynı puan türündeki son ${a.records.length} tam deneme. Toplam kayıt: ${records.length} · ${esc(TYPE_LABELS[selectedType])}: ${a.matchingCount} · analize uygun: ${a.eligibleCount}.</p></div>
+  const scopeNote=selectedType==='DIL'?'YDT analizinde yalnız 80 soruluk YDT neti karşılaştırılır; TYT sonucu zorunlu değildir.':'Aynı puan türündeki tam denemeler karşılaştırılır.';
+  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v7</h2><p>Aynı türdeki son ${a.records.length} analiz kaydı. Toplam kayıt: ${records.length} · ${esc(TYPE_LABELS[selectedType])}: ${a.matchingCount} · analize uygun: ${a.eligibleCount}.</p><p class="l5-note">${esc(scopeNote)}</p></div>
     <label>Deneme türü<select id="l5-type">${Object.entries(TYPE_LABELS).map(([id,label])=>`<option value="${id}" ${id===selectedType?'selected':''}>${label}</option>`).join('')}</select></label></div>
     <div class="l5-stats">${[['Son net',a.latest],['Son 5 ortalaması',a.average],['En yüksek net',a.highest],['İlk–son farkı',a.change]].map(([k,v])=>`<div><small>${k}</small><strong>${k==='İlk–son farkı'?signed(v):fmt(v)}</strong></div>`).join('')}</div>
     ${fixable.length?`<div class="l5-note"><p>${fixable.length} eski TYT kaydında iki kat toplam tespit edildi. Grafik ve tablolar zaten ders netlerinden doğru hesaplanıyor.</p><button type="button" id="l5-repair" class="secondary">Eski TYT toplamını Firebase'de düzelt (Admin)</button></div>`:''}
     ${graph(a.values)}
     ${a.excluded?`<p class="l5-note">${a.excluded} eksik/kısmi kayıt karşılaştırmaya alınmadı.</p>`:''}
     <p class="l5-note">${esc(trend)} ${up?esc(up.name+': '+signed(up.change)+' net.'):''} ${down?esc(down.name+': '+signed(down.change)+' net.'):''}</p>
-    <h3>Denemeler</h3><div class="l5-table"><table><thead><tr><th>#</th><th>Deneme / Tarih</th><th>Kaynak</th><th>TYT</th><th>Alan</th><th>Toplam</th></tr></thead><tbody>
-    ${a.records.map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.denemeAdi||'Deneme')}<br><small>${esc(dateKey(e)||'—')}</small></td><td>${esc(e.examSource||'—')}</td><td>${fmt(reconciled(e,selectedType)?.tytNet??null)}</td><td>${selectedType==='TYT'?'—':fmt(number(e.fieldNet))}</td><td><strong>${fmt(reconciled(e,selectedType)?.totalNet??null)}</strong></td></tr>`).join('')||'<tr><td colspan="6">Kayıt yok.</td></tr>'}</tbody></table></div>
+    <h3>Denemeler</h3><div class="l5-table"><table><thead><tr><th>#</th><th>Deneme / Tarih</th><th>Kaynak</th><th>TYT</th><th>${selectedType==='DIL'?'YDT':'Alan'}</th><th>${selectedType==='DIL'?'YDT Net':'Toplam'}</th></tr></thead><tbody>
+    ${a.records.map((e,i)=>{const x=reconciled(e,selectedType);return `<tr><td>${i+1}</td><td>${esc(e.denemeAdi||'Deneme')}<br><small>${esc(dateKey(e)||'—')}</small></td><td>${esc(e.examSource||'—')}</td><td>${fmt(x?.tytNet??null)}</td><td>${selectedType==='TYT'?'—':fmt(x?.fieldNet??null)}</td><td><strong>${fmt(x?.totalNet??null)}</strong></td></tr>`;}).join('')||'<tr><td colspan="6">Kayıt yok.</td></tr>'}</tbody></table></div>
     <h3>Ders bazında son 5 deneme</h3><div class="l5-table"><table><thead><tr><th>Ders</th>${examColumns}<th>İlk–son farkı</th></tr></thead><tbody>
     ${a.subjects.map(s=>`<tr><td>${esc(s.name)}</td>${s.series.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${signed(s.change)}</td></tr>`).join('')}</tbody></table></div>
     <p class="l5-note">Net farkı tek başına sınavların eşdeğer olduğunu veya değişimin nedenini göstermez. Buradaki değerler ÖSYM puanı değildir.</p>`;
