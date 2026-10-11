@@ -1,11 +1,11 @@
-# YKS Aile Koçluk Portalı v18.5
+# YKS Aile Koçluk Portalı v18.6
 
-## v18.5 — Son 5 YDT geriye dönük tür uyumluluğu
-- Son 5 analizinde eski deneme türü değerleri normalize edilir.
-- `DIL`, `DİL`, `YDT`, `YDT DİL` ve `Yabancı Dil` benzeri eski kayıtlar aynı **YDT Dil** türünde değerlendirilir.
-- SAY / EA / SÖZ için de yaygın eski etiket varyasyonları normalize edilir.
-- YDT Son 5 hesabı v18.4'teki gibi yalnız 80 soruluk YDT netini kullanmaya devam eder.
-- Bu değişiklik veri tabanındaki eski kayıtları değiştirmez; yalnız okuma/analiz katmanında uyumluluk sağlar.
+## v18.6 — YDT-only denemelerde birleşik analiz kapsam düzeltmesi
+- DIL/YDT kaydında yalnız `ydt-dil` sonucu girilmişse Birleşik Analiz bu denemeyi **80 soruluk YDT görevi** olarak işler.
+- TYT bölümleri girilmemişse artık otomatik olarak 120 TYT sorusu eklenmez; toplam 200 soru varsayımı yapılmaz.
+- DIL kaydında TYT sonuçları gerçekten girilmişse mevcut TYT + YDT kapsamı korunur.
+- Diğer deneme türleri ve normal deneme/rapor hesapları değiştirilmemiştir.
+- Geri dönüş noktası: `backup-v18-5-before-ydt-combined-scope-fix`.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
