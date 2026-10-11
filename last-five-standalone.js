@@ -69,11 +69,12 @@ export function analyzeLastFive(exams,type) {
   const highest = values.length ? Math.max(...values) : null;
   const change = values.length >= 2 ? values.at(-1)-values[0] : null;
   const subjects = ids.map(id => {
-    const first = records.length ? netOf(records[0],id) : null;
-    const last = records.length ? netOf(records.at(-1),id) : null;
-    return {id,name:TESTS[id][0],first,last,change:first !== null && last !== null && records.length>1 ? last-first : null};
+    const series = records.map(e=>netOf(e,id));
+    const first = series.length ? series[0] : null;
+    const last = series.length ? series.at(-1) : null;
+    return {id,name:TESTS[id][0],series,first,last,change:first !== null && last !== null && records.length>1 ? last-first : null};
   });
-  return {records,values,latest,average,highest,change,subjects,excluded:matching.length-eligible.length};
+  return {records,values,latest,average,highest,change,subjects,matchingCount:matching.length,eligibleCount:eligible.length,excluded:matching.length-eligible.length};
 }
 
 function graph(values) {
@@ -91,7 +92,7 @@ function graph(values) {
   </svg></div>`;
 }
 
-let records=[], selectedType='DIL', currentRole='', stopListening=null, initialized=false, observer=null;
+let records=[], selectedType=null, currentRole='', stopListening=null, initialized=false, observer=null;
 let updateQueued=false;
 function scheduleMount() {
   if (updateQueued) return;
@@ -126,7 +127,11 @@ function mount() {
     content.prepend(section);
   }
   // Sadece veriler veya puan türü değiştiğinde render; MutationObserver döngüsünü önler.
-  const signature='v5|'+selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
+  if(!selectedType){
+    const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[e.denemeTuru]);
+    selectedType=latest?.denemeTuru||'TYT';
+  }
+  const signature='v6|'+selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
   if (section.dataset.signature===signature) return;
   section.dataset.signature=signature;
   const a=analyzeLastFive(records,selectedType);
@@ -137,7 +142,8 @@ function mount() {
     ?a.records.filter(e=>{const x=reconciled(e,'TYT');return x&&number(e.toplamNet)!==null&&
       Math.abs(number(e.toplamNet)-2*x.totalNet)<1e-7&&Math.abs(x.totalNet)>1e-7;})
     :[];
-  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v5</h2><p>Aynı puan türündeki son ${a.records.length} tam deneme.</p></div>
+  const examColumns=a.records.map((e,i)=>'<th>'+(i+1)+'. Deneme<br><small>'+esc(dateKey(e)||'—')+'</small></th>').join('');
+  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v6</h2><p>Aynı puan türündeki son ${a.records.length} tam deneme. Toplam kayıt: ${records.length} · ${esc(TYPE_LABELS[selectedType])}: ${a.matchingCount} · analize uygun: ${a.eligibleCount}.</p></div>
     <label>Deneme türü<select id="l5-type">${Object.entries(TYPE_LABELS).map(([id,label])=>`<option value="${id}" ${id===selectedType?'selected':''}>${label}</option>`).join('')}</select></label></div>
     <div class="l5-stats">${[['Son net',a.latest],['Son 5 ortalaması',a.average],['En yüksek net',a.highest],['İlk–son farkı',a.change]].map(([k,v])=>`<div><small>${k}</small><strong>${k==='İlk–son farkı'?signed(v):fmt(v)}</strong></div>`).join('')}</div>
     ${fixable.length?`<div class="l5-note"><p>${fixable.length} eski TYT kaydında iki kat toplam tespit edildi. Grafik ve tablolar zaten ders netlerinden doğru hesaplanıyor.</p><button type="button" id="l5-repair" class="secondary">Eski TYT toplamını Firebase'de düzelt (Admin)</button></div>`:''}
@@ -146,8 +152,8 @@ function mount() {
     <p class="l5-note">${esc(trend)} ${up?esc(up.name+': '+signed(up.change)+' net.'):''} ${down?esc(down.name+': '+signed(down.change)+' net.'):''}</p>
     <h3>Denemeler</h3><div class="l5-table"><table><thead><tr><th>#</th><th>Deneme / Tarih</th><th>Kaynak</th><th>TYT</th><th>Alan</th><th>Toplam</th></tr></thead><tbody>
     ${a.records.map((e,i)=>`<tr><td>${i+1}</td><td>${esc(e.denemeAdi||'Deneme')}<br><small>${esc(dateKey(e)||'—')}</small></td><td>${esc(e.examSource||'—')}</td><td>${fmt(reconciled(e,selectedType)?.tytNet??null)}</td><td>${selectedType==='TYT'?'—':fmt(number(e.fieldNet))}</td><td><strong>${fmt(reconciled(e,selectedType)?.totalNet??null)}</strong></td></tr>`).join('')||'<tr><td colspan="6">Kayıt yok.</td></tr>'}</tbody></table></div>
-    <h3>Ders bazında ilk–son değişim</h3><div class="l5-table"><table><thead><tr><th>Ders</th><th>İlk</th><th>Son</th><th>Fark</th></tr></thead><tbody>
-    ${a.subjects.map(s=>`<tr><td>${esc(s.name)}</td><td>${fmt(s.first)}</td><td>${fmt(s.last)}</td><td>${signed(s.change)}</td></tr>`).join('')}</tbody></table></div>
+    <h3>Ders bazında son 5 deneme</h3><div class="l5-table"><table><thead><tr><th>Ders</th>${examColumns}<th>İlk–son farkı</th></tr></thead><tbody>
+    ${a.subjects.map(s=>`<tr><td>${esc(s.name)}</td>${s.series.map(v=>`<td>${fmt(v)}</td>`).join('')}<td>${signed(s.change)}</td></tr>`).join('')}</tbody></table></div>
     <p class="l5-note">Net farkı tek başına sınavların eşdeğer olduğunu veya değişimin nedenini göstermez. Buradaki değerler ÖSYM puanı değildir.</p>`;
   const repairButton=section.querySelector('#l5-repair');
   if(repairButton)repairButton.onclick=async()=>{
@@ -199,6 +205,10 @@ onAuthStateChanged(auth,async user=>{
     if(!['Admin','Öğretmen','Ogretmen','Veli','Koç','Koc'].includes(currentRole))return;
     stopListening=onSnapshot(collection(db,'Denemeler'),snapshot=>{
       records=snapshot.docs.map(d=>({id:d.id,...d.data()}));
+      if(!selectedType){
+        const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[e.denemeTuru]);
+        selectedType=latest?.denemeTuru||'TYT';
+      }
       const sec=document.getElementById('last5-analysis');if(sec)sec.dataset.signature='';
       scheduleMount();
     },error=>console.error('Son 5 deneme Firestore okuma hatası:',error));
