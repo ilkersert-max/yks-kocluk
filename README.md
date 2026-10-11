@@ -1,12 +1,12 @@
-# YKS Aile Koçluk Portalı v18.3
+# YKS Aile Koçluk Portalı v18.4
 
-## v18.3 — Son 5 Deneme görünümü düzeltmesi
-- Son 5 modülü artık ilk açılışta sabit DİL yerine **en son kaydedilmiş denemenin türünü** seçer.
-- Seçili tür için toplam kayıt, analize uygun tam kayıt ve dışlanan eksik/kısmi kayıt sayıları görünür.
-- Deneme tablosunda son beş kayıt zaten tek tek listelenir; branş tablosu da artık yalnız İlk/Son değil **1., 2., 3., 4., 5. denemelerin tüm branş netlerini** ayrı sütunlarda gösterir.
-- İlk–son farkı ayrıca korunur.
-- Son 5 hesabı hâlâ yalnız aynı puan türündeki tam kayıtları karşılaştırır; farklı türler tek seride karıştırılmaz.
-- Geri dönüş noktası: `backup-v18-2-before-last5-fix`.
+## v18.4 — YDT/DİL Son 5 hesap düzeltmesi
+- Son 5 YDT analizinde yalnız **80 soruluk YDT Yabancı Dil neti** kullanılır.
+- YDT kaydının Son 5 analizine girmesi için TYT Türkçe/Sosyal/Matematik/Fen sonuçlarının dolu olması gerekmez.
+- TYT sonucu mevcutsa tabloda yardımcı bilgi olarak gösterilir; YDT netine eklenmez.
+- YDT Son 5 ortalaması, en yüksek net, son net, grafik ve ilk–son farkı yalnız YDT netlerinden hesaplanır.
+- Ana DİL/YKS puan türü hesap motoru değiştirilmemiştir; bu düzeltme yalnız Son 5 YDT analizine özeldir.
+- Geri dönüş noktası: `backup-v18-3-before-ydt-last5-fix`.
 
 # YKS Koçluk Portalı v8 — ödev gerçekleşmesi ve haftalık dip toplamlar
 
