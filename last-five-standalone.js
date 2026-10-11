@@ -21,6 +21,16 @@ const TYPES = {
   DIL:['ydt-dil']
 };
 const TYPE_LABELS = {TYT:'TYT',SAY:'AYT Sayısal',EA:'AYT Eşit Ağırlık',SOZ:'AYT Sözel',DIL:'YDT Dil'};
+function normalizeExamType(value){
+  const s=String(value??'').trim().toLocaleUpperCase('tr-TR')
+    .replaceAll('İ','I').replace(/[^A-Z0-9]+/g,' ');
+  if(s==='DIL'||s==='YDT'||s==='YDT DIL'||s.includes('YABANCI DIL'))return 'DIL';
+  if(s==='SOZ'||s==='SOZEL'||s==='AYT SOZ'||s==='AYT SOZEL')return 'SOZ';
+  if(s==='EA'||s==='AYT EA'||s.includes('ESIT AGIRLIK'))return 'EA';
+  if(s==='SAY'||s==='SAYISAL'||s==='AYT SAY'||s==='AYT SAYISAL')return 'SAY';
+  if(s==='TYT')return 'TYT';
+  return String(value??'').trim();
+}
 const esc = v => String(v ?? '').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const number = v => {
   if (v === null || v === undefined || v === '') return null;
@@ -63,7 +73,7 @@ function reconciled(exam,type){
 export function analyzeLastFive(exams,type) {
   if (!TYPES[type]) throw Error('Geçersiz sınav türü');
   const ids = type==='DIL'?[...TYPES.DIL]:[...TYT,...TYPES[type]];
-  const matching = exams.filter(e => e.denemeTuru === type);
+  const matching = exams.filter(e => normalizeExamType(e.denemeTuru) === type);
   const eligible = matching.filter(e => {
     if (type!=='DIL' && e.complete === false) return false;
     return reconciled(e,type)!==null;
@@ -118,7 +128,7 @@ function mount() {
   if (home && !content.querySelector('#last5-home')) {
     const card=document.createElement('section');
     card.id='last5-home';card.className='card';
-    card.innerHTML=`<h2>📈 Son 5 Deneme · v7</h2><p>TYT, SAY, EA, SÖZ ve YDT ayrı ayrı izlenir. YDT analizi yalnız 80 soruluk YDT netini kullanır.</p>
+    card.innerHTML=`<h2>📈 Son 5 Deneme · v8</h2><p>TYT, SAY, EA, SÖZ ve YDT ayrı ayrı izlenir. YDT analizi yalnız 80 soruluk YDT netini kullanır.</p>
       <button type="button" class="primary" id="l5-open">Son 5 Deneme Analizini Aç</button>`;
     content.append(card);
     card.querySelector('#l5-open').onclick=()=>{
@@ -135,10 +145,10 @@ function mount() {
   }
   // Sadece veriler veya puan türü değiştiğinde render; MutationObserver döngüsünü önler.
   if(!selectedType){
-    const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[e.denemeTuru]);
-    selectedType=latest?.denemeTuru||'TYT';
+    const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[normalizeExamType(e.denemeTuru)]);
+    selectedType=normalizeExamType(latest?.denemeTuru)||'TYT';
   }
-  const signature='v7|'+selectedType+'|'+records.map(e=>[e.id,e.denemeTuru,e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
+  const signature='v8|'+selectedType+'|'+records.map(e=>[e.id,normalizeExamType(e.denemeTuru),e.toplamNet,e.complete,e.examDate,timeKey(e)].join(':')).join('|');
   if (section.dataset.signature===signature) return;
   section.dataset.signature=signature;
   const a=analyzeLastFive(records,selectedType);
@@ -151,7 +161,7 @@ function mount() {
     :[];
   const examColumns=a.records.map((e,i)=>'<th>'+(i+1)+'. Deneme<br><small>'+esc(dateKey(e)||'—')+'</small></th>').join('');
   const scopeNote=selectedType==='DIL'?'YDT analizinde yalnız 80 soruluk YDT neti karşılaştırılır; TYT sonucu zorunlu değildir.':'Aynı puan türündeki tam denemeler karşılaştırılır.';
-  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v7</h2><p>Aynı türdeki son ${a.records.length} analiz kaydı. Toplam kayıt: ${records.length} · ${esc(TYPE_LABELS[selectedType])}: ${a.matchingCount} · analize uygun: ${a.eligibleCount}.</p><p class="l5-note">${esc(scopeNote)}</p></div>
+  section.innerHTML=`<div class="l5-head"><div><h2>📈 Son 5 Deneme Analizi · v8</h2><p>Aynı türdeki son ${a.records.length} analiz kaydı. Toplam kayıt: ${records.length} · ${esc(TYPE_LABELS[selectedType])}: ${a.matchingCount} · analize uygun: ${a.eligibleCount}.</p><p class="l5-note">${esc(scopeNote)}</p></div>
     <label>Deneme türü<select id="l5-type">${Object.entries(TYPE_LABELS).map(([id,label])=>`<option value="${id}" ${id===selectedType?'selected':''}>${label}</option>`).join('')}</select></label></div>
     <div class="l5-stats">${[['Son net',a.latest],['Son 5 ortalaması',a.average],['En yüksek net',a.highest],['İlk–son farkı',a.change]].map(([k,v])=>`<div><small>${k}</small><strong>${k==='İlk–son farkı'?signed(v):fmt(v)}</strong></div>`).join('')}</div>
     ${fixable.length?`<div class="l5-note"><p>${fixable.length} eski TYT kaydında iki kat toplam tespit edildi. Grafik ve tablolar zaten ders netlerinden doğru hesaplanıyor.</p><button type="button" id="l5-repair" class="secondary">Eski TYT toplamını Firebase'de düzelt (Admin)</button></div>`:''}
@@ -214,8 +224,8 @@ onAuthStateChanged(auth,async user=>{
     stopListening=onSnapshot(collection(db,'Denemeler'),snapshot=>{
       records=snapshot.docs.map(d=>({id:d.id,...d.data()}));
       if(!selectedType){
-        const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[e.denemeTuru]);
-        selectedType=latest?.denemeTuru||'TYT';
+        const latest=[...records].sort((a,b)=>dateKey(b).localeCompare(dateKey(a))||timeKey(b)-timeKey(a)).find(e=>TYPE_LABELS[normalizeExamType(e.denemeTuru)]);
+        selectedType=normalizeExamType(latest?.denemeTuru)||'TYT';
       }
       const sec=document.getElementById('last5-analysis');if(sec)sec.dataset.signature='';
       scheduleMount();
