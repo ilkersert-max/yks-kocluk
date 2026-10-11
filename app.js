@@ -5,7 +5,7 @@ import {TESTS,TYPES,idsFor,parseNumber,format,computeExam,obpFromProfile,success
 // Existing project's Firebase app: host this folder as static files (GitHub Pages / simple HTTP server).
 const cfg={apiKey:'AIzaSyBZCXNLoPoNcr7sgY46uzL1e-h1rkfSx8M',authDomain:'tayt-bbbbe.firebaseapp.com',projectId:'tayt-bbbbe',storageBucket:'tayt-bbbbe.firebasestorage.app',messagingSenderId:'367442443596',appId:'1:367442443596:web:be954f464173e2abe5e3e9'};
 const firebase=initializeApp(cfg),auth=getAuth(firebase),db=getFirestore(firebase);
-const BUILD_VERSION='v18.4';
+const BUILD_VERSION='v18.5';
 const $=id=>document.getElementById(id),esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const defaultSettings={examEntryMode:'BOTH',defaultEntryMode:'NET',studentDetailedMode:false,studentCelebrationSound:true,testMode:false,assignmentSubjectMode:'simple',yksExamDate:''};
 let user=null,role='Öğrenci',settings={...defaultSettings},profile={diplomaStatus:'unknown',diplomaNote:null,brokenObp:false},exams=[],tasks=[],tests=[],unsubs=[],view='home',draftMode='NET',draftType='TYT',draft={},draftMeta={},editingExamId=null,assignmentFilter='week',taskWeekAnchor=new Date().toLocaleDateString('sv-SE');
